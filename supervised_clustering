@@ -1,0 +1,89 @@
+#!/usr/bin/env python2
+
+import json
+import numpy as np
+import argparse
+import os
+
+from md_toolkit import generateTempFilename
+
+def runHisto2D(data_file, cols, filter_file=None):
+  tmp_name = generateTempFilename(ext=".hist2d")
+  if filter_file:
+    cmd = "frame_filter -p %s %s | histo2d -c %d,%d -b200 -o %s" % (data_file, filter_file, cols[0], cols[1], tmp_name)
+    pass
+  else:
+    cmd = "cat %s | histo2d -c %d,%d -b200 -o %s" % (data_file, cols[0], cols[1], tmp_name)
+  os.popen(cmd)
+  return tmp_name
+
+p = argparse.ArgumentParser()
+p.add_argument("-p", "--proj", dest="projections",
+               help="ASCII file with projected dimensions")
+p.add_argument("-c", "--config", dest="config", default="manual_clustering.conf",
+               help="config file (default: manual_clustering.conf)")
+
+p.add_argument("--clear-filter", dest="clear_filter", action="store_true",
+               help="clear current filter.")
+p.add_argument("--save-filter", dest="save_filter", action="store_true",
+               help="save current filter, i.e. assign filtered frames to new cluster")
+
+p.add_argument("--filter", dest="filter_frames", default=None,
+               help="apply new filter, define columns as comma-separated pair (e.g. '--filter 1,2')")
+
+args = p.parse_args()
+
+# load config
+if os.path.isfile(args.config):
+  config = json.load(open(args.config, 'r'))
+else:
+  config = {}
+
+if args.projections:
+  config['projections'] = args.projections
+
+
+if args.filter_frames:
+  data_cols = map(int, args.filter_frames.split(','))
+  if not len(data_cols) == 2:
+    print "error: frame filter must be defined on exactly two comma-separated columns: e.g. --filter 1,2"
+    sys.exit()
+
+  # histogram from currently filtered data along given data columns
+  if 'cur_filter' in config and not config['cur_filter'] == None:
+    filter_filename = generateTempFilename(ext=".filter")
+    np.savetext(filter_filename, np.array(config['cur_filter']), dtype=int)
+    hist_file = runHisto2D(config['projections'], filter_filename, cols=(data_cols[0], data_cols[1]))
+    os.remove(filter_filename)
+  else:
+    # there is no active filter: use full data set
+    hist_file = runHisto2D(config['projections'], cols=(data_cols[0], data_cols[1]))
+
+  new_filter = generateTempFilename(ext=".filter")
+
+  # call heatmap with histo and frame-filter
+  cmd = ("heatmap --xy-ref %s  --on-select "
+         "'frame_identifier --x1 #x1 --y1 #y1 "
+         "--x2 #x2 --y2 #y2  -c %d,%d -o %s %s' %s") % (
+         config['projections'],
+         data_cols[0],
+         data_cols[1],
+         new_filter,
+         config['projections'],
+         hist_file)
+  os.popen(cmd)
+
+  if os.path.isfile(new_filter):
+    # TODO match filter-ids to full data set  -> store in config['cur_filter']
+    new_filter_data = np.loadtxt(new_filter, dtype=int, usecols=(0,)).tolist()
+
+  #TODO finish
+
+
+# needed:
+#  config['cluster_traj']
+
+
+# save config
+json.dump(config, open(args.config, 'w'), indent=2)
+

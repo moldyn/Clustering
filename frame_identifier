@@ -1,0 +1,41 @@
+#!/usr/bin/env python2
+
+import json
+import numpy as np
+import argparse
+import os
+import sys
+
+p = argparse.ArgumentParser(description="print list of frame ids with frames lying in specified xy-range.")
+p.add_argument(metavar="PROJ_FILE", dest="projections", help="ASCII file with projected dimensions")
+p.add_argument("-o", dest="filename_out", default=None, help="output file. if not set, write to STDOUT.")
+p.add_argument("--x1", dest="x1", type=float, help="first x")
+p.add_argument("--x2", dest="x2", type=float, help="second x")
+p.add_argument("--y1", dest="y1", type=float, help="first y")
+p.add_argument("--y2", dest="y2", type=float, help="second y")
+p.add_argument("-c", "--columns", dest="proj_columns", help="comma-separated pair of x- and y-data")
+
+args = p.parse_args()
+
+if args.filename_out:
+  fh_out = open(args.filename_out, 'w')
+else:
+  fh_out = sys.stdout
+
+cols = [int(c)-1 for c in args.proj_columns.split(",")]
+if len(cols) != 2:
+  print "error: please define two data-columns as comma-separated pair. e.g. '-c 1,2' for first and second columns"
+  sys.exit()
+
+data = np.loadtxt(args.projections, usecols=(cols[0], cols[1]))
+
+x_min, x_max = min(args.x1, args.x2), max(args.x1, args.x2)
+y_min, y_max = min(args.y1, args.y2), max(args.y1, args.y2)
+
+in_x_range = lambda i: (x_min <= data[i][0] and data[i][0] <= x_max)
+in_y_range = lambda i: (y_min <= data[i][1] and data[i][1] <= y_max)
+
+for i in xrange(data.shape[0]):
+  if in_x_range(i) and in_y_range(i):
+    fh_out.write("%d\n" % i)
+
