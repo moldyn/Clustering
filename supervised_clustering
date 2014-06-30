@@ -20,7 +20,7 @@ def runHisto2D(data_file, cols, filter_file=None):
 p = argparse.ArgumentParser()
 p.add_argument("-p", "--proj", dest="projections",
                help="ASCII file with projected dimensions")
-p.add_argument("-c", "--config", dest="config", default="manual_clustering.conf",
+p.add_argument("-c", "--config", dest="config", default="supervised_clustering.conf",
                help="config file (default: manual_clustering.conf)")
 
 p.add_argument("--clear-filter", dest="clear_filter", action="store_true",
@@ -33,14 +33,20 @@ p.add_argument("--filter", dest="filter_frames", default=None,
 
 args = p.parse_args()
 
+
 # load config
 if os.path.isfile(args.config):
   config = json.load(open(args.config, 'r'))
 else:
   config = {}
 
+
 if args.projections:
   config['projections'] = args.projections
+
+
+if args.clear_filter:
+  del config['cur_filter']
 
 
 if args.filter_frames:
@@ -52,8 +58,8 @@ if args.filter_frames:
   # histogram from currently filtered data along given data columns
   if 'cur_filter' in config and not config['cur_filter'] == None:
     filter_filename = generateTempFilename(ext=".filter")
-    np.savetext(filter_filename, np.array(config['cur_filter']), dtype=int)
-    hist_file = runHisto2D(config['projections'], filter_filename, cols=(data_cols[0], data_cols[1]))
+    np.savetxt(filter_filename, np.array(config['cur_filter']), fmt="%d")
+    hist_file = runHisto2D(config['projections'], cols=(data_cols[0], data_cols[1]), filter_file=filter_filename)
     os.remove(filter_filename)
   else:
     # there is no active filter: use full data set
@@ -62,7 +68,7 @@ if args.filter_frames:
   new_filter = generateTempFilename(ext=".filter")
 
   # call heatmap with histo and frame-filter
-  cmd = ("heatmap --xy-ref %s  --on-select "
+  cmd = ("heatmap --xy-ref %s --close-on-select  --on-select "
          "'frame_identifier --x1 #x1 --y1 #y1 "
          "--x2 #x2 --y2 #y2  -c %d,%d -o %s %s' %s") % (
          config['projections'],
@@ -74,14 +80,22 @@ if args.filter_frames:
   os.popen(cmd)
 
   if os.path.isfile(new_filter):
-    # TODO match filter-ids to full data set  -> store in config['cur_filter']
+    # match filter-ids to full data set -> config['cur_filter']
     new_filter_data = np.loadtxt(new_filter, dtype=int, usecols=(0,)).tolist()
+    if 'cur_filter' in config and not config['cur_filter'] == None:
+      config['cur_filter'] = list(set(new_filter_data).intersection(config['cur_filter']))
+    else:
+      config['cur_filter'] = new_filter_data
 
-  #TODO finish
+  os.remove(new_filter)
+  os.remove(hist_file)
 
 
-# needed:
-#  config['cluster_traj']
+if args.save_filter:
+  if not 'cluster_traj' in config:
+    config['cluster_traj'] = range(np.loadtxt(config['projections']).shape[0])
+  #TODO
+
 
 
 # save config
