@@ -31,6 +31,9 @@ p.add_argument("--save-filter", dest="save_filter", action="store_true",
 p.add_argument("--filter", dest="filter_frames", default=None,
                help="apply new filter, define columns as comma-separated pair (e.g. '--filter 1,2')")
 
+p.add_argument("--print-clusters", dest="print_clusters", action="store_true",
+               help="print list with assigned clusters. first assigned cluster starts with id=1. all frames with id=0 are unassigned.")
+
 args = p.parse_args()
 
 
@@ -43,10 +46,6 @@ else:
 
 if args.projections:
   config['projections'] = args.projections
-
-
-if args.clear_filter:
-  del config['cur_filter']
 
 
 if args.filter_frames:
@@ -91,11 +90,27 @@ if args.filter_frames:
   os.remove(hist_file)
 
 
+def clear_filter():
+  del config['cur_filter']
+
+
+if args.clear_filter:
+  clear_filter()
+
+
 if args.save_filter:
   if not 'cluster_traj' in config:
-    config['cluster_traj'] = range(np.loadtxt(config['projections']).shape[0])
-  #TODO
+    config['cluster_traj'] = np.zeros(np.loadtxt(config['projections']).shape[0], dtype=int).tolist()
+  cluster_id = max(set(config['cluster_traj'])) + 1
+  for i in config['cur_filter']:
+    config['cluster_traj'][i] = cluster_id
+  clear_filter()
 
+
+if args.print_clusters:
+  if 'cluster_traj' in config:
+    for i in config['cluster_traj']:
+      print i
 
 
 # save config
