@@ -1,11 +1,57 @@
 #!/usr/bin/env python2
 
-import json
+import json, pickle
 import numpy as np
 import argparse
 import os
+from multiprocessing import Pool
+from functools import partial
 
-from md_toolkit import generateTempFilename
+from md_toolkit import generateTempFilename, parmap
+import matplotlib.pyplot as plt
+
+#import supervised_clustering_tools
+
+#frameNeighborhood = supervised_clustering_tools.frameNeighborhood
+#load = supervised_clustering_tools.load
+
+def clusterCenters(data_file, clusters):
+  data = np.loadtxt(data_file)
+  clusters = np.array(clusters, dtype=int)
+  centers = {}
+  for i in set(clusters).difference(set([0])):
+    centers[i] = np.sum(data[clusters == i], axis=0) / np.sum(clusters == i)
+  return centers
+
+
+
+def density(i, data, rad2, n_rows):
+  neighbors = {}
+  for j in xrange(i+1, n_rows):
+    dist = np.dot(data[i], data[j])
+    if dist < rad2:
+      neighbors[j] = dist
+  return (i, neighbors)
+
+
+
+def frameNeighborhood(data_file, density_radius):
+  data = np.loadtxt(data_file, dtype=float)
+  n_rows, n_cols = data.shape
+
+  rad2 = density_radius**2
+
+  f = partial(density, data=data, rad2=rad2, n_rows=n_rows)
+  p = Pool()
+  nh = p.map(f, xrange(n_rows))
+  return nh
+
+
+
+def frameDensity(data_file, clusters, density_radius):
+  data, cluster_traj = load(data_file, clusters)
+  pass
+
 
 def runHisto2D(data_file, cols, filter_file=None):
   tmp_name = generateTempFilename(ext=".hist2d")
@@ -33,6 +79,16 @@ p.add_argument("--filter", dest="filter_frames", default=None,
 
 p.add_argument("--print-clusters", dest="print_clusters", action="store_true",
                help="print list with assigned clusters. first assigned cluster starts with id=1. all frames with id=0 are unassigned.")
+
+p.add_argument("--print-centers", dest="print_centers", action="store_true",
+               help="print coordinates of cluster centers.")
+
+p.add_argument("--print-cluster-interpolation", dest="print_cluster_interpolation", action="store_true",
+               help="print list with assigned clusters after interpolating all unassigned frames and thus assigning them to selected clusters.")
+p.add_argument("--density-radius", dest="density_radius", default=0.5, type=float,
+               help="density radius for cluster interpolation. (default: 0.5)")
+
+
 
 args = p.parse_args()
 
@@ -86,7 +142,10 @@ if args.filter_frames:
     else:
       config['cur_filter'] = new_filter_data
 
-  os.remove(new_filter)
+  try:
+    os.remove(new_filter)
+  except: pass
+
   os.remove(hist_file)
 
 
@@ -111,6 +170,19 @@ if args.print_clusters:
   if 'cluster_traj' in config:
     for i in config['cluster_traj']:
       print i
+
+
+if args.print_centers:
+  centers = clusterCenters(config['projections'], config['cluster_traj'])
+  for i in centers:
+    print str(i) + ": ", centers[i]
+
+
+if args.print_cluster_interpolation:
+  #TODO
+  if 'cluster_traj' in config:
+    nh = frameNeighborhood(config['projections'], density_radius=args.density_radius)
+    pickle.dump(nh, open("interpol_%0.1f.pickle" % args.density_radius, 'w'))
 
 
 # save config
