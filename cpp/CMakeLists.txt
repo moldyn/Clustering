@@ -17,3 +17,6 @@ include_directories (${Boost_INCLUDE_DIR})
 add_executable(neighborhood neighborhood.cpp)
 target_link_libraries(neighborhood ${Boost_LIBRARIES})
 
+add_executable(density density.cpp)
+target_link_libraries(density ${Boost_LIBRARIES})
+
