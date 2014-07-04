@@ -5,6 +5,7 @@
 #include <iterator>
 #include <vector>
 #include <map>
+#include <utility>
 #include <functional>
 
 #include <time.h>
@@ -18,12 +19,11 @@ namespace b_po = boost::program_options;
 typedef std::map<std::size_t, std::map<std::size_t, float>> Neighborhood;
 
 
-Neighborhood calculate_neighborhood(const std::vector<float>& coords,
-                                    const std::size_t n_rows,
-                                    const std::size_t n_cols,
-                                    const float radius,
-                                    const int n_threads) {
-  Neighborhood nh;
+void calculate_neighborhood(const std::vector<float>& coords,
+                            const std::size_t n_rows,
+                            const std::size_t n_cols,
+                            const float radius,
+                            const int n_threads) {
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
@@ -33,7 +33,7 @@ Neighborhood calculate_neighborhood(const std::vector<float>& coords,
   }
   #pragma omp parallel for default(shared) private(i,j,k,c,dist) schedule(dynamic)
   for (i=0; i < n_rows; ++i) {
-    std::map<std::size_t, float> dist_to;
+    std::vector<std::pair<std::size_t, float>> dist_to;
     for (j=i+1; j < n_rows; ++j) {
       dist = 0.0f;
       for (k=0; k < n_cols; ++k) {
@@ -41,15 +41,16 @@ Neighborhood calculate_neighborhood(const std::vector<float>& coords,
         dist += c*c;
       }
       if (dist < rad2) {
-        dist_to[j] = dist;
+        dist_to.push_back({j, dist});
       }
     }
     #pragma omp critical
     {
-      nh[i] = dist_to;
+      for (auto it=dist_to.begin(); it != dist_to.end(); ++it) {
+        std::cout << i << " " << it->first << " " << it->second << "\n";
+      }
     }
   }
-  return nh;
 }
 
 
@@ -59,7 +60,16 @@ int main(int argc, char* argv[]) {
   b_po::variables_map var_map;
   b_po::options_description desc (std::string(argv[0]).append(
     "\n\n"
-    "calculate densities around frames."
+    "calculate neigborhood around frames.\n"
+    "output is of the form\n\n"
+    "   index1 index2 squared_dist\n\n"
+    "and by no means guaranteed to be sorted along any axis.\n"
+    "additionally, the output is to be interpreted as a kind of sparse symmetric matrix.\n"
+    "i.e. the entry\n"
+    "   index1 index2 squared_dist\n"
+    "encodes\n"
+    "   index2 index1 squared_dist\n"
+    "as well!\n"
     "\n"
     "options"));
   desc.add_options()
@@ -112,25 +122,16 @@ int main(int argc, char* argv[]) {
     n_rows = coords.size() / n_cols;
   }
 
-  std::time_t start, finish;
-
-  time(&start);
-  Neighborhood nh = calculate_neighborhood(coords,
-                                           n_rows,
-                                           n_cols,
-                                           var_map["radius"].as<float>(),
-                                           var_map["nthreads"].as<int>());
-  time(&finish);
-  double elapsed = difftime(finish, start);
-
-  std::cerr << "time for neighborhood search [s]: " << elapsed << std::endl;
-
-  for (auto it=nh.begin(); it != nh.end(); ++it) {
-    for (auto it2=it->second.begin(); it2 != it->second.end(); ++it2) {
-      std::cout << it->first << " " << it2->first << " " << it2->second << "\n";
-    }
-  }
-
+  //std::time_t start, finish;
+  //time(&start);
+  calculate_neighborhood(coords,
+                         n_rows,
+                         n_cols,
+                         var_map["radius"].as<float>(),
+                         var_map["nthreads"].as<int>());
+  //time(&finish);
+  //double elapsed = difftime(finish, start);
+  //std::cerr << "time for neighborhood search [s]: " << elapsed << std::endl;
   return 0;
 }
 
