@@ -5,7 +5,7 @@ project (supervised_clustering)
 #set (CMAKE_CXX_FLAGS "-std=c++0x -fopenmp -pg -g")
 
 set (CMAKE_CXX_COMPILER "g++")
-set (CMAKE_CXX_FLAGS "-std=c++0x -fopenmp -O2")
+set (CMAKE_CXX_FLAGS "-std=c++11 -fopenmp -O2 -Wall -Wextra")
 
 #set (CMAKE_CXX_COMPILER "icpc")
 #set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3")

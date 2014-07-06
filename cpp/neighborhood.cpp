@@ -2,7 +2,6 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include <iterator>
 #include <vector>
 #include <map>
 #include <utility>
@@ -12,6 +11,9 @@
 
 #include <omp.h>
 #include <boost/program_options.hpp>
+
+#include "tools.hpp"
+
 
 namespace b_po = boost::program_options;
 
@@ -100,27 +102,11 @@ int main(int argc, char* argv[]) {
 
   ////
 
-  std::vector<float> coords;
-  std::size_t n_cols;
-  std::size_t n_rows;
-  // load coords from file and determine number of rows & columns
-  {
-    std::ifstream ifs(var_map["input"].as<std::string>());
-    // determine no. of columns from first line
-    std::string linebuf;
-    std::getline(ifs, linebuf);
-    std::stringstream ss(linebuf);
-    n_cols = std::distance(std::istream_iterator<std::string>(ss),
-                           std::istream_iterator<std::string>());
-    // go back to beginning and read complete file
-    ifs.seekg(0);
-    double buf;
-    while (ifs.good()) {
-      ifs >> buf;
-      coords.push_back(buf);
-    }
-    n_rows = coords.size() / n_cols;
-  }
+  auto coords_tuple = read_coords<float>(var_map["input"].as<std::string>());
+
+  std::vector<float> coords = std::get<0>(coords_tuple);
+  std::size_t n_cols = std::get<1>(coords_tuple);
+  std::size_t n_rows = std::get<2>(coords_tuple);
 
   //std::time_t start, finish;
   //time(&start);
