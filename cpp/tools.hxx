@@ -6,12 +6,12 @@
 #include <iterator>
 #include <map>
 
-template <typename MY_FLOAT>
-std::tuple<std::vector<MY_FLOAT>, std::size_t, std::size_t>
+template <typename NUM>
+std::tuple<std::vector<NUM>, std::size_t, std::size_t>
 read_coords(std::string filename, std::vector<std::size_t> usecols) {
   std::size_t n_cols=0;
   std::size_t n_cols_used=0;
-  std::vector<MY_FLOAT> coords;
+  std::vector<NUM> coords;
 
   std::ifstream ifs(filename);
   {
@@ -45,7 +45,7 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
 
   while (ifs.good()) {
     for (std::size_t i=0; i < n_cols; ++i) {
-      MY_FLOAT buf;
+      NUM buf;
       ifs >> buf;
       if (col_used[i]) {
         coords.push_back(buf);
