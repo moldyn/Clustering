@@ -32,14 +32,15 @@ std::vector<float> calculate_density_histogram(const std::vector<float>& dens,
   std::vector<float> coords = std::get<0>(coords_tuple);
   std::size_t n_rows = std::get<1>(coords_tuple);
 
-  float x_min = std::numeric_limits<float>::max();
-  float x_max = std::numeric_limits<float>::min();
-  float y_min = std::numeric_limits<float>::max();
-  float y_max = std::numeric_limits<float>::min();
-
   auto X = [&](std::size_t i) { return coords[i*2]; };
   auto Y = [&](std::size_t i) { return coords[i*2 + 1]; };
-  for (std::size_t i=0; i < n_rows; ++i) {
+
+  float x_min = X(0);
+  float x_max = X(0);
+  float y_min = Y(0);
+  float y_max = Y(0);
+
+  for (std::size_t i=1; i < n_rows; ++i) {
     auto mm = std::minmax({X(i), x_min, x_max});
     x_min = mm.first;
     x_max = mm.second;
@@ -172,16 +173,8 @@ int main(int argc, char* argv[]) {
 
   ////
 
-  //std::time_t start, finish;
-  //time(&start);
-
   std::vector<std::size_t> pops = calculate_populations(var_map["neighborhood"].as<std::string>(),
                                                         var_map["input"].as<std::string>());
-
-  //time(&finish);
-  //double elapsed = difftime(finish, start);
-  //std::cerr << "time for neighborhood search [s]: " << elapsed << std::endl;
- 
 
   if (var_map["population"].as<bool>()) {
     for (std::size_t i=0; i < pops.size(); ++i) {
