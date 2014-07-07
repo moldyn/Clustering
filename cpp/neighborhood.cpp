@@ -105,19 +105,14 @@ int main(int argc, char* argv[]) {
   auto coords_tuple = read_coords<float>(var_map["input"].as<std::string>());
 
   std::vector<float> coords = std::get<0>(coords_tuple);
-  std::size_t n_cols = std::get<1>(coords_tuple);
-  std::size_t n_rows = std::get<2>(coords_tuple);
+  std::size_t n_rows = std::get<1>(coords_tuple);
+  std::size_t n_cols = std::get<2>(coords_tuple);
 
-  //std::time_t start, finish;
-  //time(&start);
   calculate_neighborhood(coords,
                          n_rows,
                          n_cols,
                          var_map["radius"].as<float>(),
                          var_map["nthreads"].as<int>());
-  //time(&finish);
-  //double elapsed = difftime(finish, start);
-  //std::cerr << "time for neighborhood search [s]: " << elapsed << std::endl;
   return 0;
 }
 
