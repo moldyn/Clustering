@@ -149,7 +149,9 @@ int main(int argc, char* argv[]) {
     ("help,h", "show this help")
     ("input,i", b_po::value<std::string>()->required(), "projected data")
     ("neighborhood,N", b_po::value<std::string>()->required(), "neighborhood info")
-    ("population,p", b_po::bool_switch()->default_value(false), "print populations instead of densities");
+    ("population,p", b_po::bool_switch()->default_value(false), "print populations instead of densities")
+    ("histogram,H", b_po::bool_switch()->default_value(false), "print histogram data for densities")
+    ("nbins", b_po::value<int>()->default_value(200), "#bins for histogram (default: 200)");
   try {
     b_po::positional_options_description p;
     p.add("input", -1);
@@ -184,6 +186,16 @@ int main(int argc, char* argv[]) {
   if (var_map["population"].as<bool>()) {
     for (std::size_t i=0; i < pops.size(); ++i) {
       std::cout << i << " " << pops[i] << "\n";
+    }
+  } else if (var_map["histogram"].as<bool>()) {
+    std::vector<float> dens = calculate_densities(pops);
+    int n_bins = var_map["nbins"].as<int>();
+    std::vector<float> hist = calculate_density_histogram(dens,
+                                                          var_map["input"].as<std::string>(),
+                                                          {0,1},
+                                                          n_bins);
+    for (std::size_t i=0; i < hist.size() / 3; ++i) {
+      std::cout << hist[i*3] << " " << hist[i*3+1] << " " << hist[i*3+2] << "\n";
     }
   } else {
     std::vector<float> dens = calculate_densities(pops);
