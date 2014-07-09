@@ -4,6 +4,10 @@ project (supervised_clustering)
 # enable profiling flags for gprof
 #set (CMAKE_CXX_FLAGS "-std=c++0x -fopenmp -pg -g")
 
+
+
+# TODO: set march, fast-math, avx, fma, etc.
+
 set (CMAKE_CXX_COMPILER "g++")
 set (CMAKE_CXX_FLAGS "-std=c++11 -fopenmp -O2 -Wall -Wextra")
 

@@ -21,6 +21,9 @@
 
 namespace b_po = boost::program_options;
 
+using Density = std::pair<std::size_t, float>;
+
+
 
 // 3-column float with col1 = x-val, col2 = y-val, col3 = density
 // addressed by [row*3+col] with n_rows = n_bins^2
@@ -136,11 +139,38 @@ std::vector<std::size_t> calculate_populations(const std::string& neighborhood, 
   return pops;
 }
 
+
+const std::pair<std::size_t, float> nearest_neighbor(const std::vector<float>& coords,
+                                                     const std::vector<Density>& sorted_density,
+                                                     std::size_t n_cols,
+                                                     std::size_t frame_id,
+                                                     std::pair<std::size_t, std::size_t> search_range) {
+  std::size_t min_ndx = 0;
+  float min_dist = std::numeric_limits<float>::max();
+  for (std::size_t j=search_range.first; j < search_range.second; ++j) {
+    float dist = 0.0f;
+    for (std::size_t c=0; c < n_cols; ++c) {
+      float d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+      dist += d*d;
+    }
+    if (dist < min_dist) {
+      min_dist = dist;
+      min_ndx = j;
+    }
+  }
+  return {min_ndx, min_dist};
+}
+
+
+
+
+
+
+
 std::vector<std::size_t> density_clustering(std::vector<float> dens,
                                            float density_threshold,
                                            float density_radius,
                                            std::string coords_file) {
-  using Density = std::pair<std::size_t, float>;
   std::vector<Density> density_sorted;
   for (std::size_t i=0; i < dens.size(); ++i) {
     density_sorted.push_back({i, dens[i]});
@@ -150,29 +180,42 @@ std::vector<std::size_t> density_clustering(std::vector<float> dens,
             density_sorted.end(),
             [] (const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
 
-  auto coords_tuple = read_coords(coords_file);
+  auto coords_tuple = read_coords<float>(coords_file);
   std::vector<float>& coords = std::get<0>(coords_tuple);
   std::size_t n_rows = std::get<1>(coords_tuple);
   std::size_t n_cols = std::get<2>(coords_tuple);
 
-// cluster structure?
 
-  std::vector<std::size_t> clusters;
+  std::vector<std::size_t> clustering(n_rows);
+  std::size_t n_clusters = 0;
 
-  std::size_t last_frame_below_threshold;
+  auto lb = std::lower_bound(density_sorted.begin(),
+                             density_sorted.end(),
+                             Density(0, density_threshold), 
+                             [](const Density& d1, const Density& d2) -> bool {return d1.second < d2.second;});
+
+  std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
+
+  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+    auto nn_pair = nearest_neighbor(coords, density_sorted, n_cols, i, {0,i});
+    if (nn_pair.second < density_radius) {
+      // add to existing cluster of frame with 'min_dist'
+      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
+    } else {
+      // create new cluster
+      ++n_clusters;
+      clustering[density_sorted[i].first] = n_clusters;
+    }
+  }
+
+  //TODO: add all other frames to clusters
   
+  // find nearest neighbors for all unassigned frames
+  for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
+    auto nn_pair = nearest_neighbor(coords, density_sorted, n_cols, i, {0, density_sorted.size()});
+  }
 
-  // for all frames:
-  //   if frame.density < threshold:
-  //     put into queue
-  // for all frames in queue:
-  //   find mindist to frames in clusters
-  //   if mindist < radius:
-  //     assign to cluster
-  //   else:
-  //     make new cluster
-
-
+  //ASSIGN cluster-id of 'other' to yet unassigned frame
 
 }
 
