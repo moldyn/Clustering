@@ -136,7 +136,22 @@ std::vector<std::size_t> calculate_populations(const std::string& neighborhood, 
   return pops;
 }
 
+std::vector<std::size_t> density_clustering(std::vector<float> dens, float density_threshold, float density_radius) {
+  using Density = std::pair<std::size_t, float>;
+  std::vector<Density> density_heap;
+  // sort according to density: highest to lowest
+  std::make_heap(density_heap.begin(),
+                 density_heap.end(),
+                 [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
+  for (std::size_t i=0; i < dens.size(); ++i) {
+    density_heap.push_back({i, dens[i]});
+    std::push_heap(density_heap.begin(), density_heap.end());
+  }
 
+
+//TODO
+
+}
 
 int main(int argc, char* argv[]) {
 
@@ -148,11 +163,18 @@ int main(int argc, char* argv[]) {
     "options"));
   desc.add_options()
     ("help,h", "show this help")
+
     ("input,i", b_po::value<std::string>()->required(), "projected data")
     ("neighborhood,N", b_po::value<std::string>()->required(), "neighborhood info")
+
     ("population,p", b_po::bool_switch()->default_value(false), "print populations instead of densities")
+
     ("histogram,H", b_po::bool_switch()->default_value(false), "print histogram data for densities")
-    ("nbins", b_po::value<int>()->default_value(200), "#bins for histogram (default: 200)");
+    ("nbins", b_po::value<int>()->default_value(200), "#bins for histogram (default: 200)")
+
+    ("density-clustering,C", b_po::value<float>(), "print clustering given by density threshold");
+
+
   try {
     b_po::positional_options_description p;
     p.add("input", -1);
@@ -190,6 +212,9 @@ int main(int argc, char* argv[]) {
     for (std::size_t i=0; i < hist.size() / 3; ++i) {
       std::cout << hist[i*3] << " " << hist[i*3+1] << " " << hist[i*3+2] << "\n";
     }
+  } else if (var_map.count("density-clustering")) {
+    std::vector<std::size_t> clusters = density_clustering(calculate_densities(pops),
+                                                           var_map["density_clustering"].as<float>());
   } else {
     std::vector<float> dens = calculate_densities(pops);
     for (std::size_t i=0; i < dens.size(); ++i) {
