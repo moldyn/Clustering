@@ -162,11 +162,6 @@ const std::pair<std::size_t, float> nearest_neighbor(const std::vector<float>& c
 }
 
 
-
-
-
-
-
 std::vector<std::size_t> density_clustering(std::vector<float> dens,
                                            float density_threshold,
                                            float density_radius,
@@ -208,15 +203,23 @@ std::vector<std::size_t> density_clustering(std::vector<float> dens,
     }
   }
 
-  //TODO: add all other frames to clusters
-  
   // find nearest neighbors for all unassigned frames
+  std::map<std::size_t, std::size_t> nearest_neighbors;
   for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
     auto nn_pair = nearest_neighbor(coords, density_sorted, n_cols, i, {0, density_sorted.size()});
+    nearest_neighbors[i] = nn_pair.first;
   }
-
-  //ASSIGN cluster-id of 'other' to yet unassigned frame
-
+  // assign clusters to unassigned frames via neighbor-info
+  while (nearest_neighbors.size() > 0) {
+    for (auto it=nearest_neighbors.begin(); it != nearest_neighbors.end(); ++it) {
+      if (clustering[it->second] != 0) {
+        clustering[it->first] = it->second;
+        nearest_neighbors.erase(it);
+      }
+    }
+    //TODO: check: will this always converge? better add a 'no_change'-bool?
+  }
+  return clustering;
 }
 
 int main(int argc, char* argv[]) {
