@@ -136,20 +136,43 @@ std::vector<std::size_t> calculate_populations(const std::string& neighborhood, 
   return pops;
 }
 
-std::vector<std::size_t> density_clustering(std::vector<float> dens, float density_threshold, float density_radius) {
+std::vector<std::size_t> density_clustering(std::vector<float> dens,
+                                           float density_threshold,
+                                           float density_radius,
+                                           std::string coords_file) {
   using Density = std::pair<std::size_t, float>;
-  std::vector<Density> density_heap;
-  // sort according to density: highest to lowest
-  std::make_heap(density_heap.begin(),
-                 density_heap.end(),
-                 [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
+  std::vector<Density> density_sorted;
   for (std::size_t i=0; i < dens.size(); ++i) {
-    density_heap.push_back({i, dens[i]});
-    std::push_heap(density_heap.begin(), density_heap.end());
+    density_sorted.push_back({i, dens[i]});
   }
+  // sort for density: highest to lowest
+  std::sort(density_sorted.begin(),
+            density_sorted.end(),
+            [] (const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
+
+  auto coords_tuple = read_coords(coords_file);
+  std::vector<float>& coords = std::get<0>(coords_tuple);
+  std::size_t n_rows = std::get<1>(coords_tuple);
+  std::size_t n_cols = std::get<2>(coords_tuple);
+
+// cluster structure?
+
+  std::vector<std::size_t> clusters;
+
+  std::size_t last_frame_below_threshold;
+  
+
+  // for all frames:
+  //   if frame.density < threshold:
+  //     put into queue
+  // for all frames in queue:
+  //   find mindist to frames in clusters
+  //   if mindist < radius:
+  //     assign to cluster
+  //   else:
+  //     make new cluster
 
 
-//TODO
 
 }
 
@@ -214,7 +237,9 @@ int main(int argc, char* argv[]) {
     }
   } else if (var_map.count("density-clustering")) {
     std::vector<std::size_t> clusters = density_clustering(calculate_densities(pops),
-                                                           var_map["density_clustering"].as<float>());
+                                                           var_map["density_clustering"].as<float>(),
+                                                           var_map["radius"].as<float>(),
+                                                           var_map["input"].as<std::string>());
   } else {
     std::vector<float> dens = calculate_densities(pops);
     for (std::size_t i=0; i < dens.size(); ++i) {
