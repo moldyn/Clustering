@@ -1,10 +1,10 @@
 
-#include <string>
+#include "density_clustering.hpp"
+#include "tools.hpp"
+
 #include <sstream>
 #include <fstream>
 #include <iterator>
-#include <vector>
-#include <map>
 #include <utility>
 #include <functional>
 #include <algorithm>
@@ -15,21 +15,15 @@
 #include <omp.h>
 #include <boost/program_options.hpp>
 
-
-#include "tools.hpp"
-
-
 namespace b_po = boost::program_options;
 
-using Density = std::pair<std::size_t, float>;
-using Neighborhood = std::map<std::size_t, std::map<std::size_t, float>>;
-
-
-void calculate_neighborhood(const std::vector<float>& coords,
-                            const std::size_t n_rows,
-                            const std::size_t n_cols,
-                            const float radius,
-                            const int n_threads) {
+std::vector<std::size_t>
+calculate_populations(const std::vector<float>& coords,
+                      const std::size_t n_rows,
+                      const std::size_t n_cols,
+                      const float radius,
+                      const int n_threads) {
+//TODO: change this to calc_pop
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
@@ -60,12 +54,65 @@ void calculate_neighborhood(const std::vector<float>& coords,
 }
 
 
+/*
+std::vector<std::size_t>
+calculate_populations(const std::string& neighborhood,
+                      const std::string& projections) {
+  std::size_t n_frames = 0;
+  // read projections linewise to determine number of frames
+  {
+    std::string line;
+    std::ifstream ifs(projections);
+    while (ifs.good()) {
+      std::getline(ifs, line);
+      if ( ! line.empty()) {
+        ++n_frames;
+      }
+    }
+  }
+  // set initial population = 1 for every frame
+  // (i.e. the frame itself is in population)
+  std::vector<std::size_t> pops(n_frames, 1);
+  // read neighborhood info and calculate populations
+  {
+    std::ifstream ifs(neighborhood);
+    std::size_t buf;
+    while (ifs.good()) {
+      // from
+      ifs >> buf;
+      ++pops[buf];
+      // to
+      ifs >> buf;
+      ++pops[buf];
+      // next line
+      ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+  }
+  return pops;
+}
+*/
+
+
+std::vector<float>
+calculate_densities(const std::vector<std::size_t>& pops) {
+  const std::size_t n_frames = pops.size();
+  std::vector<float> dens(n_frames);
+  float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
+  for (std::size_t i=0; i < n_frames; ++i) {
+    dens[i] = (float) pops[i] / max_pop;
+  }
+  return dens;
+}
+
+
+
 // 3-column float with col1 = x-val, col2 = y-val, col3 = density
 // addressed by [row*3+col] with n_rows = n_bins^2
-std::vector<float> calculate_density_histogram(const std::vector<float>& dens,
-                                               const std::string& projections,
-                                               std::pair<std::size_t, std::size_t> dims,
-                                               std::size_t n_bins) {
+std::vector<float>
+calculate_density_histogram(const std::vector<float>& dens,
+                            const std::string& projections,
+                            std::pair<std::size_t, std::size_t> dims,
+                            std::size_t n_bins) {
   auto coords_tuple = read_coords<float>(projections, {dims.first, dims.second});
   std::vector<float> coords = std::get<0>(coords_tuple);
   std::size_t n_rows = std::get<1>(coords_tuple);
@@ -129,57 +176,13 @@ std::vector<float> calculate_density_histogram(const std::vector<float>& dens,
 }
 
 
-std::vector<float> calculate_densities(const std::vector<std::size_t>& pops) {
-  const std::size_t n_frames = pops.size();
-  std::vector<float> dens(n_frames);
-  float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
-  for (std::size_t i=0; i < n_frames; ++i) {
-    dens[i] = (float) pops[i] / max_pop;
-  }
-  return dens;
-}
 
-
-std::vector<std::size_t> calculate_populations(const std::string& neighborhood, const std::string& projections) {
-  std::size_t n_frames = 0;
-  // read projections linewise to determine number of frames
-  {
-    std::string line;
-    std::ifstream ifs(projections);
-    while (ifs.good()) {
-      std::getline(ifs, line);
-      if ( ! line.empty()) {
-        ++n_frames;
-      }
-    }
-  }
-  // set initial population = 1 for every frame
-  // (i.e. the frame itself is in population)
-  std::vector<std::size_t> pops(n_frames, 1);
-  // read neighborhood info and calculate populations
-  {
-    std::ifstream ifs(neighborhood);
-    std::size_t buf;
-    while (ifs.good()) {
-      // from
-      ifs >> buf;
-      ++pops[buf];
-      // to
-      ifs >> buf;
-      ++pops[buf];
-      // next line
-      ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    }
-  }
-  return pops;
-}
-
-
-const std::pair<std::size_t, float> nearest_neighbor(const std::vector<float>& coords,
-                                                     const std::vector<Density>& sorted_density,
-                                                     std::size_t n_cols,
-                                                     std::size_t frame_id,
-                                                     std::pair<std::size_t, std::size_t> search_range) {
+const std::pair<std::size_t, float>
+nearest_neighbor(const std::vector<float>& coords,
+                 const std::vector<Density>& sorted_density,
+                 std::size_t n_cols,
+                 std::size_t frame_id,
+                 std::pair<std::size_t, std::size_t> search_range) {
   std::size_t min_ndx = 0;
   float min_dist = std::numeric_limits<float>::max();
   for (std::size_t j=search_range.first; j < search_range.second; ++j) {
@@ -245,14 +248,16 @@ std::vector<std::size_t> density_clustering(std::vector<float> dens,
     nearest_neighbors[i] = nn_pair.first;
   }
   // assign clusters to unassigned frames via neighbor-info
-  while (nearest_neighbors.size() > 0) {
+  bool nothing_happened = true;
+  while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {
+    nothing_happened = true;
     for (auto it=nearest_neighbors.begin(); it != nearest_neighbors.end(); ++it) {
       if (clustering[it->second] != 0) {
         clustering[it->first] = it->second;
         nearest_neighbors.erase(it);
+        nothing_happened = false;
       }
     }
-    //TODO: check: will this always converge? better add a 'no_change'-bool?
   }
   return clustering;
 }
