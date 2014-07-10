@@ -8,12 +8,16 @@ using Density = std::pair<std::size_t, float>;
 using Neighborhood = std::map<std::size_t, std::map<std::size_t, float>>;
 
 //TODO doc
-void
-calculate_neighborhood(const std::vector<float>& coords,
-                       const std::size_t n_rows,
-                       const std::size_t n_cols,
-                       const float radius,
-                       const int n_threads);
+std::vector<std::size_t>
+calculate_populations(const std::vector<float>& coords,
+                      const std::size_t n_rows,
+                      const std::size_t n_cols,
+                      const float radius,
+                      const int n_threads);
+
+//TODO doc
+std::vector<float>
+calculate_densities(const std::vector<std::size_t>& pops);
 
 // 3-column float with col1 = x-val, col2 = y-val, col3 = density
 // addressed by [row*3+col] with n_rows = n_bins^2
@@ -22,14 +26,6 @@ calculate_density_histogram(const std::vector<float>& dens,
                             const std::string& projections,
                             std::pair<std::size_t, std::size_t> dims,
                             std::size_t n_bins);
-
-//TODO doc
-std::vector<float> calculate_densities(const std::vector<std::size_t>& pops);
-
-//TODO doc
-std::vector<std::size_t>
-calculate_populations(const std::string& neighborhood,
-                      const std::string& projections);
 
 //TODO doc
 const std::pair<std::size_t, float>
