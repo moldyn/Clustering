@@ -1,0 +1,4 @@
+#pragma once
+
+#define DC_MEM_ALIGNMENT 32
+

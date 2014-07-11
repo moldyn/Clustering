@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config.hpp"
+
 #include <string>
 #include <vector>
 #include <tuple>
@@ -11,9 +13,6 @@
 #else
  #include <mm_malloc.h>
 #endif
-
-
-#define MEM_ALIGNMENT 32
 
 struct CoordsDeleter {
   void operator()(void* x) {

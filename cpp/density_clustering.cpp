@@ -38,9 +38,9 @@ calculate_populations(const CoordsPointer<float>& coords_pointer,
   // provide easy access to coordinates data
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
-  __assume_aligned(coords, MEM_ALIGNMENT);
+  __assume_aligned(coords, DC_MEM_ALIGNMENT);
   #else // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), MEM_ALIGNMENT);
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
   #endif
 
   std::vector<std::size_t> pops(n_rows, 1);
@@ -88,7 +88,7 @@ nearest_neighbor(const CoordsPointer<float>& coords_pointer,
   float* coords = coords_pointer.get();
   __assume_aligned(coords, MEM_ALIGNMENT);
   #else // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), MEM_ALIGNMENT);
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
   #endif
   std::size_t c,j;
   float d, dist;

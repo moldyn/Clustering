@@ -56,7 +56,7 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
     }
   }
   // allocate memory
-  CoordsPointer<NUM> coords((NUM*) _mm_malloc(sizeof(NUM)*n_rows*n_cols_used, MEM_ALIGNMENT), CoordsDeleter());
+  CoordsPointer<NUM> coords((NUM*) _mm_malloc(sizeof(NUM)*n_rows*n_cols_used, DC_MEM_ALIGNMENT), CoordsDeleter());
   // just for easy access ...
   NUM* c = coords.get();
   // read data
