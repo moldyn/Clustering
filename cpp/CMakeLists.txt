@@ -9,7 +9,7 @@ project (supervised_clustering)
 # TODO: set march, fast-math, avx, fma, etc.
 
 set (CMAKE_CXX_COMPILER "g++")
-set (CMAKE_CXX_FLAGS "-std=c++11 -march=native -ftree-vectorize -fopenmp -ffast-math -O3 -Wall -Wextra")
+set (CMAKE_CXX_FLAGS "-std=c++11 -march=native -ftree-vectorize -mavx -ffast-math -O3 -fopenmp -Wall -Wextra")
 
 #set (CMAKE_CXX_COMPILER "icpc")
 #set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3")

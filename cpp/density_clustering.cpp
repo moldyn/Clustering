@@ -30,16 +30,23 @@ log(std::string name, float value) {
 
 
 std::vector<std::size_t>
-calculate_populations(const std::vector<float>& coords,
+calculate_populations(const CoordsPointer<float>& coords_pointer,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const float radius) {
+
+  // provide easy access to coordinates data
+  #if defined(__INTEL_COMPILER)
+  float* coords = coords_pointer.get();
+  __assume_aligned(coords, MEM_ALIGNMENT);
+  #else // assume gnu compiler
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), MEM_ALIGNMENT);
+  #endif
 
   std::vector<std::size_t> pops(n_rows, 1);
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
-
   #pragma omp parallel for default(shared) private(i,j,k,c,dist) schedule(dynamic)
   for (i=0; i < n_rows; ++i) {
     for (j=i+1; j < n_rows; ++j) {
@@ -58,7 +65,6 @@ calculate_populations(const std::vector<float>& coords,
 
 std::vector<float>
 calculate_densities(const std::vector<std::size_t>& pops) {
-
   std::size_t i;
   const std::size_t n_frames = pops.size();
   std::vector<float> dens(n_frames);
@@ -72,12 +78,18 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 
 
 const std::pair<std::size_t, float>
-nearest_neighbor(const std::vector<float>& coords,
+nearest_neighbor(const CoordsPointer<float>& coords_pointer,
                  const std::vector<Density>& sorted_density,
                  std::size_t n_cols,
                  std::size_t frame_id,
                  std::pair<std::size_t, std::size_t> search_range) {
 
+  #if defined(__INTEL_COMPILER)
+  float* coords = coords_pointer.get();
+  __assume_aligned(coords, MEM_ALIGNMENT);
+  #else // assume gnu compiler
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), MEM_ALIGNMENT);
+  #endif
   std::size_t c,j;
   float d, dist;
   std::vector<float> distances(search_range.second-search_range.first);
@@ -105,7 +117,7 @@ std::vector<std::size_t>
 density_clustering(const std::vector<float>& dens,
                    const float density_threshold,
                    const float density_radius,
-                   const std::vector<float>& coords,
+                   const CoordsPointer<float>& coords_pointer,
                    const std::size_t n_rows,
                    const std::size_t n_cols) {
 
@@ -137,7 +149,7 @@ density_clustering(const std::vector<float>& dens,
     if (i % 1000 == 0) {
       std::cout << "   frame: " << i << " / " << last_frame_below_threshold << "\n";
     }
-    auto nn_pair = nearest_neighbor(coords, density_sorted, n_cols, i, {0,i});
+    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
     if (nn_pair.second < density_radius) {
       // add to existing cluster of frame with 'min_dist'
       clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
@@ -156,7 +168,7 @@ density_clustering(const std::vector<float>& dens,
     if (i % 1000 == 0) {
       std::cout << "   frame: " << i << " / " << density_sorted.size() << "\n";
     }
-    auto nn_pair = nearest_neighbor(coords, density_sorted, n_cols, i, {0, density_sorted.size()});
+    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, density_sorted.size()});
     nearest_neighbors[i] = nn_pair.first;
   }
 
@@ -238,10 +250,10 @@ int main(int argc, char* argv[]) {
 
   bool verbose = args["verbose"].as<bool>();
 
-  std::vector<float> coords;
+  CoordsPointer<float> coords_pointer;
   std::size_t n_rows;
   std::size_t n_cols;
-  std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
+  std::tie(coords_pointer, n_rows, n_cols) = read_coords<float>(input_file);
 
   std::vector<float> densities;
 
@@ -266,7 +278,7 @@ int main(int argc, char* argv[]) {
       log("calculating densities");
     }
     densities = calculate_densities(
-                  calculate_populations(coords, n_rows, n_cols, radius));
+                  calculate_populations(coords_pointer, n_rows, n_cols, radius));
     if (args.count("density")) {
       std::ofstream ofs(args["density"].as<std::string>());
       ofs << std::scientific;
@@ -279,7 +291,7 @@ int main(int argc, char* argv[]) {
   if (verbose) {
     log("calculating clusters");
   }
-  std::vector<std::size_t> clustering = density_clustering(densities, threshold, radius, coords, n_rows, n_cols);
+  std::vector<std::size_t> clustering = density_clustering(densities, threshold, radius, coords_pointer, n_rows, n_cols);
   // write clusters to file
   {
     std::ofstream ofs(output_file);
