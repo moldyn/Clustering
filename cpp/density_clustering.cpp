@@ -36,10 +36,16 @@ calculate_populations(const CoordsPointer<float>& coords_pointer,
                       const float radius) {
 
   // provide easy access to coordinates data
+  // and give hint to compiler that it is readily
+  // aligned for vectorization
+  //
+  // DC_MEM_ALIGNMENT is defined during cmake and
+  // set depending on usage of SSE2, SSE4_1, AVX or Xeon Phi
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
   __assume_aligned(coords, DC_MEM_ALIGNMENT);
-  #else // assume gnu compiler
+  #else
+  // assume gnu compiler
   float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
   #endif
 
@@ -47,7 +53,7 @@ calculate_populations(const CoordsPointer<float>& coords_pointer,
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
-  #pragma omp parallel for default(shared) private(i,j,k,c,dist) schedule(dynamic)
+  #pragma omp parallel for default(shared) private(i,j,k,c,dist) firstprivate(n_rows,n_cols,rad2) schedule(dynamic)
   for (i=0; i < n_rows; ++i) {
     for (j=i+1; j < n_rows; ++j) {
       dist = 0.0f;
@@ -67,9 +73,9 @@ std::vector<float>
 calculate_densities(const std::vector<std::size_t>& pops) {
   std::size_t i;
   const std::size_t n_frames = pops.size();
+  const float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
   std::vector<float> dens(n_frames);
-  float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
-  #pragma omp parallel for default(shared) private(i)
+  #pragma omp parallel for default(shared) private(i) firstprivate(max_pop, n_frames)
   for (i=0; i < n_frames; ++i) {
     dens[i] = (float) pops[i] / max_pop;
   }
@@ -125,30 +131,22 @@ density_clustering(const std::vector<float>& dens,
   for (std::size_t i=0; i < dens.size(); ++i) {
     density_sorted.push_back({i, dens[i]});
   }
-
-  log("sort densities");
-
   // sort for density: highest to lowest
   std::sort(density_sorted.begin(),
             density_sorted.end(),
             [] (const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
-
   std::vector<std::size_t> clustering(n_rows);
   std::size_t n_clusters = 0;
-
   auto lb = std::lower_bound(density_sorted.begin(),
                              density_sorted.end(),
                              Density(0, density_threshold), 
-                             [](const Density& d1, const Density& d2) -> bool {return d1.second < d2.second;});
-
+                             [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
   std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
 
-  log("find initial clusters");
+//TODO initialize by highest populated frame?
 
+  // find initial clusters
   for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
-    if (i % 1000 == 0) {
-      std::cout << "   frame: " << i << " / " << last_frame_below_threshold << "\n";
-    }
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
     if (nn_pair.second < density_radius) {
       // add to existing cluster of frame with 'min_dist'
@@ -160,20 +158,15 @@ density_clustering(const std::vector<float>& dens,
     }
   }
 
-  log("find nearest neigbors for unassigned frames in clusters");
+//TODO check why there may be n_clusters == 0 !
 
   // find nearest neighbors for all unassigned frames
   std::map<std::size_t, std::size_t> nearest_neighbors;
   for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
-    if (i % 1000 == 0) {
-      std::cout << "   frame: " << i << " / " << density_sorted.size() << "\n";
-    }
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, density_sorted.size()});
     nearest_neighbors[i] = nn_pair.first;
   }
-
   log("assign frames to clusters");
-
   // assign clusters to unassigned frames via neighbor-info
   bool nothing_happened = true;
   while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {

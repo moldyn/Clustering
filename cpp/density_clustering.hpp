@@ -7,6 +7,12 @@
 using Density = std::pair<std::size_t, float>;
 using Neighborhood = std::map<std::size_t, std::map<std::size_t, float>>;
 
+
+//TODO are these declarations still valid ????
+
+
+
+
 //TODO doc
 std::vector<std::size_t>
 calculate_populations(const std::vector<float>& coords,

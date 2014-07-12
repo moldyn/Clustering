@@ -1,4 +1,14 @@
 #pragma once
 
+#define ON true
+#define OFF false
+
 #define DC_MEM_ALIGNMENT 32
+
+typedef enum {
+  SSE2,
+  SSE4_1,
+  AVX,
+  NONE
+} CpuAccelerationMode;
 
