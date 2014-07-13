@@ -136,19 +136,19 @@ density_clustering(const std::vector<float>& dens,
             density_sorted.end(),
             [] (const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
   std::vector<std::size_t> clustering(n_rows);
-  std::size_t n_clusters = 0;
   auto lb = std::lower_bound(density_sorted.begin(),
                              density_sorted.end(),
                              Density(0, density_threshold), 
                              [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
   std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
-
-//TODO initialize by highest populated frame?
-
+  // initialize with highest populated frame
+  clustering[density_sorted[0].first] = 0;
+  std::size_t n_clusters = 1;
   // find initial clusters
-  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
+    // nn_pair:  first := index in traj,  second := distance to reference (i)
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
-    if (nn_pair.second < density_radius) {
+    if (nn_pair.second < density_radius * 0.1) {
       // add to existing cluster of frame with 'min_dist'
       clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
     } else {
@@ -157,12 +157,11 @@ density_clustering(const std::vector<float>& dens,
       clustering[density_sorted[i].first] = n_clusters;
     }
   }
-
-//TODO check why there may be n_clusters == 0 !
-
   // find nearest neighbors for all unassigned frames
   std::map<std::size_t, std::size_t> nearest_neighbors;
   for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
+    if (i % 100 == 0) std::cout << i << "  /  " << density_sorted.size() << std::endl;
+    // nn_pair:  first := index in traj,  second := distance to reference (i)
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, density_sorted.size()});
     nearest_neighbors[i] = nn_pair.first;
   }
@@ -171,6 +170,7 @@ density_clustering(const std::vector<float>& dens,
   bool nothing_happened = true;
   while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {
     nothing_happened = true;
+    // it:  first := index in traj,  second := distance to reference (i)
     for (auto it=nearest_neighbors.begin(); it != nearest_neighbors.end(); ++it) {
       if (clustering[it->second] != 0) {
         clustering[it->first] = it->second;
@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
     ("output,o", b_po::value<std::string>()->required(), "output (required): clustering information.")
     ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
-    ("threshold,t", b_po::value<float>()->required(), "parameter (required): density threshold for clustering.")
+    ("threshold,t", b_po::value<float>()->required(), "parameter (required, elem. of [0.0, 1.0]): density threshold for clustering.")
     // optional
     ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
     ("density,d", b_po::value<std::string>(), "output (optional): density per frame.")

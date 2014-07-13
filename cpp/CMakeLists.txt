@@ -16,6 +16,7 @@ include_directories (${Boost_INCLUDE_DIR})
 add_executable(density_clustering density_clustering.cpp)
 target_link_libraries(density_clustering ${Boost_LIBRARIES})
 
+# COMPILER: g++ or icc
 # DC_CPU_ACCELERATION: SSE2 SSE4_1 AVX NONE
 # DC_XEON_PHI: ON OFF
 
