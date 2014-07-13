@@ -83,6 +83,49 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 }
 
 
+/*
+ * returns the smallest squared distance between two clusters defined
+ * by ids in 'frames_cluster_1' and 'frames_cluster_2' based on the
+ * given coordinate set.
+ */
+float
+cluster_min_dist2(const CoordsPointer<float>& coords_pointer,
+                  std::size_t n_cols,
+                  const std::vector<std::size_t>& frames_cluster_1,
+                  const std::vector<std::size_t>& frames_cluster_2) {
+  #if defined(__INTEL_COMPILER)
+  float* coords = coords_pointer.get();
+  __assume_aligned(coords, MEM_ALIGNMENT);
+  #else // assume gnu compiler
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
+  #endif
+  std::size_t n_frames_1 = frames_cluster_1.size();
+  std::size_t n_frames_2 = frames_cluster_2.size();
+  std::size_t i,j,c;
+  float dist,d;
+  float min_dist = std::numeric_limits<float>::max();
+  #pragma omp parallel for \
+    default(shared) \
+    private(i,j,c,d,dist) \
+    firstprivate(n_frames_1,n_frames_2,n_cols) \
+    collapse(2) \
+    reduction(min: min_dist)
+  for (i=0; i < n_frames_1; ++i) {
+    for (j=0; j < n_frames_2; ++j) {
+      dist = 0.0f;
+      for (c=0; c < n_cols; ++c) {
+        d = coords[frames_cluster_1[i]*n_cols+c] - coords[frames_cluster_2[j]*n_cols+c];
+        dist += d*d;
+      }
+      if (dist < min_dist) {
+        min_dist = dist;
+      }
+    }
+  }
+  return min_dist;
+}
+
+
 const std::pair<std::size_t, float>
 nearest_neighbor(const CoordsPointer<float>& coords_pointer,
                  const std::vector<Density>& sorted_density,
@@ -145,18 +188,27 @@ density_clustering(const std::vector<float>& dens,
   clustering[density_sorted[0].first] = 0;
   std::size_t n_clusters = 1;
   // find initial clusters
-  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
-    // nn_pair:  first := index in traj,  second := distance to reference (i)
-    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
-    if (nn_pair.second < density_radius * 0.1) {
-      // add to existing cluster of frame with 'min_dist'
-      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
-    } else {
-      // create new cluster
-      ++n_clusters;
-      clustering[density_sorted[i].first] = n_clusters;
-    }
-  }
+
+
+
+
+
+
+
+//  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
+//    // nn_pair:  first := index in traj,  second := distance to reference (i)
+//    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
+//    if (nn_pair.second < density_radius*density_radius) {
+//      // add to existing cluster of frame with 'min_dist'
+//      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
+//    } else {
+//      // create new cluster
+//      ++n_clusters;
+//      clustering[density_sorted[i].first] = n_clusters;
+//    }
+//  }
+/////////////////////////
+
   // find nearest neighbors for all unassigned frames
   std::map<std::size_t, std::size_t> nearest_neighbors;
   for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
