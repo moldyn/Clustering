@@ -187,7 +187,7 @@ density_clustering(const std::vector<float>& dens,
   // find initial clusters
 //////////////////////////
 
-  std::vector<std::size_t> clustering;
+  std::vector<std::size_t> clustering(last_frame_below_threshold);
 
 //TODO test
   // compute sigma as deviation of nearest-neighbor distances
