@@ -187,52 +187,25 @@ density_clustering(const std::vector<float>& dens,
   // find initial clusters
 //////////////////////////
 
-  std::vector<std::size_t> clustering;
+  std::vector<std::size_t> clustering(n_rows);
 
-//TODO test
+//TODO compute sigma2
+//TODO store nearest neighbor info for later reference
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
-//  double sigma2 = 0.0;
-//  for (std::size_t i=0; i < n_rows; ++i) {
-//    sigma2 += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
-//  }
-//  sigma2 /= n_rows;
+  double sigma2 = 0.0;
+  for (std::size_t i=0; i < n_rows; ++i) {
+    sigma2 += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
+  }
+  sigma2 /= n_rows;
 
-  double sigma2 = 0.0147197;
-
-
-
-//  std::size_t n_clusters = 1;
-//  std::map<std::size_t, std::vector<std::size_t>> clusters;
-//  // initialize with highest populated frame
-//  clusters[1] = {density_sorted[0].first};
-//
-//  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
-//    // find (existing) cluster for this frame
-//    std::vector<std::size_t> fake_cluster = {i};
-//    float min_dist2 = std::numeric_limits<float>::max();
-//    std::size_t min_clust = 0;
-//    for (auto& cluster: clusters) {
-//      float dist2 = cluster_min_dist2(coords_pointer, n_cols, fake_cluster, cluster.second);
-//      if (dist2 < min_dist2) {
-//        min_dist2 = dist2;
-//        min_clust = cluster.first;
-//      }
-//    }
-//    // decide on new cluster vs appending
-//    if (min_dist2 < sigma) {
-//      // in range of cluster: append
-//      //TODO
-//    } else {
-//      // outside every cluster-bound: new cluster from this frame
-//      //TODO
-//    }
-//  }
+  std::cout <<  "sigma2: " << sigma2 << std::endl;
 
   // initialize with highest density frame
   std::size_t n_clusters = 1;
   clustering[0] = n_clusters;
+  std::cout << "n frames under threshold: " << last_frame_below_threshold << std::endl;
   for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
     // nn_pair:  first := index in traj,  second := distance to reference (i)
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
@@ -246,7 +219,10 @@ density_clustering(const std::vector<float>& dens,
     }
   }
 
-  std::cout << "n clusters: " << n_clusters << std::endl;
+//TODO: join clusters if close enough
+
+//TODO: assign other frames
+  return clustering;
 
 
 /////////////////////////
