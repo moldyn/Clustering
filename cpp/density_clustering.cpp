@@ -144,12 +144,16 @@ nearest_neighbor(const CoordsPointer<float>& coords_pointer,
   std::vector<float> distances(search_range.second-search_range.first);
   #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols)
   for (j=search_range.first; j < search_range.second; ++j) {
-    dist = 0.0f;
-    for (c=0; c < n_cols; ++c) {
-      d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
-      dist += d*d;
+    if (frame_id == j) {
+      distances[j-search_range.first] = std::numeric_limits<float>::max();
+    } else {
+      dist = 0.0f;
+      for (c=0; c < n_cols; ++c) {
+        d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+        dist += d*d;
+      }
+      distances[j-search_range.first] = dist;
     }
-    distances[j-search_range.first] = dist;
   }
   if (distances.size() == 0) {
     return {0, 0.0f};
@@ -190,8 +194,9 @@ density_clustering(const std::vector<float>& dens,
   // compute sigma as standard deviation of nearest-neighbor distances
   float sigma = 0.0f;
   for (std::size_t i=0; i < n_rows; ++i) {
-    if (i % 1000 == 0) std::cout << i << " / " << n_rows << std::endl;
-    sigma += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
+    if (i % 1000 == 0) std::cout << i << " / " << n_rows << "; sum(sigma): " << sigma << std::endl;
+    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows});
+    sigma += nn_pair.second;
   }
   sigma /= n_rows;
 
