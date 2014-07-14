@@ -85,36 +85,47 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 
 /*
  * returns the smallest squared distance between two clusters defined
- * by ids in 'frames_cluster_1' and 'frames_cluster_2' based on the
+ * by ids 'ndx_cluster1' and 'ndx_cluster2' based on the
  * given coordinate set.
  */
 float
-cluster_min_dist2(const CoordsPointer<float>& coords_pointer,
-                  std::size_t n_cols,
-                  const std::vector<std::size_t>& frames_cluster_1,
-                  const std::vector<std::size_t>& frames_cluster_2) {
+cluster_mindist2(const CoordsPointer<float>& coords_pointer,
+                 const std::size_t n_cols,
+                 const std::vector<std::size_t>& clustering,
+                 const std::size_t ndx_cluster1,
+                 const std::size_t ndx_cluster2) {
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
   __assume_aligned(coords, DC_MEM_ALIGNMENT);
   #else // assume gnu compiler
   float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
   #endif
-  std::size_t n_frames_1 = frames_cluster_1.size();
-  std::size_t n_frames_2 = frames_cluster_2.size();
   std::size_t i,j,c;
   float dist,d;
   float min_dist = std::numeric_limits<float>::max();
+  // select frames of the two clusters
+  std::vector<std::size_t> frames1;
+  std::vector<std::size_t> frames2;
+  for (std::size_t i: clustering) {
+    if (i == ndx_cluster1) {
+      frames1.push_back(i);
+    } else if (i == ndx_cluster2) { 
+      frames2.push_back(i);
+    }
+  }
+  const std::size_t n_frames1 = frames1.size();
+  const std::size_t n_frames2 = frames2.size();
   #pragma omp parallel for \
     default(shared) \
     private(i,j,c,d,dist) \
-    firstprivate(n_frames_1,n_frames_2,n_cols) \
+    firstprivate(n_frames1,n_frames2,n_cols,frames1,frames2) \
     collapse(2) \
     reduction(min: min_dist)
-  for (i=0; i < n_frames_1; ++i) {
-    for (j=0; j < n_frames_2; ++j) {
+  for (i=0; i < n_frames1; ++i) {
+    for (j=0; j < n_frames2; ++j) {
       dist = 0.0f;
       for (c=0; c < n_cols; ++c) {
-        d = coords[frames_cluster_1[i]*n_cols+c] - coords[frames_cluster_2[j]*n_cols+c];
+        d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
         dist += d*d;
       }
       if (dist < min_dist) {
@@ -129,9 +140,9 @@ cluster_min_dist2(const CoordsPointer<float>& coords_pointer,
 const std::pair<std::size_t, float>
 nearest_neighbor(const CoordsPointer<float>& coords_pointer,
                  const std::vector<Density>& sorted_density,
-                 std::size_t n_cols,
-                 std::size_t frame_id,
-                 std::pair<std::size_t, std::size_t> search_range) {
+                 const std::size_t n_cols,
+                 const std::size_t frame_id,
+                 const std::pair<std::size_t, std::size_t> search_range) {
 
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
@@ -140,16 +151,17 @@ nearest_neighbor(const CoordsPointer<float>& coords_pointer,
   float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
   #endif
   std::size_t c,j;
+  const std::size_t real_id = sorted_density[frame_id].first;
   float d, dist;
   std::vector<float> distances(search_range.second-search_range.first);
-  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols)
+  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id)
   for (j=search_range.first; j < search_range.second; ++j) {
     if (frame_id == j) {
       distances[j-search_range.first] = std::numeric_limits<float>::max();
     } else {
       dist = 0.0f;
       for (c=0; c < n_cols; ++c) {
-        d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+        d = coords[real_id*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
         dist += d*d;
       }
       distances[j-search_range.first] = dist;
@@ -190,27 +202,26 @@ density_clustering(const std::vector<float>& dens,
   std::vector<std::size_t> clustering(n_rows);
 
 //TODO compute sigma2
-//TODO store nearest neighbor info for later reference
+//TODO store nearest neighbor info for later reference (and as file)
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
-  double sigma2 = 0.0;
-  for (std::size_t i=0; i < n_rows; ++i) {
-    sigma2 += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
-  }
-  sigma2 /= n_rows;
-
-  std::cout <<  "sigma2: " << sigma2 << std::endl;
+//  double sigma2 = 0.0;
+//  for (std::size_t i=0; i < n_rows; ++i) {
+//    sigma2 += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
+//  }
+//  sigma2 /= n_rows;
+  double sigma2 = 0.0549172;
 
   // initialize with highest density frame
   std::size_t n_clusters = 1;
   clustering[0] = n_clusters;
-  std::cout << "n frames under threshold: " << last_frame_below_threshold << std::endl;
+  // find frames of same cluster (if geometrically close enough) or add them as new clusters
   for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
     // nn_pair:  first := index in traj,  second := distance to reference (i)
     auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,i});
     if (nn_pair.second < sigma2) {
-      // add to existing cluster of frame with 'min_dist'
+      // add to existing cluster
       clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
     } else {
       // create new cluster
@@ -218,8 +229,30 @@ density_clustering(const std::vector<float>& dens,
       clustering[density_sorted[i].first] = n_clusters;
     }
   }
+  // join clusters if they are close enough to each other
+  std::vector<std::set<std::size_t>> cluster_joining;
+  for (std::size_t i=1; i <= n_clusters; ++i) {
+    for (std::size_t j=1; j < i; ++j) {
+      if (cluster_mindist2(coords_pointer, n_cols, clustering, i, j) < sigma2) {
+        // both clusters have each (at least one) element(s) that are
+        // closer than sigma2 to an element of the other cluster.
+        // -> join them!
+        for (auto& join: cluster_joining) {
+          if (join.count(i) != 0) {
+            // already joining info on cluster i: add cluster j to this set
+            join.insert(j);
+            break;
+          }
+        }
+        // cluster i has no joining info yet: create new set
+        cluster_joining.push_back({i,j});
+      }
+    }
+  }
+  std::vector<std::size_t> new_clustering(clustering.size());
 
-//TODO: join clusters if close enough
+//TODO: new cluster names
+
 
 //TODO: assign other frames
   return clustering;
@@ -229,13 +262,12 @@ density_clustering(const std::vector<float>& dens,
 
   // find nearest neighbors for all unassigned frames
   std::map<std::size_t, std::size_t> nearest_neighbors;
-  for (std::size_t i=last_frame_below_threshold; i < density_sorted.size(); ++i) {
-    if (i % 100 == 0) std::cout << i << "  /  " << density_sorted.size() << std::endl;
+  for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
+    if (i % 100 == 0) std::cout << i << "  /  " << n_rows << std::endl;
     // nn_pair:  first := index in traj,  second := distance to reference (i)
-    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, density_sorted.size()});
+    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, n_rows});
     nearest_neighbors[i] = nn_pair.first;
   }
-  log("assign frames to clusters");
   // assign clusters to unassigned frames via neighbor-info
   bool nothing_happened = true;
   while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {
