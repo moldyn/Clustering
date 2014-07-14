@@ -145,14 +145,15 @@ nearest_neighbor(const CoordsPointer<float>& coords_pointer,
   #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols)
   for (j=search_range.first; j < search_range.second; ++j) {
     if (frame_id == j) {
-      continue;
+      distances[j-search_range.first] = std::numeric_limits<float>::max();
+    } else {
+      dist = 0.0f;
+      for (c=0; c < n_cols; ++c) {
+        d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+        dist += d*d;
+      }
+      distances[j-search_range.first] = dist;
     }
-    dist = 0.0f;
-    for (c=0; c < n_cols; ++c) {
-      d = coords[sorted_density[frame_id].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
-      dist += d*d;
-    }
-    distances[j-search_range.first] = dist;
   }
   if (distances.size() == 0) {
     return {0, 0.0f};
