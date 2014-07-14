@@ -190,6 +190,7 @@ density_clustering(const std::vector<float>& dens,
   // compute sigma as standard deviation of nearest-neighbor distances
   float sigma = 0.0f;
   for (std::size_t i=0; i < n_rows; ++i) {
+    if (i % 1000 == 0) std::cout << i << " / " << n_rows << std::endl;
     sigma += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
   }
   sigma /= n_rows;
