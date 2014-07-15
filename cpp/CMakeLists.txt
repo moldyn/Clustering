@@ -1,25 +1,60 @@
 cmake_minimum_required (VERSION 2.8)
 project (supervised_clustering) 
 
-# TODO: set march, fast-math, avx, fma, etc.
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+  #message("using Clang compiler")
+  message(SEND_ERROR "clang compiler not yet supported")
 
-set (CMAKE_CXX_COMPILER "g++")
-set (CMAKE_CXX_FLAGS "-std=c++11 -march=native -ftree-vectorize -ffast-math -O3 -fopenmp -Wall -Wextra")
+elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+  message("using Gnu compiler")
+  if (DC_USE_NATIVE)
+    message("native compilation: this code will ONLY run on THIS machine")
+    set (CMAKE_CXX_FLAGS "-std=c++0x -march=native -ftree-vectorize -ffast-math -O2 -fopenmp -Wall -Wextra")
+  else()
+    set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ffast-math -O2 -fopenmp -Wall -Wextra")
+  endif()
 
-#set (CMAKE_CXX_COMPILER "icpc")
-#set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3")
-#set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3 -prof-gen=srcpos")
+  if (DC_USE_XEON_PHI)
+    message(SEND_ERROR "XeonPhi not supported with Gnu compiler")
+  endif()
+
+  set (DC_MEM_ALIGNMENT 32)
+  if (DC_CPU_ACCELERATION)
+    if (${DC_CPU_ACCELERATION} STREQUAL "SSE2")
+      message("using SSE2")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
+      set (DC_MEM_ALIGNMENT 16)
+    elseif (${DC_CPU_ACCELERATION} STREQUAL "SSE4_1")
+      message("using SSE4_1")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")
+    elseif (${DC_CPU_ACCELERATION} STREQUAL "SSE4_2")
+      set (DC_MEM_ALIGNMENT 16)
+      message("using SSE4_2")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+    elseif (${DC_CPU_ACCELERATION} STREQUAL "AVX")
+      set (DC_MEM_ALIGNMENT 16)
+      message("using AVX")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+      set (DC_MEM_ALIGNMENT 32)
+    else()
+      message(SEND_ERROR "unknown instruction set: ${DC_CPU_ACCELERATION}")
+    endif()
+  else()
+    message("using standard CPU acceleration with memory aligned at ${DC_MEM_ALIGNMENT} bytes")
+  endif()
+
+elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
+  message("using Intel compiler")
+  set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3")
+  set (DC_MEM_ALIGNMENT 32)
+
+endif()
 
 find_package (Boost COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
 add_executable(density_clustering density_clustering.cpp)
 target_link_libraries(density_clustering ${Boost_LIBRARIES})
-
-# COMPILER: g++ or icc
-# DC_CPU_ACCELERATION: SSE2 SSE4_1 AVX NONE
-# DC_XEON_PHI: ON OFF
-# DC_NATIVE: ON OFF
 
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)

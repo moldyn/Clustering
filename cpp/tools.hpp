@@ -30,7 +30,7 @@ using CoordsPointer = std::unique_ptr<NUM, CoordsDeleter>;
 template <typename NUM>
 std::tuple<CoordsPointer<NUM>, std::size_t, std::size_t>
 read_coords(std::string filename,
-            std::vector<std::size_t> usecols = {});
+            std::vector<std::size_t> usecols = std::vector<std::size_t>());
 
 // template implementations
 #include "tools.hxx"

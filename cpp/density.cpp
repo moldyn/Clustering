@@ -24,7 +24,6 @@ namespace b_po = boost::program_options;
 using Density = std::pair<std::size_t, float>;
 
 
-
 // 3-column float with col1 = x-val, col2 = y-val, col3 = density
 // addressed by [row*3+col] with n_rows = n_bins^2
 std::vector<float> calculate_density_histogram(const std::vector<float>& dens,
