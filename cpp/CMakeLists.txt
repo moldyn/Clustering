@@ -19,9 +19,10 @@ target_link_libraries(density_clustering ${Boost_LIBRARIES})
 # COMPILER: g++ or icc
 # DC_CPU_ACCELERATION: SSE2 SSE4_1 AVX NONE
 # DC_XEON_PHI: ON OFF
+# DC_NATIVE: ON OFF
 
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
-add_executable(test_read_coords test_read_coords.cpp)
+#add_executable(test_read_coords test_read_coords.cpp)
 

@@ -17,9 +17,15 @@
 
 namespace b_po = boost::program_options;
 
+bool verbose = false;
+
+std::ostream& log(std::ostream& s) {
+  return s;
+}
+
 void
 log(std::string msg) {
-  std::cout << msg << std::endl;
+  log(std::cout) << msg << std::endl;
 }
 
 void
@@ -115,11 +121,11 @@ cluster_mindist2(const CoordsPointer<float>& coords_pointer,
   }
   const std::size_t n_frames1 = frames1.size();
   const std::size_t n_frames2 = frames2.size();
+  //TODO: isn't collapse(2) possible?
   #pragma omp parallel for \
     default(shared) \
     private(i,j,c,d,dist) \
-    firstprivate(n_frames1,n_frames2,n_cols,frames1,frames2) \
-    collapse(2) \
+    firstprivate(n_frames1,n_frames2,n_cols) \
     reduction(min: min_dist)
   for (i=0; i < n_frames1; ++i) {
     for (j=0; j < n_frames2; ++j) {
@@ -197,22 +203,20 @@ density_clustering(const std::vector<float>& dens,
                              [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
   std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
   // find initial clusters
-//////////////////////////
-
   std::vector<std::size_t> clustering(n_rows);
-
-//TODO compute sigma2
-//TODO store nearest neighbor info for later reference (and as file)
+  std::map<std::size_t, std::size_t> nearest_neighbors;
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
-//  double sigma2 = 0.0;
-//  for (std::size_t i=0; i < n_rows; ++i) {
-//    sigma2 += nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows}).second;
-//  }
-//  sigma2 /= n_rows;
-  double sigma2 = 0.0549172;
-
+  double sigma2 = 0.0;
+  for (std::size_t i=0; i < n_rows; ++i) {
+    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0,n_rows});
+    nearest_neighbors[i] = nn_pair.first;
+    sigma2 += nn_pair.second;
+  }
+  sigma2 /= n_rows;
+//TODO remove this test result
+//  double sigma2 = 0.0549172;
   // initialize with highest density frame
   std::size_t n_clusters = 1;
   clustering[0] = n_clusters;
@@ -239,43 +243,34 @@ density_clustering(const std::vector<float>& dens,
         // -> join them!
         for (auto& join: cluster_joining) {
           if (join.count(i) != 0) {
-            // already joining info on cluster i: add cluster j to this set
+            // already joining-info on cluster i: add cluster j to this set
             join.insert(j);
             break;
           }
         }
-        // cluster i has no joining info yet: create new set
+        // cluster i has no joining-info yet: create new set
         cluster_joining.push_back({i,j});
       }
     }
   }
-  std::vector<std::size_t> new_clustering(clustering.size());
-
-//TODO: new cluster names
-
-
-//TODO: assign other frames
-  return clustering;
-
-
-/////////////////////////
-
-  // find nearest neighbors for all unassigned frames
-  std::map<std::size_t, std::size_t> nearest_neighbors;
-  for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
-    if (i % 100 == 0) std::cout << i << "  /  " << n_rows << std::endl;
-    // nn_pair:  first := index in traj,  second := distance to reference (i)
-    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, {0, n_rows});
-    nearest_neighbors[i] = nn_pair.first;
+  std::map<std::size_t, std::size_t> old_to_new_names;
+  for (std::size_t new_name=1; new_name <= cluster_joining.size(); ++new_name) {
+    for (std::size_t old_name: cluster_joining[new_name]) {
+      old_to_new_names[old_name] = new_name;
+    }
   }
-  // assign clusters to unassigned frames via neighbor-info
+  old_to_new_names[0] = 0;
+  for (std::size_t i=0; i < n_rows; ++i) {
+    clustering[i] = old_to_new_names[clustering[i]];
+  }
+  // assign unassigned frames to clusters via neighbor-info
   bool nothing_happened = true;
   while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {
     nothing_happened = true;
-    // it:  first := index in traj,  second := distance to reference (i)
+    // it:  first := index in traj,  second := index of nearest neighbor (i)
     for (auto it=nearest_neighbors.begin(); it != nearest_neighbors.end(); ++it) {
       if (clustering[it->second] != 0) {
-        clustering[it->first] = it->second;
+        clustering[it->first] = clustering[it->second];
         nearest_neighbors.erase(it);
         nothing_happened = false;
       }
