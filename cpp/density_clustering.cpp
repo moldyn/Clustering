@@ -428,7 +428,7 @@ int main(int argc, char* argv[]) {
         float buf2;
         ifs >> buf1;
         ifs >> buf2;
-        nh[i] = {buf1, buf2};
+        nh[i] = std::pair<std::size_t, float>(buf1, buf2);
         ++i;
       }
     }
