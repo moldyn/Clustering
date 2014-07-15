@@ -2,8 +2,10 @@ cmake_minimum_required (VERSION 2.8)
 project (supervised_clustering) 
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-  #message("using Clang compiler")
-  message(SEND_ERROR "clang compiler not yet supported")
+  message("using Clang compiler (ATTENTION: only rudimentary support)")
+  set (DC_MEM_ALIGNMENT 32)
+  set (CMAKE_CXX_FLAGS "-std=c++11 -O2 -fopenmp -Wall -ffast-math -fvectorize")
+
 
 elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")

@@ -122,7 +122,6 @@ cluster_mindist2(const CoordsPointer<float>& coords_pointer,
     default(shared) \
     private(i,j,c,d,dist) \
     firstprivate(n_frames1,n_frames2,n_cols) \
-    collapse(2) \
     reduction(min: min_dist)
   for (i=0; i < n_frames1; ++i) {
     for (j=0; j < n_frames2; ++j) {
@@ -223,6 +222,7 @@ compute_sigma2(const Neighborhood& nh) {
 
 std::vector<std::size_t>
 density_clustering(const std::vector<float>& dens,
+                   Neighborhood nh,
                    const float density_threshold,
                    const CoordsPointer<float>& coords_pointer,
                    const std::size_t n_rows,
@@ -236,22 +236,11 @@ density_clustering(const std::vector<float>& dens,
   std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
   // find initial clusters
   std::vector<std::size_t> clustering(n_rows);
-
-  std::map<std::size_t, std::size_t> nearest_neighbors;
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
-  double sigma2 = 0.0;
-//TODO
-  for (std::size_t i=0; i < n_rows; ++i) {
-    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, SizePair(0,n_rows));
-    nearest_neighbors[density_sorted[i].first] = nn_pair.first;
-    sigma2 += nn_pair.second;
-  }
-  sigma2 /= n_rows;
-
+  double sigma2 = compute_sigma2(nh);
   log(std::cout) << "sigma2: " << sigma2 << std::endl;
-
   // initialize with highest density frame
   std::size_t n_clusters = 1;
   clustering[0] = n_clusters;
@@ -312,13 +301,15 @@ density_clustering(const std::vector<float>& dens,
   }
   // assign unassigned frames to clusters via neighbor-info
   bool nothing_happened = false;
-  while (nearest_neighbors.size() > 0 && ( ! nothing_happened)) {
+  while (nh.size() > 0 && ( ! nothing_happened)) {
     nothing_happened = true;
-    // it:  first := index in traj,  second := index of nearest neighbor (i)
-    for (auto it=nearest_neighbors.begin(); it != nearest_neighbors.end(); ++it) {
-      if (clustering[it->second] != 0) {
-        clustering[it->first] = clustering[it->second];
-        nearest_neighbors.erase(it);
+    // it: first := index of frame, second := neighbor pair(index, dist)
+    for (auto it=nh.begin(); it != nh.end(); ++it) {
+      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
+        // frame itself is unassigned, while neighbor is assigned
+        //  -> assign to neighbor's cluster
+        clustering[it->first] = clustering[it->second.first];
+        nh.erase(it);
         nothing_happened = false;
       }
     }
@@ -443,18 +434,19 @@ int main(int argc, char* argv[]) {
     }
   } else {
     log(std::cout) << "calculating nearest neighbors" << std::endl;
-    
-    //TODO finish 
-
-
+    nh = nearest_neighbors(coords_pointer, n_rows, n_cols, densities);
+    if (args.count("nearest-neighbors")) {
+      std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
+      for (auto p: nh) {
+        // second: neighbor
+        // second.first: id; second.second: squared dist
+        ofs << p.second.first << " " << p.second.second << "\n";
+      }
+    }
   }
-
-
-
-
-
+  //// clustering
   log(std::cout) << "calculating clusters" << std::endl;
-  std::vector<std::size_t> clustering = density_clustering(densities, threshold, coords_pointer, n_rows, n_cols);
+  std::vector<std::size_t> clustering = density_clustering(densities, nh, threshold, coords_pointer, n_rows, n_cols);
   // write clusters to file
   {
     std::ofstream ofs(output_file);
