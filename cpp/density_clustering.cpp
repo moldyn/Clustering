@@ -120,8 +120,7 @@ clusters_are_close(const CoordsPointer<float>& coords_pointer,
     private(i,j,c,d,dist) \
     firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
     collapse(2) \
-    reduction(min: min_dist) \
-    schedule(dynamic)
+    reduction(min: min_dist)
   for (i=0; i < n_frames1; ++i) {
     for (j=0; j < n_frames2; ++j) {
       // break won't work with OpenMP, so we just do nothing
@@ -134,10 +133,7 @@ clusters_are_close(const CoordsPointer<float>& coords_pointer,
           dist += d*d;
         }
         if (dist < distance_cutoff) {
-          #pragma omp critical
-          {
           clusters_are_close = true;
-          }
         }
       }
     }
@@ -332,20 +328,20 @@ density_clustering(const std::vector<float>& dens,
     clustering[i] = old_to_new_names[clustering[i]];
   }
   // assign unassigned frames to clusters via neighbor-info
-//  bool nothing_happened = false;
-//  while (nh.size() > 0 && ( ! nothing_happened)) {
-//    nothing_happened = true;
-//    // it: first := index of frame, second := neighbor pair(index, dist)
-//    for (auto it=nh.begin(); it != nh.end(); ++it) {
-//      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
-//        // frame itself is unassigned, while neighbor is assigned
-//        //  -> assign to neighbor's cluster
-//        clustering[it->first] = clustering[it->second.first];
-//        nh.erase(it);
-//        nothing_happened = false;
-//      }
-//    }
-//  }
+  bool nothing_happened = false;
+  while (nh.size() > 0 && ( ! nothing_happened)) {
+    nothing_happened = true;
+    // it: first := index of frame, second := neighbor pair(index, dist)
+    for (auto it=nh.begin(); it != nh.end(); ++it) {
+      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
+        // frame itself is unassigned, while neighbor is assigned
+        //  -> assign to neighbor's cluster
+        clustering[it->first] = clustering[it->second.first];
+        nh.erase(it);
+        nothing_happened = false;
+      }
+    }
+  }
   return clustering;
 }
 
