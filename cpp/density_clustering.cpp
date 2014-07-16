@@ -222,11 +222,15 @@ Neighborhood
 nearest_neighbors(const CoordsPointer<float>& coords_pointer,
                   const std::size_t n_rows,
                   const std::size_t n_cols,
-                  const std::vector<float>& densities) {
+                  const std::vector<float>& densities,
+                  int i_limit=-1) {
+  if (i_limit == -1) {
+    i_limit = (int) n_rows;
+  }
   Neighborhood nh;
   std::vector<Density> densities_sorted = sorted_densities(densities);
-  for (std::size_t i=0; i < n_rows; ++i) {
-    nh[densities_sorted[i].first] = nearest_neighbor(coords_pointer, densities_sorted, n_cols, i, SizePair(0,n_rows));
+  for (int i=0; i < i_limit; ++i) {
+    nh[densities_sorted[i].first] = nearest_neighbor(coords_pointer, densities_sorted, n_cols, i, SizePair(0,i_limit));
   }
   return nh;
 }
@@ -265,89 +269,142 @@ density_clustering(const std::vector<float>& dens,
   double sigma2 = compute_sigma2(nh);
   log(std::cout) << "sigma2: " << sigma2 << std::endl;
   // initialize with highest density frame
-  std::size_t n_clusters = 1;
-  clustering[0] = n_clusters;
-  // find frames of same cluster (if geometrically close enough) or add them as new clusters
-  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
-    // nn_pair:  first := index in traj,  second := distance to reference (i)
-    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, SizePair(0,i));
-    if (nn_pair.second < sigma2) {
-      // add to existing cluster
-      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
-    } else {
-      // create new cluster
-      ++n_clusters;
-      clustering[density_sorted[i].first] = n_clusters;
-    }
-  }
-  log(std::cout) << "found " << n_clusters << " initial clusters" << std::endl;
+//  std::size_t n_clusters = 1;
+//  clustering[0] = n_clusters;
+//  // find frames of same cluster (if geometrically close enough) or add them as new clusters
+//  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
+//    // nn_pair:  first := index in traj,  second := distance to reference (i)
+//    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, SizePair(0,i));
+//    if (nn_pair.second < sigma2) {
+//      // add to existing cluster
+//      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
+//    } else {
+//      // create new cluster
+//      ++n_clusters;
+//      clustering[density_sorted[i].first] = n_clusters;
+//    }
+//  }
+//  log(std::cout) << "found " << n_clusters << " initial clusters" << std::endl;
   // join clusters if they are close enough to each other
   std::vector<std::set<std::size_t>> cluster_joining;
-  for (std::size_t i=1; i <= n_clusters; ++i) {
-    std::set<std::size_t> temp_set;
-    temp_set.insert(i);
-    cluster_joining.push_back(temp_set);
-  }
-  bool join_happened = true;
-  while (join_happened) {
-    join_happened = false;
-//TODO parallelize here...
-    for (std::size_t i=0; i < cluster_joining.size(); ++i) {
-      for (std::size_t j=0; j < i; ++j) {
-        std::set<std::size_t> set1 = cluster_joining[i];
-        std::set<std::size_t> set2 = cluster_joining[j];
-        if (cluster_set_joinable(coords_pointer, n_cols, clustering, set1, set2, 4*sigma2)) {
-          log(std::cout) << "join happened, #clusters left: " << cluster_joining.size()-1 << std::endl;
-          join_happened = true;
-          // join sets
-          set1.insert(set2.begin(), set2.end());
-          // delete old sets (highest index always first!)
-          cluster_joining.erase(cluster_joining.begin() + i);
-          cluster_joining.erase(cluster_joining.begin() + j);
-          // add new (joined) set
-          cluster_joining.push_back(set1);
+  // compute a neighborhood only on high density frames
+  Neighborhood high_dens_nh = nearest_neighbors(coords_pointer, n_rows, n_cols, dens, last_frame_below_threshold);
+  // initialize with highest density frame
+  cluster_joining.push_back({density_sorted[0].first});
+  high_dens_nh.erase(density_sorted[0].first);
+  while ( ! high_dens_nh.empty()) {
+    int remove_frame = -1;
+    for (auto p: high_dens_nh) {
+      // these ids are the same as in orig. trajectory, not
+      // in order of sorted density
+      std::size_t i_frame = p.first;
+      std::size_t i_neighbor = p.second.first;
+      float dist_neighbor = p.second.second;
+      if ((high_dens_nh.count(i_neighbor) == 0) && (dist_neighbor < 4*sigma2)) {
+        // neighbor isn't in neighborhood anymore
+        // => it's already in a cluster
+        // => assign i_frame to same cluster
+        for (auto& cluster: cluster_joining) {
+          if (cluster.count(i_neighbor) == 1) {
+            // found the neighbor's cluster
+            cluster.insert(i_frame);
+            remove_frame = (int) i_frame;
+            break;
+          }
+        }
+        if (remove_frame != -1) {
           break;
         }
       }
-      // start from beginning, since 'cluster_joining' is now
-      // a different data structure
-      if (join_happened) {
-        break;
+    }
+    if (remove_frame != -1) {
+      high_dens_nh.erase(remove_frame);
+    } else {
+      // nothing happened: add new cluster
+      for (auto d: density_sorted) {
+        if (high_dens_nh.count(d.first) == 1) {
+          // this one is still unassigned, use it as
+          // source of a new cluster
+          cluster_joining.push_back({d.first});
+          high_dens_nh.erase(d.first);
+        }
       }
     }
   }
-  log(std::cout) << "joining clusters to " << cluster_joining.size() << " new clusters" << std::endl;
-  std::map<std::size_t, std::size_t> old_to_new_names;
-  for (std::size_t new_name=0; new_name < cluster_joining.size(); ++new_name) {
-    for (std::size_t old_name: cluster_joining[new_name]) {
-      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
-      old_to_new_names[old_name] = new_name+1;
+
+  for (std::size_t i_clust=0; i_clust < cluster_joining.size(); ++i_clust) {
+    log(std::cout) << "cluster content of cluster " << i_clust << ": " << cluster_joining[i_clust].size() << std::endl;
+    for (std::size_t i_frame: cluster_joining[i_clust]) {
+      clustering[i_frame] = i_clust+1;
     }
   }
-  old_to_new_names[0] = 0;
-  for (std::size_t i=0; i < n_rows; ++i) {
-    clustering[i] = old_to_new_names[clustering[i]];
-  }
+
+
+
+//  for (std::size_t i=1; i <= n_clusters; ++i) {
+//    std::set<std::size_t> temp_set;
+//    temp_set.insert(i);
+//    cluster_joining.push_back(temp_set);
+//  }
+//  bool join_happened = true;
+//  while (join_happened) {
+//    join_happened = false;
+//    for (std::size_t i=0; i < cluster_joining.size(); ++i) {
+//      for (std::size_t j=0; j < i; ++j) {
+//        std::set<std::size_t> set1 = cluster_joining[i];
+//        std::set<std::size_t> set2 = cluster_joining[j];
+//        if (cluster_set_joinable(coords_pointer, n_cols, clustering, set1, set2, 4*sigma2)) {
+//          log(std::cout) << "join happened, #clusters left: " << cluster_joining.size()-1 << std::endl;
+//          join_happened = true;
+//          // join sets
+//          set1.insert(set2.begin(), set2.end());
+//          // delete old sets (highest index always first!)
+//          cluster_joining.erase(cluster_joining.begin() + i);
+//          cluster_joining.erase(cluster_joining.begin() + j);
+//          // add new (joined) set
+//          cluster_joining.push_back(set1);
+//          break;
+//        }
+//      }
+//      // start from beginning, since 'cluster_joining' is now
+//      // a different data structure
+//      if (join_happened) {
+//        break;
+//      }
+//    }
+//  }
+//  log(std::cout) << "joining clusters to " << cluster_joining.size() << " new clusters" << std::endl;
+//  std::map<std::size_t, std::size_t> old_to_new_names;
+//  for (std::size_t new_name=0; new_name < cluster_joining.size(); ++new_name) {
+//    for (std::size_t old_name: cluster_joining[new_name]) {
+//      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
+//      old_to_new_names[old_name] = new_name+1;
+//    }
+//  }
+//  old_to_new_names[0] = 0;
+//  for (std::size_t i=0; i < n_rows; ++i) {
+//    clustering[i] = old_to_new_names[clustering[i]];
+//  }
 
 
 
 //TODO: must be done in descending density order
 
   // assign unassigned frames to clusters via neighbor-info
-  bool nothing_happened = false;
-  while (nh.size() > 0 && ( ! nothing_happened)) {
-    nothing_happened = true;
-    // it: first := index of frame, second := neighbor pair(index, dist)
-    for (auto it=nh.begin(); it != nh.end(); ++it) {
-      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
-        // frame itself is unassigned, while neighbor is assigned
-        //  -> assign to neighbor's cluster
-        clustering[it->first] = clustering[it->second.first];
-        nh.erase(it);
-        nothing_happened = false;
-      }
-    }
-  }
+//  bool nothing_happened = false;
+//  while (nh.size() > 0 && ( ! nothing_happened)) {
+//    nothing_happened = true;
+//    // it: first := index of frame, second := neighbor pair(index, dist)
+//    for (auto it=nh.begin(); it != nh.end(); ++it) {
+//      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
+//        // frame itself is unassigned, while neighbor is assigned
+//        //  -> assign to neighbor's cluster
+//        clustering[it->first] = clustering[it->second.first];
+//        nh.erase(it);
+//        nothing_happened = false;
+//      }
+//    }
+//  }
   return clustering;
 }
 
