@@ -138,6 +138,29 @@ cluster_mindist2(const CoordsPointer<float>& coords_pointer,
   return min_dist;
 }
 
+/*
+ * calculate minimal squared distance between
+ * two sets of clusters.
+ */
+float
+cluster_set_mindist2(const CoordsPointer<float>& coords_pointer,
+                     const std::size_t n_cols,
+                     const std::vector<std::size_t>& clustering,
+                     const std::vector<std::set<std::size_t>> cluster_joining,
+                     const std::size_t set1,
+                     const std::size_t set2) {
+  float mindist2 = std::numeric_limits<float>::max();
+  for (std::size_t cl1: cluster_joining[set1]) {
+    for (std::size_t cl2: cluster_joining[set2]) {
+      float dist2 = cluster_mindist2(coords_pointer, n_cols, clustering, cl1, cl2);
+      if (dist2 < mindist2) {
+        mindist2 = dist2;
+      }
+    }
+  }
+  return mindist2;
+}
+
 
 const std::pair<std::size_t, float>
 nearest_neighbor(const CoordsPointer<float>& coords_pointer,
@@ -145,7 +168,6 @@ nearest_neighbor(const CoordsPointer<float>& coords_pointer,
                  const std::size_t n_cols,
                  const std::size_t frame_id,
                  const std::pair<std::size_t, std::size_t> search_range) {
-
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
   __assume_aligned(coords, DC_MEM_ALIGNMENT);
@@ -261,43 +283,62 @@ density_clustering(const std::vector<float>& dens,
   // join clusters if they are close enough to each other
   std::vector<std::set<std::size_t>> cluster_joining;
   for (std::size_t i=1; i <= n_clusters; ++i) {
-    for (std::size_t j=1; j < i; ++j) {
-      if (cluster_mindist2(coords_pointer, n_cols, clustering, i, j) < sigma2) {
-        // both clusters have each (at least one) element(s) that are
-        // closer than sigma2 to an element of the other cluster.
-        // -> join them!
-        for (auto& join: cluster_joining) {
-          if (join.count(i) != 0) {
-            // already joining-info on cluster i: add cluster j to this set
-            join.insert(j);
-            break;
-          }
-        }
-        // cluster i has no joining-info yet: create new set
-        std::set<std::size_t> temp_set;
-        temp_set.insert(i);
-        temp_set.insert(j);
-        cluster_joining.push_back(temp_set);
-      }
-    }
+    std::set<std::size_t> temp_set;
+    temp_set.insert(i);
+    cluster_joining.push_back(temp_set);
   }
+
+//TODO
+
+
+
+
+//  for (std::size_t i=1; i <= n_clusters; ++i) {
+//    for (std::size_t j=1; j < i; ++j) {
+//      if (cluster_mindist2(coords_pointer, n_cols, clustering, i, j) < sigma2) {
+//        // both clusters have each (at least one) element(s) that are
+//        // closer than sigma2 to an element of the other cluster.
+//        // -> join them!
+//        bool cluster_found = false;
+//        for (auto& join: cluster_joining) {
+//          if (join.count(i) != 0) {
+//            // already joining-info on cluster i: add cluster j to this set
+//            join.insert(j);
+//            cluster_found = true;
+//            break;
+//          }
+//        }
+//        if ( ! cluster_found) {
+//          // cluster i has no joining-info yet: create new set
+//          std::set<std::size_t> temp_set;
+//          temp_set.insert(i);
+//          temp_set.insert(j);
+//          cluster_joining.push_back(temp_set);
+//        }
+//      }
+//    }
+//  }
   log(std::cout) << "joining clusters to " << cluster_joining.size() << " new clusters" << std::endl;
   std::map<std::size_t, std::size_t> old_to_new_names;
   log(std::cout) << "setup matches of new and old cluster names" << std::endl;
   for (std::size_t new_name=0; new_name < cluster_joining.size(); ++new_name) {
-    for (std::size_t old_name: cluster_joining[new_name]) {
-      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
-      old_to_new_names[old_name] = new_name+1;
+    log(std::cout) << "new name: " << new_name+1 << std::endl;
+    for (auto cl: cluster_joining[new_name]) {
+      log(std::cout) << "   " << cl << std::endl;
     }
+//    for (std::size_t old_name: cluster_joining[new_name]) {
+//      log(std::cout) << "old name " << old_name << " gets " << new_name+1 << std::endl;
+//      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
+//      old_to_new_names[old_name] = new_name+1;
+//    }
   }
+
+  exit(2);
+
   old_to_new_names[0] = 0;
   log(std::cout) << "applying new names" << std::endl;
   for (std::size_t i=0; i < n_rows; ++i) {
     clustering[i] = old_to_new_names[clustering[i]];
-  }
-  log(std::cout) << "old to new names:" << std::endl;
-  for (auto old_new: old_to_new_names) {
-    log(std::cout) << old_new.first << " -> " << old_new.second << std::endl;
   }
   // assign unassigned frames to clusters via neighbor-info
   bool nothing_happened = false;
