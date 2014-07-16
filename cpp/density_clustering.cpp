@@ -127,18 +127,17 @@ clusters_are_close(const CoordsPointer<float>& coords_pointer,
       // break won't work with OpenMP, so we just do nothing
       // if another thread already found that the clusters
       // are close...
-      if (clusters_are_close) {
-        continue;
-      }
-      dist = 0.0f;
-      for (c=0; c < n_cols; ++c) {
-        d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
-        dist += d*d;
-      }
-      if (dist < distance_cutoff) {
-        #pragma omp critical
-        {
-        clusters_are_close = true;
+      if ( ! clusters_are_close) {
+        dist = 0.0f;
+        for (c=0; c < n_cols; ++c) {
+          d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
+          dist += d*d;
+        }
+        if (dist < distance_cutoff) {
+          #pragma omp critical
+          {
+          clusters_are_close = true;
+          }
         }
       }
     }
