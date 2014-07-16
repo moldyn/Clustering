@@ -101,7 +101,6 @@ clusters_are_close(const CoordsPointer<float>& coords_pointer,
   #endif
   std::size_t i,j,c;
   float dist,d;
-  float min_dist = std::numeric_limits<float>::max();
   // select frames of the two clusters
   std::vector<std::size_t> frames1;
   std::vector<std::size_t> frames2;
@@ -114,13 +113,14 @@ clusters_are_close(const CoordsPointer<float>& coords_pointer,
   }
   const std::size_t n_frames1 = frames1.size();
   const std::size_t n_frames2 = frames2.size();
+//  log(std::cout) << "   #frames (cluster1 , cluster2): " << n_frames1 << ", " << n_frames2 << std::endl;
   bool clusters_are_close = false;
+//TODO: do not parallelize here, but at higher level
   #pragma omp parallel for \
     default(shared) \
     private(i,j,c,d,dist) \
     firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
-    collapse(2) \
-    reduction(min: min_dist)
+    collapse(2)
   for (i=0; i < n_frames1; ++i) {
     for (j=0; j < n_frames2; ++j) {
       // break won't work with OpenMP, so we just do nothing
@@ -291,6 +291,7 @@ density_clustering(const std::vector<float>& dens,
   bool join_happened = true;
   while (join_happened) {
     join_happened = false;
+//TODO parallelize here...
     for (std::size_t i=0; i < cluster_joining.size(); ++i) {
       for (std::size_t j=0; j < i; ++j) {
         std::set<std::size_t> set1 = cluster_joining[i];
@@ -327,6 +328,11 @@ density_clustering(const std::vector<float>& dens,
   for (std::size_t i=0; i < n_rows; ++i) {
     clustering[i] = old_to_new_names[clustering[i]];
   }
+
+
+
+//TODO: must be done in descending density order
+
   // assign unassigned frames to clusters via neighbor-info
   bool nothing_happened = false;
   while (nh.size() > 0 && ( ! nothing_happened)) {
