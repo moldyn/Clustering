@@ -86,17 +86,13 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 }
 
 
-/*
- * returns the smallest squared distance between two clusters defined
- * by ids 'ndx_cluster1' and 'ndx_cluster2' based on the
- * given coordinate set.
- */
-float
-cluster_mindist2(const CoordsPointer<float>& coords_pointer,
-                 const std::size_t n_cols,
-                 const std::vector<std::size_t>& clustering,
-                 const std::size_t ndx_cluster1,
-                 const std::size_t ndx_cluster2) {
+bool
+clusters_are_close(const CoordsPointer<float>& coords_pointer,
+                   const std::size_t n_cols,
+                   const std::vector<std::size_t>& clustering,
+                   const std::size_t ndx_cluster1,
+                   const std::size_t ndx_cluster2,
+                   const float distance_cutoff) {
   #if defined(__INTEL_COMPILER)
   float* coords = coords_pointer.get();
   __assume_aligned(coords, DC_MEM_ALIGNMENT);
@@ -118,47 +114,57 @@ cluster_mindist2(const CoordsPointer<float>& coords_pointer,
   }
   const std::size_t n_frames1 = frames1.size();
   const std::size_t n_frames2 = frames2.size();
+  bool clusters_are_close = false;
   #pragma omp parallel for \
     default(shared) \
     private(i,j,c,d,dist) \
-    firstprivate(n_frames1,n_frames2,n_cols) \
-    reduction(min: min_dist)
+    firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
+    collapse(2) \
+    reduction(min: min_dist) \
+    schedule(dynamic)
   for (i=0; i < n_frames1; ++i) {
     for (j=0; j < n_frames2; ++j) {
+      // break won't work with OpenMP, so we just do nothing
+      // if another thread already found that the clusters
+      // are close...
+      if (clusters_are_close) {
+        continue;
+      }
       dist = 0.0f;
       for (c=0; c < n_cols; ++c) {
         d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
         dist += d*d;
       }
-      if (dist < min_dist) {
-        min_dist = dist;
+      if (dist < distance_cutoff) {
+        #pragma omp critical
+        {
+        clusters_are_close = true;
+        }
       }
     }
   }
-  return min_dist;
+  return clusters_are_close;
 }
 
 /*
  * calculate minimal squared distance between
  * two sets of clusters.
  */
-float
-cluster_set_mindist2(const CoordsPointer<float>& coords_pointer,
+bool
+cluster_set_joinable(const CoordsPointer<float>& coords_pointer,
                      const std::size_t n_cols,
                      const std::vector<std::size_t>& clustering,
-                     const std::vector<std::set<std::size_t>> cluster_joining,
-                     const std::size_t set1,
-                     const std::size_t set2) {
-  float mindist2 = std::numeric_limits<float>::max();
-  for (std::size_t cl1: cluster_joining[set1]) {
-    for (std::size_t cl2: cluster_joining[set2]) {
-      float dist2 = cluster_mindist2(coords_pointer, n_cols, clustering, cl1, cl2);
-      if (dist2 < mindist2) {
-        mindist2 = dist2;
+                     const std::set<std::size_t> set1,
+                     const std::set<std::size_t> set2,
+                     const float distance_cutoff) {
+  for (std::size_t cl1: set1) {
+    for (std::size_t cl2: set2) {
+      if (clusters_are_close(coords_pointer, n_cols, clustering, cl1, cl2, distance_cutoff)) {
+        return true;
       }
     }
   }
-  return mindist2;
+  return false;
 }
 
 
@@ -287,74 +293,60 @@ density_clustering(const std::vector<float>& dens,
     temp_set.insert(i);
     cluster_joining.push_back(temp_set);
   }
-
-//TODO
-
-
-
-
-//  for (std::size_t i=1; i <= n_clusters; ++i) {
-//    for (std::size_t j=1; j < i; ++j) {
-//      if (cluster_mindist2(coords_pointer, n_cols, clustering, i, j) < sigma2) {
-//        // both clusters have each (at least one) element(s) that are
-//        // closer than sigma2 to an element of the other cluster.
-//        // -> join them!
-//        bool cluster_found = false;
-//        for (auto& join: cluster_joining) {
-//          if (join.count(i) != 0) {
-//            // already joining-info on cluster i: add cluster j to this set
-//            join.insert(j);
-//            cluster_found = true;
-//            break;
-//          }
-//        }
-//        if ( ! cluster_found) {
-//          // cluster i has no joining-info yet: create new set
-//          std::set<std::size_t> temp_set;
-//          temp_set.insert(i);
-//          temp_set.insert(j);
-//          cluster_joining.push_back(temp_set);
-//        }
-//      }
-//    }
-//  }
+  bool join_happened = true;
+  while (join_happened) {
+    join_happened = false;
+    for (std::size_t i=0; i < cluster_joining.size(); ++i) {
+      for (std::size_t j=0; j < i; ++j) {
+        std::set<std::size_t> set1 = cluster_joining[i];
+        std::set<std::size_t> set2 = cluster_joining[j];
+        if (cluster_set_joinable(coords_pointer, n_cols, clustering, set1, set2, 4*sigma2)) {
+          log(std::cout) << "join happened, #clusters left: " << cluster_joining.size()-1 << std::endl;
+          join_happened = true;
+          // join sets
+          set1.insert(set2.begin(), set2.end());
+          // delete old sets (highest index always first!)
+          cluster_joining.erase(cluster_joining.begin() + i);
+          cluster_joining.erase(cluster_joining.begin() + j);
+          // add new (joined) set
+          cluster_joining.push_back(set1);
+          break;
+        }
+      }
+      // start from beginning, since 'cluster_joining' is now
+      // a different data structure
+      if (join_happened) {
+        break;
+      }
+    }
+  }
   log(std::cout) << "joining clusters to " << cluster_joining.size() << " new clusters" << std::endl;
   std::map<std::size_t, std::size_t> old_to_new_names;
-  log(std::cout) << "setup matches of new and old cluster names" << std::endl;
   for (std::size_t new_name=0; new_name < cluster_joining.size(); ++new_name) {
-    log(std::cout) << "new name: " << new_name+1 << std::endl;
-    for (auto cl: cluster_joining[new_name]) {
-      log(std::cout) << "   " << cl << std::endl;
+    for (std::size_t old_name: cluster_joining[new_name]) {
+      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
+      old_to_new_names[old_name] = new_name+1;
     }
-//    for (std::size_t old_name: cluster_joining[new_name]) {
-//      log(std::cout) << "old name " << old_name << " gets " << new_name+1 << std::endl;
-//      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
-//      old_to_new_names[old_name] = new_name+1;
-//    }
   }
-
-  exit(2);
-
   old_to_new_names[0] = 0;
-  log(std::cout) << "applying new names" << std::endl;
   for (std::size_t i=0; i < n_rows; ++i) {
     clustering[i] = old_to_new_names[clustering[i]];
   }
   // assign unassigned frames to clusters via neighbor-info
-  bool nothing_happened = false;
-  while (nh.size() > 0 && ( ! nothing_happened)) {
-    nothing_happened = true;
-    // it: first := index of frame, second := neighbor pair(index, dist)
-    for (auto it=nh.begin(); it != nh.end(); ++it) {
-      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
-        // frame itself is unassigned, while neighbor is assigned
-        //  -> assign to neighbor's cluster
-        clustering[it->first] = clustering[it->second.first];
-        nh.erase(it);
-        nothing_happened = false;
-      }
-    }
-  }
+//  bool nothing_happened = false;
+//  while (nh.size() > 0 && ( ! nothing_happened)) {
+//    nothing_happened = true;
+//    // it: first := index of frame, second := neighbor pair(index, dist)
+//    for (auto it=nh.begin(); it != nh.end(); ++it) {
+//      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
+//        // frame itself is unassigned, while neighbor is assigned
+//        //  -> assign to neighbor's cluster
+//        clustering[it->first] = clustering[it->second.first];
+//        nh.erase(it);
+//        nothing_happened = false;
+//      }
+//    }
+//  }
   return clustering;
 }
 

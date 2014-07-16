@@ -50,7 +50,7 @@ elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
 
 elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
   message("using Intel compiler")
-  set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -O3")
+  set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -xAVX -O3")
   set (DC_MEM_ALIGNMENT 32)
 
 endif()
