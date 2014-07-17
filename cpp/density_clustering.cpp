@@ -262,6 +262,9 @@ density_clustering(const std::vector<float>& dens,
     elem = old_to_new[elem];
   }
   if ( ! only_initial_frames) {
+    //TODO: get candidates not by density, but by min. dist. to some cluster
+    //      keep record for every cluster, what the next candidate is and re-compute
+    //      only for cluster that has changed
     log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
     // assign unassigned frames to clusters via neighbor-info (in descending density order)
     for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
