@@ -35,29 +35,15 @@ std::ostream& log(std::ostream& s) {
 
 
 std::vector<std::size_t>
-calculate_populations(const CoordsPointer<float>& coords_pointer,
+calculate_populations(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const float radius) {
-
-  // provide easy access to coordinates data
-  // and give hint to compiler that it is readily
-  // aligned for vectorization
-  //
-  // DC_MEM_ALIGNMENT is defined during cmake and
-  // set depending on usage of SSE2, SSE4_1, AVX or Xeon Phi
-  #if defined(__INTEL_COMPILER)
-  float* coords = coords_pointer.get();
-  __assume_aligned(coords, DC_MEM_ALIGNMENT);
-  #else
-  // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
-  #endif
-
   std::vector<std::size_t> pops(n_rows, 1);
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
+  ASSUME_ALIGNED(coords);
   #pragma omp parallel for default(shared) private(i,j,k,c,dist) firstprivate(n_rows,n_cols,rad2) schedule(dynamic)
   for (i=0; i < n_rows; ++i) {
     for (j=i+1; j < n_rows; ++j) {
@@ -90,23 +76,18 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 
 
 const std::pair<std::size_t, float>
-nearest_neighbor(const CoordsPointer<float>& coords_pointer,
+nearest_neighbor(const float* coords,
                  const std::vector<Density>& sorted_density,
                  const std::size_t n_cols,
                  const std::size_t frame_id,
                  const std::pair<std::size_t, std::size_t> search_range) {
-  #if defined(__INTEL_COMPILER)
-  float* coords = coords_pointer.get();
-  __assume_aligned(coords, DC_MEM_ALIGNMENT);
-  #else // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
-  #endif
   std::size_t c,j;
   const std::size_t real_id = sorted_density[frame_id].first;
   float d, dist;
   std::size_t sr_first = search_range.first;
   std::size_t sr_second = search_range.second;
   std::vector<float> distances(sr_second - sr_first);
+  ASSUME_ALIGNED(coords);
   #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
   for (j=sr_first; j < sr_second; ++j) {
     if (frame_id == j) {
@@ -144,47 +125,46 @@ sorted_densities(const std::vector<float>& dens) {
   return density_sorted;
 }
 
-// returns vector of neighborhood sets.
-// all ids (vector-id and set-ids) are
+// returns neighborhood set of single frame.
+// all ids are
 // in sorted density order.
-std::vector<std::set<std::size_t>>
-high_density_neighborhood(const CoordsPointer<float>& coords_pointer,
+std::set<std::size_t>
+high_density_neighborhood(const float* coords,
                           const std::size_t n_cols,
                           const std::vector<Density>& sorted_density,
+                          const std::size_t i_frame,
                           const std::size_t limit,
                           const float max_dist) {
-  #if defined(__INTEL_COMPILER)
-  float* coords = coords_pointer.get();
-  __assume_aligned(coords, DC_MEM_ALIGNMENT);
-  #else // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
-  #endif
-  std::vector<std::set<std::size_t>> nh(limit);
-  std::size_t i,j,c;
+  std::set<std::size_t> nh;
+  std::size_t j,c;
   float d,dist2;
-  #pragma omp parallel for default(shared) private(i,j,c,d,dist2) firstprivate(limit,max_dist)
-  for (i=0; i < limit; ++i) {
-    for (j=0; j < limit; ++j) {
-      if (i != j) {
-        dist2 = 0.0f;
-        for (c=0; c < n_cols; ++c) {
-          d = coords[sorted_density[i].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
-          dist2 += d*d;
+  ASSUME_ALIGNED(coords);
+  #pragma omp parallel for default(shared) private(j,c,d,dist2) firstprivate(i_frame,limit,max_dist)
+  for (j=0; j < limit; ++j) {
+    if (i_frame != j) {
+      dist2 = 0.0f;
+      for (c=0; c < n_cols; ++c) {
+        d = coords[sorted_density[i_frame].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+        dist2 += d*d;
+      }
+      if (dist2 < max_dist) {
+        #pragma omp critical
+        {
+          nh.insert(j);
         }
-        if (dist2 < max_dist) {
-          nh[i].insert(j);
-        }
-      } else {
-        nh[i].insert(i);
+      }
+    } else {
+      #pragma omp critical
+      {
+        nh.insert(i_frame);
       }
     }
   }
   return nh;
 }
 
-
 Neighborhood
-nearest_neighbors(const CoordsPointer<float>& coords_pointer,
+nearest_neighbors(const float* coords,
                   const std::size_t n_rows,
                   const std::size_t n_cols,
                   const std::vector<float>& densities,
@@ -195,7 +175,7 @@ nearest_neighbors(const CoordsPointer<float>& coords_pointer,
   Neighborhood nh;
   std::vector<Density> densities_sorted = sorted_densities(densities);
   for (int i=0; i < i_limit; ++i) {
-    nh[densities_sorted[i].first] = nearest_neighbor(coords_pointer, densities_sorted, n_cols, i, SizePair(0,i_limit));
+    nh[densities_sorted[i].first] = nearest_neighbor(coords, densities_sorted, n_cols, i, SizePair(0,i_limit));
   }
   return nh;
 }
@@ -214,20 +194,19 @@ compute_sigma2(const Neighborhood& nh) {
 
 std::vector<std::size_t>
 density_clustering(const std::vector<float>& dens,
-                   Neighborhood nh,
+                   const Neighborhood& nh,
                    const float density_threshold,
-                   const CoordsPointer<float>& coords_pointer,
+                   const float* coords,
                    const std::size_t n_rows,
-                   const std::size_t n_cols) {
-
+                   const std::size_t n_cols,
+                   bool only_initial_frames) {
+  std::vector<std::size_t> clustering(n_rows);
   std::vector<Density> density_sorted = sorted_densities(dens);
   auto lb = std::lower_bound(density_sorted.begin(),
                              density_sorted.end(),
                              Density(0, density_threshold), 
                              [](const Density& d1, const Density& d2) -> bool {return d1.second > d2.second;});
   std::size_t last_frame_below_threshold = (lb - density_sorted.begin());
-  // find initial clusters
-  std::vector<std::size_t> clustering(n_rows);
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
@@ -235,127 +214,62 @@ density_clustering(const std::vector<float>& dens,
   log(std::cout) << "sigma2: " << sigma2 << std::endl;
   log(std::cout) << last_frame_below_threshold << " frames with high density" << std::endl;
   // compute a neighborhood with distance 4*sigma2 only on high density frames
-  std::vector<std::set<std::size_t>> high_dens_nh = high_density_neighborhood(coords_pointer,
-                                                                              n_cols,
-                                                                              density_sorted,
-                                                                              last_frame_below_threshold,
-                                                                              4*sigma2);
-  std::list<std::set<std::size_t>> clusters;
-  for (auto cluster: high_dens_nh) {
-    clusters.push_back(cluster);
-  }
   log(std::cout) << "merging initial clusters" << std::endl;
-  bool there_was_a_merge = true;
-  while (there_was_a_merge) {
-    there_was_a_merge = false;
-    for (auto it_i=clusters.begin(); it_i != clusters.end(); ++it_i) {
-      for (auto it_j=clusters.begin(); it_j != it_i; ++it_j) {
-        bool disjoint = true;
-        // check if clusters are disjoint or not
-        for (std::size_t elem_i: *it_i) {
-          for (std::size_t elem_j: *it_j) {
-            if (elem_i == elem_j) {
-              // (at least) two elements are equal: not disjoint
-              disjoint = false;
-              break;
-            }
-          }
-          if ( ! disjoint) {
-            break;
-          }
-        }
-        if ( ! disjoint) {
-          // not disjoint: merge!
-          std::set<std::size_t> new_cluster = *it_i;
-          clusters.erase(it_i);
-          for (std::size_t elem: *it_j) {
-            new_cluster.insert(elem);
-          }
-          clusters.erase(it_j);
-          clusters.push_back(new_cluster);
-          there_was_a_merge = true;
-          break; // ... the j-loop
-        }
-      }
-      if (there_was_a_merge) {
-        break;  // ... the i-loop
-      }
+  std::size_t distinct_name = 0;
+  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+    // all frames in local neighborhood should be clustered
+    std::set<std::size_t> local_nh = high_density_neighborhood(coords,
+                                                               n_cols,
+                                                               density_sorted,
+                                                               i,
+                                                               last_frame_below_threshold,
+                                                               4*sigma2);
+    // let's see if at least some of them already have a
+    // designated cluster assignment
+    std::set<std::size_t> cluster_names;
+    for (auto j: local_nh) {
+      cluster_names.insert(clustering[density_sorted[j].first]);
+    }
+    if (cluster_names.count(0) == 1) {
+      cluster_names.erase(0);
+    }
+    std::size_t common_name;
+    if (cluster_names.size() > 0) {
+      // indeed, there are already cluster assignments.
+      // these should now be merged under a common name.
+      common_name = (*cluster_names.begin());
+    } else {
+      // no clustering of these frames yet.
+      // choose a distinct name.
+      common_name = ++distinct_name;
+    }
+    for (auto j: local_nh) {
+      clustering[density_sorted[j].first] = common_name;
     }
   }
-  log(std::cout) << "assigning cluster-ids to high density frames" << std::endl;
-  std::size_t cluster_name = 0;
-  for (auto cluster: clusters) {
-    for (auto i_frame: cluster) {
-      clustering[density_sorted[i_frame].first] = cluster_name+1;
-    }
-    ++cluster_name;
+  // normalize names
+  std::set<std::size_t> final_names;
+  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+    final_names.insert(clustering[density_sorted[i].first]);
   }
-
-
-//  for (std::size_t i=1; i <= n_clusters; ++i) {
-//    std::set<std::size_t> temp_set;
-//    temp_set.insert(i);
-//    cluster_joining.push_back(temp_set);
-//  }
-//  bool join_happened = true;
-//  while (join_happened) {
-//    join_happened = false;
-//    for (std::size_t i=0; i < cluster_joining.size(); ++i) {
-//      for (std::size_t j=0; j < i; ++j) {
-//        std::set<std::size_t> set1 = cluster_joining[i];
-//        std::set<std::size_t> set2 = cluster_joining[j];
-//        if (cluster_set_joinable(coords_pointer, n_cols, clustering, set1, set2, 4*sigma2)) {
-//          log(std::cout) << "join happened, #clusters left: " << cluster_joining.size()-1 << std::endl;
-//          join_happened = true;
-//          // join sets
-//          set1.insert(set2.begin(), set2.end());
-//          // delete old sets (highest index always first!)
-//          cluster_joining.erase(cluster_joining.begin() + i);
-//          cluster_joining.erase(cluster_joining.begin() + j);
-//          // add new (joined) set
-//          cluster_joining.push_back(set1);
-//          break;
-//        }
-//      }
-//      // start from beginning, since 'cluster_joining' is now
-//      // a different data structure
-//      if (join_happened) {
-//        break;
-//      }
-//    }
-//  }
-//  log(std::cout) << "joining clusters to " << cluster_joining.size() << " new clusters" << std::endl;
-//  std::map<std::size_t, std::size_t> old_to_new_names;
-//  for (std::size_t new_name=0; new_name < cluster_joining.size(); ++new_name) {
-//    for (std::size_t old_name: cluster_joining[new_name]) {
-//      // let new names begin with 1, 2, ... to keep 0 for non-assigned frames
-//      old_to_new_names[old_name] = new_name+1;
-//    }
-//  }
-//  old_to_new_names[0] = 0;
-//  for (std::size_t i=0; i < n_rows; ++i) {
-//    clustering[i] = old_to_new_names[clustering[i]];
-//  }
-
-
-
-//TODO: must be done in descending density order
-
-  // assign unassigned frames to clusters via neighbor-info
-//  bool nothing_happened = false;
-//  while (nh.size() > 0 && ( ! nothing_happened)) {
-//    nothing_happened = true;
-//    // it: first := index of frame, second := neighbor pair(index, dist)
-//    for (auto it=nh.begin(); it != nh.end(); ++it) {
-//      if (clustering[it->first] == 0 && clustering[it->second.first] != 0) {
-//        // frame itself is unassigned, while neighbor is assigned
-//        //  -> assign to neighbor's cluster
-//        clustering[it->first] = clustering[it->second.first];
-//        nh.erase(it);
-//        nothing_happened = false;
-//      }
-//    }
-//  }
+  std::map<std::size_t, std::size_t> old_to_new;
+  old_to_new[0] = 0;
+  std::size_t new_name=0;
+  for (auto name: final_names) {
+    old_to_new[name] = ++new_name;
+  }
+  for(auto& elem: clustering) {
+    elem = old_to_new[elem];
+  }
+  if ( ! only_initial_frames) {
+    log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
+    // assign unassigned frames to clusters via neighbor-info (in descending density order)
+    for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
+      auto nn = nearest_neighbor(coords, density_sorted, n_cols, i, SizePair(0,i));
+      clustering[density_sorted[i].first] = clustering[density_sorted[nn.first].first];
+    }
+  }
+  log(std::cout) << "clustering finished" << std::endl;
   return clustering;
 }
 
@@ -386,6 +300,7 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
+    ("only-initial,I", b_po::bool_switch()->default_value(false), "only assign initial (i.e. high density) frames to clusters.")
     ("nthreads,n", b_po::value<int>()->default_value(0), "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print max density, runtime information, etc. to STDOUT.")
   ;
@@ -421,11 +336,10 @@ int main(int argc, char* argv[]) {
     omp_set_num_threads(n_threads);
   }
 
-  CoordsPointer<float> coords_pointer;
+  float* coords;
   std::size_t n_rows;
   std::size_t n_cols;
-  std::tie(coords_pointer, n_rows, n_cols) = read_coords<float>(input_file);
-
+  std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
   //// densities
   std::vector<float> densities;
   if (args.count("density-input")) {
@@ -445,7 +359,7 @@ int main(int argc, char* argv[]) {
   } else {
     log(std::cout) << "calculating densities" << std::endl;
     densities = calculate_densities(
-                  calculate_populations(coords_pointer, n_rows, n_cols, radius));
+                  calculate_populations(coords, n_rows, n_cols, radius));
     if (args.count("density")) {
       std::ofstream ofs(args["density"].as<std::string>());
       ofs << std::scientific;
@@ -476,7 +390,7 @@ int main(int argc, char* argv[]) {
     }
   } else {
     log(std::cout) << "calculating nearest neighbors" << std::endl;
-    nh = nearest_neighbors(coords_pointer, n_rows, n_cols, densities);
+    nh = nearest_neighbors(coords, n_rows, n_cols, densities);
     if (args.count("nearest-neighbors")) {
       std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
       for (auto p: nh) {
@@ -488,7 +402,10 @@ int main(int argc, char* argv[]) {
   }
   //// clustering
   log(std::cout) << "calculating clusters" << std::endl;
-  std::vector<std::size_t> clustering = density_clustering(densities, nh, threshold, coords_pointer, n_rows, n_cols);
+  std::vector<std::size_t> clustering = density_clustering(densities, nh, threshold, coords, n_rows, n_cols, args["only-initial"].as<bool>());
+  log(std::cout) << "freeing coords" << std::endl;
+  free_coords(coords);
+  log(std::cout) << "writing clusters to file " << output_file << std::endl;
   // write clusters to file
   {
     std::ofstream ofs(output_file);

@@ -9,7 +9,7 @@
 
 
 template <typename NUM>
-std::tuple<CoordsPointer<NUM>, std::size_t, std::size_t>
+std::tuple<NUM*, std::size_t, std::size_t>
 read_coords(std::string filename, std::vector<std::size_t> usecols) {
   std::size_t n_rows=0;
   std::size_t n_cols=0;
@@ -56,9 +56,10 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
     }
   }
   // allocate memory
-  CoordsPointer<NUM> coords((NUM*) _mm_malloc(sizeof(NUM)*n_rows*n_cols_used, DC_MEM_ALIGNMENT), CoordsDeleter());
-  // just for easy access ...
-  NUM* c = coords.get();
+  // DC_MEM_ALIGNMENT is defined during cmake and
+  // set depending on usage of SSE2, SSE4_1, AVX or Xeon Phi
+  NUM* coords = (NUM*) _mm_malloc(sizeof(NUM)*n_rows*n_cols_used, DC_MEM_ALIGNMENT);
+  ASSUME_ALIGNED(coords);
   // read data
   for (std::size_t cur_row = 0; cur_row < n_rows; ++cur_row) {
     std::size_t cur_col = 0;
@@ -66,11 +67,18 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
       NUM buf;
       ifs >> buf;
       if (col_used[i]) {
-        c[cur_row*n_cols_used + cur_col] = buf;
+        coords[cur_row*n_cols_used + cur_col] = buf;
         ++cur_col;
       }
     }
   }
-  return std::make_tuple(std::move(coords), n_rows, n_cols_used);
+  return std::make_tuple(coords, n_rows, n_cols_used);
+}
+
+
+template <typename NUM>
+void
+free_coords(NUM* coords) {
+  _mm_free(coords);
 }
 
