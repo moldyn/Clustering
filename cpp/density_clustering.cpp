@@ -86,81 +86,81 @@ calculate_densities(const std::vector<std::size_t>& pops) {
 }
 
 
-bool
-clusters_are_close(const CoordsPointer<float>& coords_pointer,
-                   const std::size_t n_cols,
-                   const std::vector<std::size_t>& clustering,
-                   const std::size_t ndx_cluster1,
-                   const std::size_t ndx_cluster2,
-                   const float distance_cutoff) {
-  #if defined(__INTEL_COMPILER)
-  float* coords = coords_pointer.get();
-  __assume_aligned(coords, DC_MEM_ALIGNMENT);
-  #else // assume gnu compiler
-  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
-  #endif
-  std::size_t i,j,c;
-  float dist,d;
-  // select frames of the two clusters
-  std::vector<std::size_t> frames1;
-  std::vector<std::size_t> frames2;
-  for (std::size_t i=0; i < clustering.size(); ++i) {
-    if (clustering[i] == ndx_cluster1) {
-      frames1.push_back(i);
-    } else if (clustering[i] == ndx_cluster2) { 
-      frames2.push_back(i);
-    }
-  }
-  const std::size_t n_frames1 = frames1.size();
-  const std::size_t n_frames2 = frames2.size();
-//  log(std::cout) << "   #frames (cluster1 , cluster2): " << n_frames1 << ", " << n_frames2 << std::endl;
-  bool clusters_are_close = false;
-//TODO: do not parallelize here, but at higher level
-  #pragma omp parallel for \
-    default(shared) \
-    private(i,j,c,d,dist) \
-    firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
-    collapse(2)
-  for (i=0; i < n_frames1; ++i) {
-    for (j=0; j < n_frames2; ++j) {
-      // break won't work with OpenMP, so we just do nothing
-      // if another thread already found that the clusters
-      // are close...
-      if ( ! clusters_are_close) {
-        dist = 0.0f;
-        for (c=0; c < n_cols; ++c) {
-          d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
-          dist += d*d;
-        }
-        if (dist < distance_cutoff) {
-          clusters_are_close = true;
-        }
-      }
-    }
-  }
-  return clusters_are_close;
-}
+//bool
+//clusters_are_close(const CoordsPointer<float>& coords_pointer,
+//                   const std::size_t n_cols,
+//                   const std::vector<std::size_t>& clustering,
+//                   const std::size_t ndx_cluster1,
+//                   const std::size_t ndx_cluster2,
+//                   const float distance_cutoff) {
+//  #if defined(__INTEL_COMPILER)
+//  float* coords = coords_pointer.get();
+//  __assume_aligned(coords, DC_MEM_ALIGNMENT);
+//  #else // assume gnu compiler
+//  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
+//  #endif
+//  std::size_t i,j,c;
+//  float dist,d;
+//  // select frames of the two clusters
+//  std::vector<std::size_t> frames1;
+//  std::vector<std::size_t> frames2;
+//  for (std::size_t i=0; i < clustering.size(); ++i) {
+//    if (clustering[i] == ndx_cluster1) {
+//      frames1.push_back(i);
+//    } else if (clustering[i] == ndx_cluster2) { 
+//      frames2.push_back(i);
+//    }
+//  }
+//  const std::size_t n_frames1 = frames1.size();
+//  const std::size_t n_frames2 = frames2.size();
+////  log(std::cout) << "   #frames (cluster1 , cluster2): " << n_frames1 << ", " << n_frames2 << std::endl;
+//  bool clusters_are_close = false;
+////TODO: do not parallelize here, but at higher level
+//  #pragma omp parallel for \
+//    default(shared) \
+//    private(i,j,c,d,dist) \
+//    firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
+//    collapse(2)
+//  for (i=0; i < n_frames1; ++i) {
+//    for (j=0; j < n_frames2; ++j) {
+//      // break won't work with OpenMP, so we just do nothing
+//      // if another thread already found that the clusters
+//      // are close...
+//      if ( ! clusters_are_close) {
+//        dist = 0.0f;
+//        for (c=0; c < n_cols; ++c) {
+//          d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
+//          dist += d*d;
+//        }
+//        if (dist < distance_cutoff) {
+//          clusters_are_close = true;
+//        }
+//      }
+//    }
+//  }
+//  return clusters_are_close;
+//}
 
-/*
- * calculate minimal squared distance between
- * two sets of clusters.
- */
-bool
-cluster_set_joinable(const CoordsPointer<float>& coords_pointer,
-                     const std::size_t n_cols,
-                     const std::vector<std::size_t>& clustering,
-                     const std::set<std::size_t> set1,
-                     const std::set<std::size_t> set2,
-                     const float distance_cutoff) {
-  for (std::size_t cl1: set1) {
-    for (std::size_t cl2: set2) {
-      if (clusters_are_close(coords_pointer, n_cols, clustering, cl1, cl2, distance_cutoff)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
+///*
+// * calculate minimal squared distance between
+// * two sets of clusters.
+// */
+//bool
+//cluster_set_joinable(const CoordsPointer<float>& coords_pointer,
+//                     const std::size_t n_cols,
+//                     const std::vector<std::size_t>& clustering,
+//                     const std::set<std::size_t> set1,
+//                     const std::set<std::size_t> set2,
+//                     const float distance_cutoff) {
+//  for (std::size_t cl1: set1) {
+//    for (std::size_t cl2: set2) {
+//      if (clusters_are_close(coords_pointer, n_cols, clustering, cl1, cl2, distance_cutoff)) {
+//        return true;
+//      }
+//    }
+//  }
+//  return false;
+//}
 
 
 const std::pair<std::size_t, float>
@@ -292,15 +292,17 @@ density_clustering(const std::vector<float>& dens,
   // initialize with highest density frame
   cluster_joining.push_back({density_sorted[0].first});
   high_dens_nh.erase(density_sorted[0].first);
+  log(std::cout) << last_frame_below_threshold << " frames above threshold." << std::endl;
   while ( ! high_dens_nh.empty()) {
     int remove_frame = -1;
     for (auto p: high_dens_nh) {
       // these ids are the same as in orig. trajectory, not
       // in order of sorted density
       std::size_t i_frame = p.first;
-      std::size_t i_neighbor = p.second.first;
+      std::size_t i_neighbor = density_sorted[p.second.first].first;
       float dist_neighbor = p.second.second;
       if ((high_dens_nh.count(i_neighbor) == 0) && (dist_neighbor < 4*sigma2)) {
+        log(std::cout) << "frame " << i_frame << " has assigned neighbor " << i_neighbor << std::endl;
         // neighbor isn't in neighborhood anymore
         // => it's already in a cluster
         // => assign i_frame to same cluster
