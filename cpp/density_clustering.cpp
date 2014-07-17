@@ -5,10 +5,12 @@
 #include <sstream>
 #include <fstream>
 #include <iterator>
+#include <list>
 #include <utility>
 #include <functional>
 #include <algorithm>
 #include <limits>
+#include <numeric>
 
 #include <time.h>
 
@@ -72,6 +74,7 @@ calculate_populations(const CoordsPointer<float>& coords_pointer,
   return pops;
 }
 
+
 std::vector<float>
 calculate_densities(const std::vector<std::size_t>& pops) {
   std::size_t i;
@@ -84,83 +87,6 @@ calculate_densities(const std::vector<std::size_t>& pops) {
   }
   return dens;
 }
-
-
-//bool
-//clusters_are_close(const CoordsPointer<float>& coords_pointer,
-//                   const std::size_t n_cols,
-//                   const std::vector<std::size_t>& clustering,
-//                   const std::size_t ndx_cluster1,
-//                   const std::size_t ndx_cluster2,
-//                   const float distance_cutoff) {
-//  #if defined(__INTEL_COMPILER)
-//  float* coords = coords_pointer.get();
-//  __assume_aligned(coords, DC_MEM_ALIGNMENT);
-//  #else // assume gnu compiler
-//  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
-//  #endif
-//  std::size_t i,j,c;
-//  float dist,d;
-//  // select frames of the two clusters
-//  std::vector<std::size_t> frames1;
-//  std::vector<std::size_t> frames2;
-//  for (std::size_t i=0; i < clustering.size(); ++i) {
-//    if (clustering[i] == ndx_cluster1) {
-//      frames1.push_back(i);
-//    } else if (clustering[i] == ndx_cluster2) { 
-//      frames2.push_back(i);
-//    }
-//  }
-//  const std::size_t n_frames1 = frames1.size();
-//  const std::size_t n_frames2 = frames2.size();
-////  log(std::cout) << "   #frames (cluster1 , cluster2): " << n_frames1 << ", " << n_frames2 << std::endl;
-//  bool clusters_are_close = false;
-////TODO: do not parallelize here, but at higher level
-//  #pragma omp parallel for \
-//    default(shared) \
-//    private(i,j,c,d,dist) \
-//    firstprivate(n_frames1,n_frames2,n_cols,distance_cutoff) \
-//    collapse(2)
-//  for (i=0; i < n_frames1; ++i) {
-//    for (j=0; j < n_frames2; ++j) {
-//      // break won't work with OpenMP, so we just do nothing
-//      // if another thread already found that the clusters
-//      // are close...
-//      if ( ! clusters_are_close) {
-//        dist = 0.0f;
-//        for (c=0; c < n_cols; ++c) {
-//          d = coords[frames1[i]*n_cols+c] - coords[frames2[j]*n_cols+c];
-//          dist += d*d;
-//        }
-//        if (dist < distance_cutoff) {
-//          clusters_are_close = true;
-//        }
-//      }
-//    }
-//  }
-//  return clusters_are_close;
-//}
-
-///*
-// * calculate minimal squared distance between
-// * two sets of clusters.
-// */
-//bool
-//cluster_set_joinable(const CoordsPointer<float>& coords_pointer,
-//                     const std::size_t n_cols,
-//                     const std::vector<std::size_t>& clustering,
-//                     const std::set<std::size_t> set1,
-//                     const std::set<std::size_t> set2,
-//                     const float distance_cutoff) {
-//  for (std::size_t cl1: set1) {
-//    for (std::size_t cl2: set2) {
-//      if (clusters_are_close(coords_pointer, n_cols, clustering, cl1, cl2, distance_cutoff)) {
-//        return true;
-//      }
-//    }
-//  }
-//  return false;
-//}
 
 
 const std::pair<std::size_t, float>
@@ -218,6 +144,45 @@ sorted_densities(const std::vector<float>& dens) {
   return density_sorted;
 }
 
+// returns vector of neighborhood sets.
+// all ids (vector-id and set-ids) are
+// in sorted density order.
+std::vector<std::set<std::size_t>>
+high_density_neighborhood(const CoordsPointer<float>& coords_pointer,
+                          const std::size_t n_cols,
+                          const std::vector<Density>& sorted_density,
+                          const std::size_t limit,
+                          const float max_dist) {
+  #if defined(__INTEL_COMPILER)
+  float* coords = coords_pointer.get();
+  __assume_aligned(coords, DC_MEM_ALIGNMENT);
+  #else // assume gnu compiler
+  float* coords = (float*) __builtin_assume_aligned(coords_pointer.get(), DC_MEM_ALIGNMENT);
+  #endif
+  std::vector<std::set<std::size_t>> nh(limit);
+  std::size_t i,j,c;
+  float d,dist2;
+  #pragma omp parallel for default(shared) private(i,j,c,d,dist2) firstprivate(limit,max_dist)
+  for (i=0; i < limit; ++i) {
+    for (j=0; j < limit; ++j) {
+      if (i != j) {
+        dist2 = 0.0f;
+        for (c=0; c < n_cols; ++c) {
+          d = coords[sorted_density[i].first*n_cols+c] - coords[sorted_density[j].first*n_cols+c];
+          dist2 += d*d;
+        }
+        if (dist2 < max_dist) {
+          nh[i].insert(j);
+        }
+      } else {
+        nh[i].insert(i);
+      }
+    }
+  }
+  return nh;
+}
+
+
 Neighborhood
 nearest_neighbors(const CoordsPointer<float>& coords_pointer,
                   const std::size_t n_rows,
@@ -268,79 +233,63 @@ density_clustering(const std::vector<float>& dens,
   //  with x being the distances between nearest neighbors)
   double sigma2 = compute_sigma2(nh);
   log(std::cout) << "sigma2: " << sigma2 << std::endl;
-  // initialize with highest density frame
-//  std::size_t n_clusters = 1;
-//  clustering[0] = n_clusters;
-//  // find frames of same cluster (if geometrically close enough) or add them as new clusters
-//  for (std::size_t i=1; i < last_frame_below_threshold; ++i) {
-//    // nn_pair:  first := index in traj,  second := distance to reference (i)
-//    auto nn_pair = nearest_neighbor(coords_pointer, density_sorted, n_cols, i, SizePair(0,i));
-//    if (nn_pair.second < sigma2) {
-//      // add to existing cluster
-//      clustering[density_sorted[i].first] = clustering[density_sorted[nn_pair.first].first];
-//    } else {
-//      // create new cluster
-//      ++n_clusters;
-//      clustering[density_sorted[i].first] = n_clusters;
-//    }
-//  }
-//  log(std::cout) << "found " << n_clusters << " initial clusters" << std::endl;
-  // join clusters if they are close enough to each other
-  std::vector<std::set<std::size_t>> cluster_joining;
-  // compute a neighborhood only on high density frames
-  Neighborhood high_dens_nh = nearest_neighbors(coords_pointer, n_rows, n_cols, dens, last_frame_below_threshold);
-  // initialize with highest density frame
-  cluster_joining.push_back({density_sorted[0].first});
-  high_dens_nh.erase(density_sorted[0].first);
-  log(std::cout) << last_frame_below_threshold << " frames above threshold." << std::endl;
-  while ( ! high_dens_nh.empty()) {
-    int remove_frame = -1;
-    for (auto p: high_dens_nh) {
-      // these ids are the same as in orig. trajectory, not
-      // in order of sorted density
-      std::size_t i_frame = p.first;
-      std::size_t i_neighbor = density_sorted[p.second.first].first;
-      float dist_neighbor = p.second.second;
-      if ((high_dens_nh.count(i_neighbor) == 0) && (dist_neighbor < 4*sigma2)) {
-        log(std::cout) << "frame " << i_frame << " has assigned neighbor " << i_neighbor << std::endl;
-        // neighbor isn't in neighborhood anymore
-        // => it's already in a cluster
-        // => assign i_frame to same cluster
-        for (auto& cluster: cluster_joining) {
-          if (cluster.count(i_neighbor) == 1) {
-            // found the neighbor's cluster
-            cluster.insert(i_frame);
-            remove_frame = (int) i_frame;
+  log(std::cout) << last_frame_below_threshold << " frames with high density" << std::endl;
+  // compute a neighborhood with distance 4*sigma2 only on high density frames
+  std::vector<std::set<std::size_t>> high_dens_nh = high_density_neighborhood(coords_pointer,
+                                                                              n_cols,
+                                                                              density_sorted,
+                                                                              last_frame_below_threshold,
+                                                                              4*sigma2);
+  std::list<std::set<std::size_t>> clusters;
+  for (auto cluster: high_dens_nh) {
+    clusters.push_back(cluster);
+  }
+  log(std::cout) << "merging initial clusters" << std::endl;
+  bool there_was_a_merge = true;
+  while (there_was_a_merge) {
+    there_was_a_merge = false;
+    for (auto it_i=clusters.begin(); it_i != clusters.end(); ++it_i) {
+      for (auto it_j=clusters.begin(); it_j != it_i; ++it_j) {
+        bool disjoint = true;
+        // check if clusters are disjoint or not
+        for (std::size_t elem_i: *it_i) {
+          for (std::size_t elem_j: *it_j) {
+            if (elem_i == elem_j) {
+              // (at least) two elements are equal: not disjoint
+              disjoint = false;
+              break;
+            }
+          }
+          if ( ! disjoint) {
             break;
           }
         }
-        if (remove_frame != -1) {
-          break;
+        if ( ! disjoint) {
+          // not disjoint: merge!
+          std::set<std::size_t> new_cluster = *it_i;
+          clusters.erase(it_i);
+          for (std::size_t elem: *it_j) {
+            new_cluster.insert(elem);
+          }
+          clusters.erase(it_j);
+          clusters.push_back(new_cluster);
+          there_was_a_merge = true;
+          break; // ... the j-loop
         }
       }
-    }
-    if (remove_frame != -1) {
-      high_dens_nh.erase(remove_frame);
-    } else {
-      // nothing happened: add new cluster
-      for (auto d: density_sorted) {
-        if (high_dens_nh.count(d.first) == 1) {
-          // this one is still unassigned, use it as
-          // source of a new cluster
-          cluster_joining.push_back({d.first});
-          high_dens_nh.erase(d.first);
-        }
+      if (there_was_a_merge) {
+        break;  // ... the i-loop
       }
     }
   }
-
-  for (std::size_t i_clust=0; i_clust < cluster_joining.size(); ++i_clust) {
-    log(std::cout) << "cluster content of cluster " << i_clust << ": " << cluster_joining[i_clust].size() << std::endl;
-    for (std::size_t i_frame: cluster_joining[i_clust]) {
-      clustering[i_frame] = i_clust+1;
+  log(std::cout) << "assigning cluster-ids to high density frames" << std::endl;
+  std::size_t cluster_name = 0;
+  for (auto cluster: clusters) {
+    for (auto i_frame: cluster) {
+      clustering[density_sorted[i_frame].first] = cluster_name+1;
     }
+    ++cluster_name;
   }
-
 
 
 //  for (std::size_t i=1; i <= n_clusters; ++i) {
