@@ -262,15 +262,37 @@ density_clustering(const std::vector<float>& dens,
     elem = old_to_new[elem];
   }
   if ( ! only_initial_frames) {
+    log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
     //TODO: get candidates not by density, but by min. dist. to some cluster
     //      keep record for every cluster, what the next candidate is and re-compute
     //      only for cluster that has changed
-    log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
-    // assign unassigned frames to clusters via neighbor-info (in descending density order)
-    for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
-      auto nn = nearest_neighbor(coords, density_sorted, n_cols, i, SizePair(0,i));
-      clustering[density_sorted[i].first] = clustering[density_sorted[nn.first].first];
+    std::map<std::size_t, Neighbor> candidates;
+    //TODO initialize candidates
+    for (std::size_t i=0; i < n_rows; ++i) {
+      for (std::size_t j=0; j < n_rows; ++j) {
+        if (clustering[density_sorted[i].first] != 0
+        &&  clustering[density_sorted[j].first] == 0) {
+          std::size_t cluster_name = clustering[density_sorted[i].first];
+          float dist = 0.0f;
+          for (std::size_t k=0; k < n_cols; ++k) {
+            float c = coords[density_sorted[i].first * n_cols + k] - coords[density_sorted[j].first * n_cols + k];
+            dist += c*c;
+          }
+          if (dist < candidates[cluster_name].second) {
+            candidates[cluster_name] = Neighbor(j, dist);
+          }
+        }
+      }
     }
+
+
+/////////////////////
+    // assign unassigned frames to clusters via neighbor-info (in descending density order)
+//    for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
+//      auto nn = nearest_neighbor(coords, density_sorted, n_cols, i, SizePair(0,i));
+//      clustering[density_sorted[i].first] = clustering[density_sorted[nn.first].first];
+//    }
+/////////////////////
   }
   log(std::cout) << "clustering finished" << std::endl;
   return clustering;
