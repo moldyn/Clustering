@@ -9,6 +9,7 @@
 #include <utility>
 #include <functional>
 #include <algorithm>
+#include <queue>
 #include <limits>
 #include <numeric>
 
@@ -112,6 +113,41 @@ nearest_neighbor(const float* coords,
   }
 }
 
+Candidate
+get_candidate_for_frame(const float* coords,
+                        const std::size_t n_rows,
+                        const std::size_t n_cols,
+                        const std::vector<std::size_t>& clustering,
+                        const std::size_t i_assigned_frame) {
+  float mindist = std::numeric_limits<float>::max();
+  Candidate candidate = std::make_tuple(0, 0, mindist);
+
+  std::size_t j,k;
+  float c,dist;
+//  #pragma omp parallel for default(shared) private(j,k,c,dist) firstprivate(n_rows,n_cols) schedule(dynamic)
+  for (j=0; j < n_rows; ++j) {
+    if (clustering[j] == 0) {
+      dist = 0.0f;
+      for (k=0; k < n_cols; ++k) {
+        c = coords[i_assigned_frame*n_cols + k] - coords[j*n_cols + k];
+        dist += c*c;
+      }
+//      #pragma omp flush(mindist)
+      {
+        if (dist < mindist) {
+//          #pragma omp critical
+          {
+            mindist = dist;
+            candidate = std::make_tuple(i_assigned_frame, j, dist);
+          }
+        }
+      }
+    }
+  }
+  return candidate;
+}
+
+
 std::vector<Density>
 sorted_densities(const std::vector<float>& dens) {
   std::vector<Density> density_sorted;
@@ -199,7 +235,8 @@ density_clustering(const std::vector<float>& dens,
                    const float* coords,
                    const std::size_t n_rows,
                    const std::size_t n_cols,
-                   bool only_initial_frames) {
+                   bool only_initial_frames,
+                   bool geometry_based_assignment=false) {
   std::vector<std::size_t> clustering(n_rows);
   std::vector<Density> density_sorted = sorted_densities(dens);
   auto lb = std::lower_bound(density_sorted.begin(),
@@ -263,36 +300,49 @@ density_clustering(const std::vector<float>& dens,
   }
   if ( ! only_initial_frames) {
     log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
-    //TODO: get candidates not by density, but by min. dist. to some cluster
-    //      keep record for every cluster, what the next candidate is and re-compute
-    //      only for cluster that has changed
-    std::map<std::size_t, Neighbor> candidates;
-    //TODO initialize candidates
-    for (std::size_t i=0; i < n_rows; ++i) {
-      for (std::size_t j=0; j < n_rows; ++j) {
-        if (clustering[density_sorted[i].first] != 0
-        &&  clustering[density_sorted[j].first] == 0) {
-          std::size_t cluster_name = clustering[density_sorted[i].first];
-          float dist = 0.0f;
-          for (std::size_t k=0; k < n_cols; ++k) {
-            float c = coords[density_sorted[i].first * n_cols + k] - coords[density_sorted[j].first * n_cols + k];
-            dist += c*c;
+    if ( ! geometry_based_assignment) { // density based assignment
+      // assign unassigned frames to clusters via neighbor-info (in descending density order)
+      for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
+        auto nn = nearest_neighbor(coords, density_sorted, n_cols, i, SizePair(0,i));
+        clustering[density_sorted[i].first] = clustering[density_sorted[nn.first].first];
+      }
+    } else { // geometry based assignment
+      // always assign the frame next, that has minimal distance to any cluster
+      auto candidate_assigned_id = [](Candidate c) {return std::get<0>(c);};
+      auto candidate_unassigned_id = [](Candidate c) {return std::get<1>(c);};
+      auto candidate_distance = [](Candidate c) {return std::get<2>(c);};
+      auto candidate_comp = [&candidate_distance] (Candidate c1, Candidate c2) -> bool {return candidate_distance(c1) > candidate_distance(c2);};
+      std::priority_queue<Candidate, std::vector<Candidate>, decltype(candidate_comp)> candidates(candidate_comp);
+      // fill candidate queue
+      log(std::cout) << "filling candidate queue" << std::endl;
+      std::size_t i;
+      #pragma omp parallel for default(shared) private(i) firstprivate(n_rows,n_cols) schedule(dynamic)
+      for (i=0; i < n_rows; ++i) {
+        if (clustering[i] != 0) {
+          Candidate c = get_candidate_for_frame(coords, n_rows, n_cols, clustering, i);
+          if (candidate_assigned_id(c) != candidate_unassigned_id(c)) {
+            #pragma omp critical
+            {
+              candidates.push(c);
+            }
           }
-          if (dist < candidates[cluster_name].second) {
-            candidates[cluster_name] = Neighbor(j, dist);
+        }
+      }
+      // assign frames
+      while ( ! candidates.empty()) {
+        Candidate champ = candidates.top();
+        candidates.pop();
+        if (clustering[candidate_unassigned_id(champ)] == 0) {
+          // it's still unassigned, assign to its next cluster
+          clustering[candidate_unassigned_id(champ)] = clustering[candidate_assigned_id(champ)];
+          // push new candidate from freshly assigned frame
+          Candidate rookie = get_candidate_for_frame(coords, n_rows, n_cols, clustering, candidate_unassigned_id(champ));
+          if (candidate_unassigned_id(rookie) != candidate_assigned_id(rookie)) {
+            candidates.push(rookie);
           }
         }
       }
     }
-
-
-/////////////////////
-    // assign unassigned frames to clusters via neighbor-info (in descending density order)
-//    for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
-//      auto nn = nearest_neighbor(coords, density_sorted, n_cols, i, SizePair(0,i));
-//      clustering[density_sorted[i].first] = clustering[density_sorted[nn.first].first];
-//    }
-/////////////////////
   }
   log(std::cout) << "clustering finished" << std::endl;
   return clustering;
@@ -326,6 +376,7 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
     ("only-initial,I", b_po::bool_switch()->default_value(false), "only assign initial (i.e. high density) frames to clusters.")
+    ("geometry-based-assignment,G", b_po::bool_switch()->default_value(false), "use geometry-based assignment of unassigned frames to clusters.")
     ("nthreads,n", b_po::value<int>()->default_value(0), "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print max density, runtime information, etc. to STDOUT.")
   ;
@@ -427,7 +478,14 @@ int main(int argc, char* argv[]) {
   }
   //// clustering
   log(std::cout) << "calculating clusters" << std::endl;
-  std::vector<std::size_t> clustering = density_clustering(densities, nh, threshold, coords, n_rows, n_cols, args["only-initial"].as<bool>());
+  std::vector<std::size_t> clustering = density_clustering(densities,
+                                                           nh,
+                                                           threshold,
+                                                           coords,
+                                                           n_rows,
+                                                           n_cols,
+                                                           args["only-initial"].as<bool>(),
+                                                           args["geometry-based-assignment"].as<bool>());
   log(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
   log(std::cout) << "writing clusters to file " << output_file << std::endl;
