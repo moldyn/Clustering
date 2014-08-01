@@ -14,3 +14,8 @@ get it running with intel compiler:
 
 
 
+
+BUGS:
+  - density-based assignment of low-density frames sometimes leaves a single 0-state
+
+

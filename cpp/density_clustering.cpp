@@ -253,35 +253,44 @@ density_clustering(const std::vector<float>& dens,
   // compute a neighborhood with distance 4*sigma2 only on high density frames
   log(std::cout) << "merging initial clusters" << std::endl;
   std::size_t distinct_name = 0;
-  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
-    // all frames in local neighborhood should be clustered
-    std::set<std::size_t> local_nh = high_density_neighborhood(coords,
-                                                               n_cols,
-                                                               density_sorted,
-                                                               i,
-                                                               last_frame_below_threshold,
-                                                               4*sigma2);
-    // let's see if at least some of them already have a
-    // designated cluster assignment
-    std::set<std::size_t> cluster_names;
-    for (auto j: local_nh) {
-      cluster_names.insert(clustering[density_sorted[j].first]);
-    }
-    if (cluster_names.count(0) == 1) {
-      cluster_names.erase(0);
-    }
-    std::size_t common_name;
-    if (cluster_names.size() > 0) {
-      // indeed, there are already cluster assignments.
-      // these should now be merged under a common name.
-      common_name = (*cluster_names.begin());
-    } else {
-      // no clustering of these frames yet.
-      // choose a distinct name.
-      common_name = ++distinct_name;
-    }
-    for (auto j: local_nh) {
-      clustering[density_sorted[j].first] = common_name;
+  bool clusters_merged = false;
+  while ( ! clusters_merged) {
+    clusters_merged = true;
+    log(std::cout) << "initial merge iteration" << std::endl;
+    for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+      // all frames in local neighborhood should be clustered
+      std::set<std::size_t> local_nh = high_density_neighborhood(coords,
+                                                                 n_cols,
+                                                                 density_sorted,
+                                                                 i,
+                                                                 last_frame_below_threshold,
+                                                                 4*sigma2);
+      // let's see if at least some of them already have a
+      // designated cluster assignment
+      std::set<std::size_t> cluster_names;
+      for (auto j: local_nh) {
+        cluster_names.insert(clustering[density_sorted[j].first]);
+      }
+      if ( ! (cluster_names.size() == 1 && cluster_names.count(0) != 1)) {
+        clusters_merged = false;
+        // remove the 'zero' state, i.e. state of unassigned frames
+        if (cluster_names.count(0) == 1) {
+          cluster_names.erase(0);
+        }
+        std::size_t common_name;
+        if (cluster_names.size() > 0) {
+          // indeed, there are already cluster assignments.
+          // these should now be merged under a common name.
+          common_name = (*cluster_names.begin());
+        } else {
+          // no clustering of these frames yet.
+          // choose a distinct name.
+          common_name = ++distinct_name;
+        }
+        for (auto j: local_nh) {
+          clustering[density_sorted[j].first] = common_name;
+        }
+      }
     }
   }
   // normalize names
@@ -298,6 +307,8 @@ density_clustering(const std::vector<float>& dens,
   for(auto& elem: clustering) {
     elem = old_to_new[elem];
   }
+
+  // assignment of low-density states
   if ( ! only_initial_frames) {
     log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
     if ( ! geometry_based_assignment) { // density based assignment
