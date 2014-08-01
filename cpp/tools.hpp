@@ -14,7 +14,7 @@
  #include <mm_malloc.h>
 #endif
 
-#if defined(__INTEL_COMPILER_)
+#if defined(__INTEL_COMPILER)
   #define ASSUME_ALIGNED(c) __assume_aligned( (c), DC_MEM_ALIGNMENT)
 #else
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
