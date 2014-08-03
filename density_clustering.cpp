@@ -296,6 +296,16 @@ density_clustering(const std::vector<float>& dens,
           for (auto j: local_nh) {
             clustering[density_sorted[j].first] = common_name;
           }
+
+          std::size_t j;
+          #pragma omp parallel for private(j)\
+                                   firstprivate(common_name,last_frame_below_threshold,cluster_names) \
+                                   shared(clustering,density_sorted)
+          for (j=0; j < last_frame_below_threshold; ++j) {
+            if (cluster_names.count(clustering[density_sorted[j].first]) == 1) {
+              clustering[density_sorted[j].first] = common_name;
+            }
+          }
         }
       }
     }
