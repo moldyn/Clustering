@@ -286,7 +286,7 @@ density_clustering(const std::vector<float>& dens,
             // indeed, there are already cluster assignments.
             // these should now be merged under a common name.
             // (which will be the id with smallest numerical value,
-            //  due to the properties of STL-maps).
+            //  due to the properties of STL-sets).
             common_name = (*cluster_names.begin());
           } else {
             // no clustering of these frames yet.
