@@ -18,6 +18,12 @@
 #include <omp.h>
 #include <boost/program_options.hpp>
 
+// definitions for offloading
+#define ALLOC  alloc_if(1)
+#define FREE   free_if(1)
+#define RETAIN free_if(0)
+#define REUSE  alloc_if(0)
+
 namespace b_po = boost::program_options;
 
 namespace {
@@ -44,20 +50,29 @@ calculate_populations(const float* coords,
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
+  std::cout << "  start: " << __TIMESTAMP__ << std::endl;
   ASSUME_ALIGNED(coords);
-  #pragma omp parallel for default(shared) private(i,j,k,c,dist) firstprivate(n_rows,n_cols,rad2) schedule(dynamic)
+  #pragma omp parallel for private(i,j,k,c,dist) \
+                           firstprivate(n_rows,n_cols,rad2) \
+                           shared(coords,pops) \
+                           schedule(dynamic,1024)
   for (i=0; i < n_rows; ++i) {
     for (j=i+1; j < n_rows; ++j) {
       dist = 0.0f;
+      #pragma simd reduction(+:dist)
       for (k=0; k < n_cols; ++k) {
         c = coords[i*n_cols+k] - coords[j*n_cols+k];
         dist += c*c;
       }
       if (dist < rad2) {
+        #pragma omp atomic
         pops[i] += 1;
+        #pragma omp atomic
+        pops[j] += 1;
       }
     }
   }
+  std::cout << "  finished: " << __TIMESTAMP__ << std::endl;
   return pops;
 }
 
@@ -68,85 +83,14 @@ calculate_free_energies(const std::vector<std::size_t>& pops) {
   const std::size_t n_frames = pops.size();
   const float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
   std::vector<float> free_energy(n_frames);
-  #pragma omp parallel for default(shared) private(i) firstprivate(max_pop, n_frames)
+  float* p_fe = free_energy.data();
+  const std::size_t* p_pops = pops.data();
+  #pragma omp parallel for private(i) firstprivate(max_pop, n_frames) shared(p_fe, p_pops)
   for (i=0; i < n_frames; ++i) {
-    free_energy[i] = (float) -1 * log(pops[i]/max_pop);
+    p_fe[i] = (float) -1 * log(p_pops[i]/max_pop);
   }
   return free_energy;
 }
-
-
-const std::pair<std::size_t, float>
-nearest_neighbor(const float* coords,
-                 const std::vector<FreeEnergy>& sorted_free_energies,
-                 const std::size_t n_cols,
-                 const std::size_t frame_id,
-                 const std::pair<std::size_t, std::size_t> search_range) {
-  std::size_t c,j;
-  const std::size_t real_id = sorted_free_energies[frame_id].first;
-  float d, dist;
-  std::size_t sr_first = search_range.first;
-  std::size_t sr_second = search_range.second;
-  std::vector<float> distances(sr_second - sr_first);
-  ASSUME_ALIGNED(coords);
-  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
-  for (j=sr_first; j < sr_second; ++j) {
-    if (frame_id == j) {
-      distances[j-sr_first] = std::numeric_limits<float>::max();
-    } else {
-      dist = 0.0f;
-      for (c=0; c < n_cols; ++c) {
-        d = coords[real_id*n_cols+c] - coords[sorted_free_energies[j].first*n_cols+c];
-        dist += d*d;
-      }
-      distances[j-sr_first] = dist;
-    }
-  }
-  for (std::size_t i=0; i < (sr_second-sr_first); ++i) {
-    distances[i] = distances[i];
-  }
-  if (distances.size() == 0) {
-    return {0, 0.0f};
-  } else {
-    std::size_t min_ndx = std::min_element(distances.begin(), distances.end()) - distances.begin();
-    return {min_ndx+sr_first, distances[min_ndx]};
-  }
-}
-
-//Candidate
-//get_candidate_for_frame(const float* coords,
-//                        const std::size_t n_rows,
-//                        const std::size_t n_cols,
-//                        const std::vector<std::size_t>& clustering,
-//                        const std::size_t i_assigned_frame) {
-//  float mindist = std::numeric_limits<float>::max();
-//  Candidate candidate = std::make_tuple(0, 0, mindist);
-//
-//  std::size_t j,k;
-//  float c,dist;
-//  //  #pragma omp parallel for default(shared) private(j,k,c,dist) firstprivate(n_rows,n_cols) schedule(dynamic)
-//  for (j=0; j < n_rows; ++j) {
-//    if (clustering[j] == 0) {
-//      dist = 0.0f;
-//      for (k=0; k < n_cols; ++k) {
-//        c = coords[i_assigned_frame*n_cols + k] - coords[j*n_cols + k];
-//        dist += c*c;
-//      }
-//      //      #pragma omp flush(mindist)
-//      {
-//        if (dist < mindist) {
-//          //          #pragma omp critical
-//          {
-//            mindist = dist;
-//            candidate = std::make_tuple(i_assigned_frame, j, dist);
-//          }
-//        }
-//      }
-//    }
-//  }
-//  return candidate;
-//}
-
 
 std::vector<FreeEnergy>
 sorted_free_energies(const std::vector<float>& fe) {
@@ -160,6 +104,107 @@ sorted_free_energies(const std::vector<float>& fe) {
             [] (const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
   return fe_sorted;
 }
+
+const std::pair<std::size_t, float>
+nearest_neighbor(const float* coords,
+                 const std::vector<FreeEnergy>& sorted_free_energies,
+                 const std::size_t n_cols,
+                 const std::size_t frame_id,
+                 const std::pair<std::size_t, std::size_t> search_range) {
+  std::size_t c,j;
+  const std::size_t real_id = sorted_free_energies[frame_id].first;
+  float d, dist;
+  std::size_t sr_first = search_range.first;
+  std::size_t sr_second = search_range.second;
+  std::vector<float> distances(sr_second - sr_first);
+  std::vector<std::size_t> sorted_ids;
+  for (FreeEnergy fe: sorted_free_energies) {
+    sorted_ids.push_back(fe.first);
+  }
+  ASSUME_ALIGNED(coords);
+  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
+  for (j=sr_first; j < sr_second; ++j) {
+    if (frame_id == j) {
+      distances[j-sr_first] = std::numeric_limits<float>::max();
+    } else {
+      dist = 0.0f;
+      #pragma simd reduction(+:dist)
+      for (c=0; c < n_cols; ++c) {
+        //d = coords[real_id*n_cols+c] - coords[sorted_free_energies[j].first*n_cols+c];
+        d = coords[real_id*n_cols+c] - coords[sorted_ids[j]*n_cols+c];
+        dist += d*d;
+      }
+      distances[j-sr_first] = dist;
+    }
+  }
+  if (distances.size() == 0) {
+    return {0, 0.0f};
+  } else {
+    std::size_t min_ndx = std::min_element(distances.begin(), distances.end()) - distances.begin();
+    return {min_ndx+sr_first, distances[min_ndx]};
+  }
+}
+
+Neighborhood
+nearest_neighbors(const float* coords,
+                  const std::size_t n_rows,
+                  const std::size_t n_cols,
+                  const std::vector<float>& free_energies,
+                  int i_limit=-1) {
+  if (i_limit == -1) {
+    i_limit = (int) n_rows;
+  }
+  Neighborhood nh;
+  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energies);
+  for (int i=0; i < i_limit; ++i) {
+    nh[fe_sorted[i].first] = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i_limit));
+  }
+  return nh;
+}
+
+
+
+Neighborhood
+new_nearest_neighbors(const float* coords,
+                      const std::size_t n_rows,
+                      const std::size_t n_cols) {
+  Neighborhood nh;
+  // initialize neighborhood
+  for (std::size_t i=0; i < n_rows; ++i) {
+    nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+  }
+  // calculate nearest neighbors with distances
+  std::size_t i, j, c, min_j;
+  float dist, d, mindist;
+  std::cout << "  start: " << __TIMESTAMP__ << std::endl;
+  ASSUME_ALIGNED(coords);
+  #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j) \
+                           firstprivate(n_rows,n_cols) \
+                           shared(coords,nh) \
+                           schedule(dynamic,1024)
+  for (i=0; i < n_rows; ++i) {
+    mindist = std::numeric_limits<float>::max();
+    min_j = n_rows+1;
+    for (j=1; j < n_rows; ++j) {
+      if (i != j) {
+        dist = 0.0f;
+        #pragma simd reduction(+:dist)
+        for (c=0; c < n_cols; ++c) {
+          d = coords[i*n_cols+c] - coords[j*n_cols+c];
+          dist += d*d;
+        }
+        if (dist < mindist) {
+          mindist = dist;
+          min_j = j;
+        }
+      }
+    }
+    nh[i] = Neighbor(min_j, mindist);
+  }
+  std::cout << "  finished: " << __TIMESTAMP__ << std::endl;
+  return nh;
+}
+
 
 // returns neighborhood set of single frame.
 // all ids are sorted in free energy.
@@ -198,22 +243,6 @@ high_density_neighborhood(const float* coords,
   return nh;
 }
 
-Neighborhood
-nearest_neighbors(const float* coords,
-                  const std::size_t n_rows,
-                  const std::size_t n_cols,
-                  const std::vector<float>& free_energies,
-                  int i_limit=-1) {
-  if (i_limit == -1) {
-    i_limit = (int) n_rows;
-  }
-  Neighborhood nh;
-  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energies);
-  for (int i=0; i < i_limit; ++i) {
-    nh[fe_sorted[i].first] = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i_limit));
-  }
-  return nh;
-}
 
 double
 compute_sigma2(const Neighborhood& nh) {
@@ -440,11 +469,13 @@ int main(int argc, char* argv[]) {
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
+  //kmp_set_defaults("KMP_AFFINITY=compact");
 
   float* coords;
   std::size_t n_rows;
   std::size_t n_cols;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
+
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
@@ -494,7 +525,8 @@ int main(int argc, char* argv[]) {
     }
   } else {
     log(std::cout) << "calculating nearest neighbors" << std::endl;
-    nh = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+    //nh = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+    nh = new_nearest_neighbors(coords, n_rows, n_cols);
     if (args.count("nearest-neighbors")) {
       std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
       for (auto p: nh) {

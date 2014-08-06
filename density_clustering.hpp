@@ -11,5 +11,5 @@ using Neighbor = std::pair<std::size_t, float>;
 using Neighborhood = std::map<std::size_t, std::pair<std::size_t, float>>;
 
                             // assigned,  unassigned,  distance
-using Candidate = std::tuple<std::size_t, std::size_t, float>;
+//using Candidate = std::tuple<std::size_t, std::size_t, float>;
 
