@@ -12,17 +12,12 @@
 #include <queue>
 #include <limits>
 #include <numeric>
+#include <cmath>
 
 #include <time.h>
 
 #include <omp.h>
 #include <boost/program_options.hpp>
-
-// definitions for offloading
-#define ALLOC  alloc_if(1)
-#define FREE   free_if(1)
-#define RETAIN free_if(0)
-#define REUSE  alloc_if(0)
 
 namespace b_po = boost::program_options;
 
@@ -30,7 +25,7 @@ namespace {
 
 bool verbose = false;
 std::ostream devnull(0);
-std::ostream& log(std::ostream& s) {
+std::ostream& logger(std::ostream& s) {
   if (verbose) {
     return s;
   } else {
@@ -277,17 +272,17 @@ density_clustering(const std::vector<float>& free_energy,
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
   double sigma2 = compute_sigma2(nh);
-  log(std::cout) << "sigma2: " << sigma2 << std::endl;
-  log(std::cout) << last_frame_below_threshold << " frames with low free energy / high density" << std::endl;
-  log(std::cout) << "last frame below threshold has free energy: " << fe_sorted[last_frame_below_threshold].second << std::endl;
+  logger(std::cout) << "sigma2: " << sigma2 << std::endl;
+  logger(std::cout) << last_frame_below_threshold << " frames with low free energy / high density" << std::endl;
+  logger(std::cout) << "last frame below threshold has free energy: " << fe_sorted[last_frame_below_threshold].second << std::endl;
   // compute a neighborhood with distance 4*sigma2 only on high density frames
-  log(std::cout) << "merging initial clusters" << std::endl;
+  logger(std::cout) << "merging initial clusters" << std::endl;
   std::size_t distinct_name = 0;
   bool clusters_merged = false;
   while ( ! clusters_merged) {
     std::set<std::size_t> visited_frames = {};
     clusters_merged = true;
-    log(std::cout) << "initial merge iteration" << std::endl;
+    logger(std::cout) << "initial merge iteration" << std::endl;
     for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
       if (visited_frames.count(i) == 0) {
         visited_frames.insert(i);
@@ -357,7 +352,7 @@ density_clustering(const std::vector<float>& free_energy,
 
   // assignment of low-density states
   if ( ! only_initial_frames) {
-    log(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
+    logger(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
 //    if ( ! geometry_based_assignment) { // density based assignment
       // assign unassigned frames to clusters via neighbor-info (in descending density order)
     for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
@@ -372,7 +367,7 @@ density_clustering(const std::vector<float>& free_energy,
 //      auto candidate_comp = [&candidate_distance] (Candidate c1, Candidate c2) -> bool {return candidate_distance(c1) > candidate_distance(c2);};
 //      std::priority_queue<Candidate, std::vector<Candidate>, decltype(candidate_comp)> candidates(candidate_comp);
 //      // fill candidate queue
-//      log(std::cout) << "filling candidate queue" << std::endl;
+//      logger(std::cout) << "filling candidate queue" << std::endl;
 //      std::size_t i;
 //      #pragma omp parallel for default(shared) private(i) firstprivate(n_rows,n_cols) schedule(dynamic)
 //      for (i=0; i < n_rows; ++i) {
@@ -402,7 +397,7 @@ density_clustering(const std::vector<float>& free_energy,
 //      }
 //    }
   }
-  log(std::cout) << "clustering finished" << std::endl;
+  logger(std::cout) << "clustering finished" << std::endl;
   return clustering;
 }
 
@@ -479,7 +474,7 @@ int main(int argc, char* argv[]) {
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
-    log(std::cout) << "re-using free energy data." << std::endl;
+    logger(std::cout) << "re-using free energy data." << std::endl;
     std::ifstream ifs(args["free-energy-input"].as<std::string>());
     if (ifs.fail()) {
       std::cerr << "error: cannot open file '" << args["free-energy-input"].as<std::string>() << "'" << std::endl;
@@ -492,7 +487,7 @@ int main(int argc, char* argv[]) {
       }
     }
   } else {
-    log(std::cout) << "calculating free energies" << std::endl;
+    logger(std::cout) << "calculating free energies" << std::endl;
     free_energies = calculate_free_energies(
                       calculate_populations(coords, n_rows, n_cols, radius));
     if (args.count("free-energy")) {
@@ -506,7 +501,7 @@ int main(int argc, char* argv[]) {
   //// nearest neighbors
   Neighborhood nh;
   if (args.count("nearest-neighbors-input")) {
-    log(std::cout) << "re-using nearest neighbor data." << std::endl;
+    logger(std::cout) << "re-using nearest neighbor data." << std::endl;
     
     std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
     if (ifs.fail()) {
@@ -524,7 +519,7 @@ int main(int argc, char* argv[]) {
       }
     }
   } else {
-    log(std::cout) << "calculating nearest neighbors" << std::endl;
+    logger(std::cout) << "calculating nearest neighbors" << std::endl;
     //nh = nearest_neighbors(coords, n_rows, n_cols, free_energies);
     nh = new_nearest_neighbors(coords, n_rows, n_cols);
     if (args.count("nearest-neighbors")) {
@@ -537,7 +532,7 @@ int main(int argc, char* argv[]) {
     }
   }
   //// clustering
-  log(std::cout) << "calculating clusters" << std::endl;
+  logger(std::cout) << "calculating clusters" << std::endl;
   std::vector<std::size_t> clustering = density_clustering(free_energies,
                                                            nh,
                                                            threshold,
@@ -546,9 +541,9 @@ int main(int argc, char* argv[]) {
                                                            n_cols,
                                                            args["only-initial"].as<bool>());
                                                        //    args["geometry-based-assignment"].as<bool>());
-  log(std::cout) << "freeing coords" << std::endl;
+  logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
-  log(std::cout) << "writing clusters to file " << output_file << std::endl;
+  logger(std::cout) << "writing clusters to file " << output_file << std::endl;
   // write clusters to file
   {
     std::ofstream ofs(output_file);
