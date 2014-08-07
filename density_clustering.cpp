@@ -427,6 +427,7 @@ int main(int argc, char* argv[]) {
     ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
     ("threshold,t", b_po::value<float>()->required(), "parameter (required): Free Energy threshold for clustering (FEL is normalized to zero).")
     // optional
+    ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
     ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
     ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame.")
     ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
@@ -434,7 +435,6 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
     ("only-initial,I", b_po::bool_switch()->default_value(false), "only assign initial (i.e. low free energy / high density) frames to clusters.")
-    ("geometry-based-assignment,G", b_po::bool_switch()->default_value(false), "use geometry-based assignment of unassigned frames to clusters.")
     ("nthreads,n", b_po::value<int>()->default_value(0), "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
@@ -536,6 +536,11 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+
+  //TODO: check and handle initial state definitions as input
+
+  //TODO: split clustering in two function: find_initial_clusters & assign_low_density_frames
+
   //// clustering
   logger(std::cout) << "calculating clusters" << std::endl;
   std::vector<std::size_t> clustering = density_clustering(free_energies,
@@ -545,7 +550,6 @@ int main(int argc, char* argv[]) {
                                                            n_rows,
                                                            n_cols,
                                                            args["only-initial"].as<bool>());
-                                                       //    args["geometry-based-assignment"].as<bool>());
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
   logger(std::cout) << "writing clusters to file " << output_file << std::endl;
