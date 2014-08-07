@@ -45,7 +45,6 @@ calculate_populations(const float* coords,
   const float rad2 = radius * radius;
   std::size_t i, j, k;
   float dist, c;
-  std::cout << "  start: " << __TIMESTAMP__ << std::endl;
   ASSUME_ALIGNED(coords);
   #pragma omp parallel for private(i,j,k,c,dist) \
                            firstprivate(n_rows,n_cols,rad2) \
@@ -67,7 +66,6 @@ calculate_populations(const float* coords,
       }
     }
   }
-  std::cout << "  finished: " << __TIMESTAMP__ << std::endl;
   return pops;
 }
 
@@ -140,29 +138,11 @@ nearest_neighbor(const float* coords,
   }
 }
 
+
 Neighborhood
 nearest_neighbors(const float* coords,
                   const std::size_t n_rows,
-                  const std::size_t n_cols,
-                  const std::vector<float>& free_energies,
-                  int i_limit=-1) {
-  if (i_limit == -1) {
-    i_limit = (int) n_rows;
-  }
-  Neighborhood nh;
-  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energies);
-  for (int i=0; i < i_limit; ++i) {
-    nh[fe_sorted[i].first] = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i_limit));
-  }
-  return nh;
-}
-
-
-
-Neighborhood
-new_nearest_neighbors(const float* coords,
-                      const std::size_t n_rows,
-                      const std::size_t n_cols) {
+                  const std::size_t n_cols) {
   Neighborhood nh;
   // initialize neighborhood
   for (std::size_t i=0; i < n_rows; ++i) {
@@ -170,13 +150,13 @@ new_nearest_neighbors(const float* coords,
   }
   // calculate nearest neighbors with distances
   std::size_t i, j, c, min_j;
+  //TODO:  i_ref = i*n_cols for faster matrix lookup? test it!
   float dist, d, mindist;
-  std::cout << "  start: " << __TIMESTAMP__ << std::endl;
   ASSUME_ALIGNED(coords);
   #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j) \
                            firstprivate(n_rows,n_cols) \
-                           shared(coords,nh) \
-                           schedule(dynamic,1024)
+                           shared(coords,nh)
+//                           schedule(dynamic,1024)
   for (i=0; i < n_rows; ++i) {
     mindist = std::numeric_limits<float>::max();
     min_j = n_rows+1;
@@ -196,7 +176,6 @@ new_nearest_neighbors(const float* coords,
     }
     nh[i] = Neighbor(min_j, mindist);
   }
-  std::cout << "  finished: " << __TIMESTAMP__ << std::endl;
   return nh;
 }
 
@@ -210,9 +189,6 @@ high_density_neighborhood(const float* coords,
                           const std::size_t i_frame,
                           const std::size_t limit,
                           const float max_dist) {
-//TODO: performance: use vector of length  limit  initialized to zero
-//      if dist2 < max_dist:  set index = 1
-//      reduce vector afterwards by assigning indices with 1 to nh-set.
   std::set<std::size_t> nh;
   std::size_t j,c;
   float d,dist2;
@@ -221,7 +197,6 @@ high_density_neighborhood(const float* coords,
   for (j=0; j < limit; ++j) {
     if (i_frame != j) {
       dist2 = 0.0f;
-//TODO: check: got vectorized?
       #pragma simd reduction(+:dist2)
       for (c=0; c < n_cols; ++c) {
         d = coords[sorted_fe[i_frame].first*n_cols+c] - coords[sorted_fe[j].first*n_cols+c];
@@ -240,6 +215,53 @@ high_density_neighborhood(const float* coords,
       }
     }
   }
+  return nh;
+}
+
+
+
+//TODO: compare this optimized version to the one above
+
+// returns neighborhood set of single frame.
+// all ids are sorted in free energy.
+std::set<std::size_t>
+high_density_neighborhood_opt(const float* coords,
+                          const std::size_t n_cols,
+                          const std::vector<FreeEnergy>& sorted_fe,
+                          const std::size_t i_frame,
+                          const std::size_t limit,
+                          const float max_dist) {
+  // buffer to hold information whether frame i is
+  // in neighborhood (-> assign 1) or not (-> keep 0)
+  std::vector<int> frame_in_nh(limit, 0);
+  std::set<std::size_t> nh;
+  std::size_t j,c;
+  const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
+  float d,dist2;
+  ASSUME_ALIGNED(coords);
+  #pragma omp parallel for private(j,c,d,dist2) \
+                           firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
+                           shared(coords,sorted_fe)
+  for (j=0; j < limit; ++j) {
+    if (i_frame != j) {
+      dist2 = 0.0f;
+      #pragma simd reduction(+:dist2)
+      for (c=0; c < n_cols; ++c) {
+        d = coords[i_frame_sorted+c] - coords[sorted_fe[j].first*n_cols+c];
+        dist2 += d*d;
+      }
+      if (dist2 < max_dist) {
+        frame_in_nh[j] = 1;
+      }
+    }
+  }
+  // reduce buffer data to real neighborhood structure
+  for (j=0; j < limit; ++j) {
+    if (frame_in_nh[j] == 1) {
+      nh.insert(j);
+    }
+  }
+  nh.insert(i_frame);
   return nh;
 }
 
@@ -272,14 +294,14 @@ density_clustering(const std::vector<float>& free_energy,
                              fe_sorted.end(),
                              FreeEnergy(0, free_energy_threshold), 
                              [](const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
-  std::size_t last_frame_below_threshold = (lb - fe_sorted.begin());
+  std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
   //  with x being the distances between nearest neighbors)
   double sigma2 = compute_sigma2(nh);
   logger(std::cout) << "sigma2: " << sigma2 << std::endl;
-  logger(std::cout) << last_frame_below_threshold << " frames with low free energy / high density" << std::endl;
-  logger(std::cout) << "last frame below threshold has free energy: " << fe_sorted[last_frame_below_threshold].second << std::endl;
+  logger(std::cout) << first_frame_above_threshold << " frames with low free energy / high density" << std::endl;
+  logger(std::cout) << "first frame above threshold has free energy: " << fe_sorted[first_frame_above_threshold].second << std::endl;
   // compute a neighborhood with distance 4*sigma2 only on high density frames
   logger(std::cout) << "merging initial clusters" << std::endl;
   std::size_t distinct_name = 0;
@@ -288,7 +310,7 @@ density_clustering(const std::vector<float>& free_energy,
     std::set<std::size_t> visited_frames = {};
     clusters_merged = true;
     logger(std::cout) << "initial merge iteration" << std::endl;
-    for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+    for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
       if (visited_frames.count(i) == 0) {
         visited_frames.insert(i);
         // all frames in local neighborhood should be clustered
@@ -296,7 +318,7 @@ density_clustering(const std::vector<float>& free_energy,
                                                                    n_cols,
                                                                    fe_sorted,
                                                                    i,
-                                                                   last_frame_below_threshold,
+                                                                   first_frame_above_threshold,
                                                                    4*sigma2);
         // let's see if at least some of them already have a
         // designated cluster assignment
@@ -326,12 +348,11 @@ density_clustering(const std::vector<float>& free_energy,
           for (auto j: local_nh) {
             clustering[fe_sorted[j].first] = common_name;
           }
-
           std::size_t j;
           #pragma omp parallel for private(j)\
-                                   firstprivate(common_name,last_frame_below_threshold,cluster_names) \
+                                   firstprivate(common_name,first_frame_above_threshold,cluster_names) \
                                    shared(clustering,fe_sorted)
-          for (j=0; j < last_frame_below_threshold; ++j) {
+          for (j=0; j < first_frame_above_threshold; ++j) {
             if (cluster_names.count(clustering[fe_sorted[j].first]) == 1) {
               clustering[fe_sorted[j].first] = common_name;
             }
@@ -342,7 +363,7 @@ density_clustering(const std::vector<float>& free_energy,
   }
   // normalize names
   std::set<std::size_t> final_names;
-  for (std::size_t i=0; i < last_frame_below_threshold; ++i) {
+  for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
     final_names.insert(clustering[fe_sorted[i].first]);
   }
   std::map<std::size_t, std::size_t> old_to_new;
@@ -354,53 +375,15 @@ density_clustering(const std::vector<float>& free_energy,
   for(auto& elem: clustering) {
     elem = old_to_new[elem];
   }
-
   // assignment of low-density states
   if ( ! only_initial_frames) {
     logger(std::cout) << "assigning remaining frames to " << final_names.size() << " clusters" << std::endl;
-//    if ( ! geometry_based_assignment) { // density based assignment
-      // assign unassigned frames to clusters via neighbor-info (in descending density order)
-    for (std::size_t i=last_frame_below_threshold; i < n_rows; ++i) {
+    // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
+    for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
+      //TODO: reuse neighborhood info?
       auto nn = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i));
       clustering[fe_sorted[i].first] = clustering[fe_sorted[nn.first].first];
     }
-//    } else { // geometry based assignment
-//      // always assign the frame next, that has minimal distance to any cluster
-//      auto candidate_assigned_id = [](Candidate c) {return std::get<0>(c);};
-//      auto candidate_unassigned_id = [](Candidate c) {return std::get<1>(c);};
-//      auto candidate_distance = [](Candidate c) {return std::get<2>(c);};
-//      auto candidate_comp = [&candidate_distance] (Candidate c1, Candidate c2) -> bool {return candidate_distance(c1) > candidate_distance(c2);};
-//      std::priority_queue<Candidate, std::vector<Candidate>, decltype(candidate_comp)> candidates(candidate_comp);
-//      // fill candidate queue
-//      logger(std::cout) << "filling candidate queue" << std::endl;
-//      std::size_t i;
-//      #pragma omp parallel for default(shared) private(i) firstprivate(n_rows,n_cols) schedule(dynamic)
-//      for (i=0; i < n_rows; ++i) {
-//        if (clustering[i] != 0) {
-//          Candidate c = get_candidate_for_frame(coords, n_rows, n_cols, clustering, i);
-//          if (candidate_assigned_id(c) != candidate_unassigned_id(c)) {
-//            #pragma omp critical
-//            {
-//              candidates.push(c);
-//            }
-//          }
-//        }
-//      }
-//      // assign frames
-//      while ( ! candidates.empty()) {
-//        Candidate champ = candidates.top();
-//        candidates.pop();
-//        if (clustering[candidate_unassigned_id(champ)] == 0) {
-//          // it's still unassigned, assign to its next cluster
-//          clustering[candidate_unassigned_id(champ)] = clustering[candidate_assigned_id(champ)];
-//          // push new candidate from freshly assigned frame
-//          Candidate rookie = get_candidate_for_frame(coords, n_rows, n_cols, clustering, candidate_unassigned_id(champ));
-//          if (candidate_unassigned_id(rookie) != candidate_assigned_id(rookie)) {
-//            candidates.push(rookie);
-//          }
-//        }
-//      }
-//    }
   }
   logger(std::cout) << "clustering finished" << std::endl;
   return clustering;
@@ -425,7 +408,8 @@ int main(int argc, char* argv[]) {
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
     ("output,o", b_po::value<std::string>()->required(), "output (required): clustering information.")
     ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
-    ("threshold,t", b_po::value<float>()->required(), "parameter (required): Free Energy threshold for clustering (FEL is normalized to zero).")
+    ("threshold,t", b_po::value<float>()->required(),
+                    "parameter (required): Free Energy threshold for clustering (FEL is normalized to zero).")
     // optional
     ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
     ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
@@ -434,8 +418,10 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
-    ("only-initial,I", b_po::bool_switch()->default_value(false), "only assign initial (i.e. low free energy / high density) frames to clusters.")
-    ("nthreads,n", b_po::value<int>()->default_value(0), "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
+    ("only-initial,I", b_po::bool_switch()->default_value(false),
+                      "only assign initial (i.e. low free energy / high density) frames to clusters. leave unclustered frames as state '0'.")
+    ("nthreads,n", b_po::value<int>()->default_value(0),
+                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
 
@@ -469,7 +455,6 @@ int main(int argc, char* argv[]) {
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
-  //kmp_set_defaults("KMP_AFFINITY=compact");
 
   float* coords;
   std::size_t n_rows;
@@ -526,7 +511,7 @@ int main(int argc, char* argv[]) {
   } else {
     logger(std::cout) << "calculating nearest neighbors" << std::endl;
     //nh = nearest_neighbors(coords, n_rows, n_cols, free_energies);
-    nh = new_nearest_neighbors(coords, n_rows, n_cols);
+    nh = nearest_neighbors(coords, n_rows, n_cols);
     if (args.count("nearest-neighbors")) {
       std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
       for (auto p: nh) {
