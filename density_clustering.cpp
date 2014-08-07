@@ -210,6 +210,9 @@ high_density_neighborhood(const float* coords,
                           const std::size_t i_frame,
                           const std::size_t limit,
                           const float max_dist) {
+//TODO: performance: use vector of length  limit  initialized to zero
+//      if dist2 < max_dist:  set index = 1
+//      reduce vector afterwards by assigning indices with 1 to nh-set.
   std::set<std::size_t> nh;
   std::size_t j,c;
   float d,dist2;
@@ -218,6 +221,8 @@ high_density_neighborhood(const float* coords,
   for (j=0; j < limit; ++j) {
     if (i_frame != j) {
       dist2 = 0.0f;
+//TODO: check: got vectorized?
+      #pragma simd reduction(+:dist2)
       for (c=0; c < n_cols; ++c) {
         d = coords[sorted_fe[i_frame].first*n_cols+c] - coords[sorted_fe[j].first*n_cols+c];
         dist2 += d*d;
