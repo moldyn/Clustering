@@ -137,28 +137,31 @@ nearest_neighbor(const float* coords,
 }
 
 
-Neighborhood
+std::tuple<Neighborhood, Neighborhood>
 nearest_neighbors(const float* coords,
                   const std::size_t n_rows,
-                  const std::size_t n_cols) {
-  //TODO: save additionally neighborhood with neighbors of strictly higher density
-  //      (for later frame assignment to initial clusters)
+                  const std::size_t n_cols,
+                  const std::vector<float>& free_energy) {
   Neighborhood nh;
+  Neighborhood nh_high_dens;
   // initialize neighborhood
   for (std::size_t i=0; i < n_rows; ++i) {
     nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+    nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
   }
   // calculate nearest neighbors with distances
-  std::size_t i, j, c, min_j;
-  float dist, d, mindist;
+  std::size_t i, j, c, min_j, min_j_high_dens;
+  float dist, d, mindist, mindist_high_dens;
   ASSUME_ALIGNED(coords);
-  #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j) \
+  #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j,min_j_high_dens) \
                            firstprivate(n_rows,n_cols) \
-                           shared(coords,nh)
-//                           schedule(dynamic,1024)
+                           shared(coords,nh,nh_high_dens,free_energy) \
+                           schedule(dynamic, 2048)
   for (i=0; i < n_rows; ++i) {
     mindist = std::numeric_limits<float>::max();
+    mindist_high_dens = std::numeric_limits<float>::max();
     min_j = n_rows+1;
+    min_j_high_dens = n_rows+1;
     for (j=1; j < n_rows; ++j) {
       if (i != j) {
         dist = 0.0f;
@@ -167,15 +170,22 @@ nearest_neighbors(const float* coords,
           d = coords[i*n_cols+c] - coords[j*n_cols+c];
           dist += d*d;
         }
+        // direct neighbor
         if (dist < mindist) {
           mindist = dist;
           min_j = j;
         }
+        // next neighbor with higher density / lower free energy
+        if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
+          mindist_high_dens = dist;
+          min_j_high_dens = j;
+        }
       }
     }
     nh[i] = Neighbor(min_j, mindist);
+    nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
   }
-  return nh;
+  return std::make_tuple(nh, nh_high_dens);
 }
 
 
@@ -505,9 +515,9 @@ int main(int argc, char* argv[]) {
   }
   //// nearest neighbors
   Neighborhood nh;
+  Neighborhood nh_high_dens;
   if (args.count("nearest-neighbors-input")) {
     logger(std::cout) << "re-using nearest neighbor data." << std::endl;
-    
     std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
     if (ifs.fail()) {
       std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
@@ -520,33 +530,51 @@ int main(int argc, char* argv[]) {
         ifs >> buf1;
         ifs >> buf2;
         nh[i] = std::pair<std::size_t, float>(buf1, buf2);
+        ifs >> buf1;
+        ifs >> buf2;
+        nh_high_dens[i] = std::pair<std::size_t, float>(buf1, buf2);
         ++i;
       }
     }
   } else {
     logger(std::cout) << "calculating nearest neighbors" << std::endl;
-    //nh = nearest_neighbors(coords, n_rows, n_cols, free_energies);
-    nh = nearest_neighbors(coords, n_rows, n_cols);
+    auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+    nh = std::get<0>(nh_tuple);
+    nh_high_dens = std::get<1>(nh_tuple);
     if (args.count("nearest-neighbors")) {
       std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
-      for (auto p: nh) {
+      auto p = nh.begin();
+      auto p_hd = nh_high_dens.begin();
+      while (p != nh.end() && p_hd != nh_high_dens.end()) {
+        ++p;
+        ++p_hd;
+        // first: key (not used)
         // second: neighbor
         // second.first: id; second.second: squared dist
-        ofs << p.second.first << " " << p.second.second << "\n";
+        ofs << p->second.first    << " " << p->second.second
+            << p_hd->second.first << " " << p_hd->second.second << "\n";
       }
     }
   }
-
-  //TODO: check and handle initial state definitions as input
-
   //// clustering
-  logger(std::cout) << "calculating initial clusters" << std::endl;
-  std::vector<std::size_t> clustering = initial_density_clustering(free_energies,
-                                                                   nh,
-                                                                   threshold,
-                                                                   coords,
-                                                                   n_rows,
-                                                                   n_cols);
+  std::vector<std::size_t> clustering;
+  if (args.count("input")) {
+    logger(std::cout) << "reading initial clusters from file." << std::endl;
+    std::ifstream ifs(args["input"].as<std::string>());
+    if (ifs.fail()) {
+      std::cerr << "error: cannot open file '" << args["input"].as<std::string>() << "'" << std::endl;
+      return 3;
+    } else {
+      while (ifs.good()) {
+        std::size_t buf;
+        ifs >> buf;
+        clustering.push_back(buf);
+      }
+    }
+  } else {
+    logger(std::cout) << "calculating initial clusters" << std::endl;
+    clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
+  }
   logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
   if ( ! args["only-initial"].as<bool>()) {
     clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
