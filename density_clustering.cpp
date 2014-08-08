@@ -141,6 +141,8 @@ Neighborhood
 nearest_neighbors(const float* coords,
                   const std::size_t n_rows,
                   const std::size_t n_cols) {
+  //TODO: save additionally neighborhood with neighbors of strictly higher density
+  //      (for later frame assignment to initial clusters)
   Neighborhood nh;
   // initialize neighborhood
   for (std::size_t i=0; i < n_rows; ++i) {
@@ -148,7 +150,6 @@ nearest_neighbors(const float* coords,
   }
   // calculate nearest neighbors with distances
   std::size_t i, j, c, min_j;
-  //TODO:  i_ref = i*n_cols for faster matrix lookup? test it!
   float dist, d, mindist;
   ASSUME_ALIGNED(coords);
   #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j) \
@@ -239,7 +240,7 @@ high_density_neighborhood(const float* coords,
   ASSUME_ALIGNED(coords);
   #pragma omp parallel for private(j,c,d,dist2) \
                            firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
-                           shared(coords,sorted_fe)
+                           shared(coords,sorted_fe,frame_in_nh)
   for (j=0; j < limit; ++j) {
     if (i_frame != j) {
       dist2 = 0.0f;
@@ -249,13 +250,15 @@ high_density_neighborhood(const float* coords,
         dist2 += d*d;
       }
       if (dist2 < max_dist) {
-        frame_in_nh[j] = 1;
+      //TODO: after run on bmdphi1: test again without pragma
+        #pragma omp atomic
+        frame_in_nh[j] += 1;
       }
     }
   }
   // reduce buffer data to real neighborhood structure
   for (j=0; j < limit; ++j) {
-    if (frame_in_nh[j] == 1) {
+    if (frame_in_nh[j] > 0) {
       nh.insert(j);
     }
   }
@@ -378,12 +381,18 @@ initial_density_clustering(const std::vector<float>& free_energy,
 
 std::vector<std::size_t>
 assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
-                          const std::size_t first_frame_above_threshold,
                           const float* coords,
                           const std::size_t n_rows,
                           const std::size_t n_cols,
+                          const float free_energy_threshold,
                           const std::vector<float>& free_energy) {
   std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
+  // find last frame below free energy threshold
+  auto lb = std::upper_bound(fe_sorted.begin(),
+                             fe_sorted.end(),
+                             FreeEnergy(0, free_energy_threshold), 
+                             [](const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
+  std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
   std::vector<std::size_t> clustering(initial_clustering);
   // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
   for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
@@ -530,22 +539,18 @@ int main(int argc, char* argv[]) {
 
   //TODO: check and handle initial state definitions as input
 
-  //TODO: split clustering in two function: find_initial_clusters & assign_low_density_frames
-
   //// clustering
-  logger(std::cout) << "calculating clusters" << std::endl;
+  logger(std::cout) << "calculating initial clusters" << std::endl;
   std::vector<std::size_t> clustering = initial_density_clustering(free_energies,
                                                                    nh,
                                                                    threshold,
                                                                    coords,
                                                                    n_rows,
                                                                    n_cols);
-
-  
-
-  //TODO: assign low dens frames
-
-
+  logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
+  if ( ! args["only-initial"].as<bool>()) {
+    clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
+  }
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
   logger(std::cout) << "writing clusters to file " << output_file << std::endl;
