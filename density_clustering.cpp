@@ -390,7 +390,7 @@ initial_density_clustering(const std::vector<float>& free_energy,
 }
 
 std::vector<std::size_t>
-assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
+assign_low_density_frames_old(const std::vector<std::size_t>& initial_clustering,
                           const float* coords,
                           const std::size_t n_rows,
                           const std::size_t n_cols,
@@ -406,13 +406,29 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
   std::vector<std::size_t> clustering(initial_clustering);
   // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
   for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
-    //TODO: reuse neighborhood info?
     auto nn = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i));
     clustering[fe_sorted[i].first] = clustering[fe_sorted[nn.first].first];
   }
   logger(std::cout) << "clustering finished" << std::endl;
   return clustering;
 }
+
+
+std::vector<std::size_t>
+assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
+                          const Neighborhood& nh_high_dens,
+                          const std::size_t n_rows,
+                          const std::vector<float>& free_energy) {
+  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
+  std::vector<std::size_t> clustering(initial_clustering);
+  for (std::size_t i=0; i < n_rows; ++i) {
+    if (clustering[i] != 0) {
+//TODO: finish
+    }
+  }
+}
+
+
 
 ////////
 
