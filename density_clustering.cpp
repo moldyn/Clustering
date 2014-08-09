@@ -46,7 +46,7 @@ calculate_populations(const float* coords,
   std::size_t i, j, k;
   float dist, c;
   ASSUME_ALIGNED(coords);
-  #pragma omp parallel for private(i,j,k,c,dist) \
+  #pragma omp parallel for default(none) private(i,j,k,c,dist) \
                            firstprivate(n_rows,n_cols,rad2) \
                            shared(coords,pops) \
                            schedule(dynamic,1024)
@@ -76,7 +76,7 @@ calculate_free_energies(const std::vector<std::size_t>& pops) {
   const std::size_t n_frames = pops.size();
   const float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
   std::vector<float> fe(n_frames);
-  #pragma omp parallel for private(i) firstprivate(max_pop, n_frames) shared(fe, pops)
+  #pragma omp parallel for default(none) private(i) firstprivate(max_pop, n_frames) shared(fe, pops)
   for (i=0; i < n_frames; ++i) {
     fe[i] = (float) -1 * log(pops[i]/max_pop);
   }
@@ -153,7 +153,8 @@ nearest_neighbors(const float* coords,
   std::size_t i, j, c, min_j, min_j_high_dens;
   float dist, d, mindist, mindist_high_dens;
   ASSUME_ALIGNED(coords);
-  #pragma omp parallel for private(i,j,c,dist,d,mindist,min_j,min_j_high_dens) \
+  #pragma omp parallel for default(none) \
+                           private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
                            firstprivate(n_rows,n_cols) \
                            shared(coords,nh,nh_high_dens,free_energy) \
                            schedule(dynamic, 2048)
@@ -229,8 +230,6 @@ nearest_neighbors(const float* coords,
 
 
 
-//TODO: compare this optimized version to the one above
-
 // returns neighborhood set of single frame.
 // all ids are sorted in free energy.
 std::set<std::size_t>
@@ -248,7 +247,7 @@ high_density_neighborhood(const float* coords,
   const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
   float d,dist2;
   ASSUME_ALIGNED(coords);
-  #pragma omp parallel for private(j,c,d,dist2) \
+  #pragma omp parallel for default(none) private(j,c,d,dist2) \
                            firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
                            shared(coords,sorted_fe,frame_in_nh)
   for (j=0; j < limit; ++j) {
@@ -260,7 +259,6 @@ high_density_neighborhood(const float* coords,
         dist2 += d*d;
       }
       if (dist2 < max_dist) {
-      //TODO: after run on bmdphi1: test again without pragma
         #pragma omp atomic
         frame_in_nh[j] += 1;
       }
@@ -307,13 +305,14 @@ initial_density_clustering(const std::vector<float>& free_energy,
   std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
   // compute sigma as deviation of nearest-neighbor distances
   // (beware: actually, sigma2 is  E[x^2] > Var(x) = E[x^2] - E[x]^2,
-  //  with x being the distances between nearest neighbors)
+  //  with x being the distances between nearest neighbors).
+  // then compute a neighborhood with distance 4*sigma2 only on high density frames.
   double sigma2 = compute_sigma2(nh);
-  logger(std::cout) << "sigma2: " << sigma2 << std::endl;
-  logger(std::cout) << first_frame_above_threshold << " frames with low free energy / high density" << std::endl;
-  logger(std::cout) << "first frame above threshold has free energy: " << fe_sorted[first_frame_above_threshold].second << std::endl;
-  // compute a neighborhood with distance 4*sigma2 only on high density frames
-  logger(std::cout) << "merging initial clusters" << std::endl;
+  logger(std::cout) << "sigma2: " << sigma2 << std::endl
+                    << first_frame_above_threshold << " frames with low free energy / high density" << std::endl
+                    << "first frame above threshold has free energy: "
+                    << fe_sorted[first_frame_above_threshold].second << std::endl
+                    << "merging initial clusters" << std::endl;
   std::size_t distinct_name = 0;
   bool clusters_merged = false;
   while ( ! clusters_merged) {
@@ -359,7 +358,7 @@ initial_density_clustering(const std::vector<float>& free_energy,
             clustering[fe_sorted[j].first] = common_name;
           }
           std::size_t j;
-          #pragma omp parallel for private(j)\
+          #pragma omp parallel for default(none) private(j)\
                                    firstprivate(common_name,first_frame_above_threshold,cluster_names) \
                                    shared(clustering,fe_sorted)
           for (j=0; j < first_frame_above_threshold; ++j) {
@@ -421,11 +420,15 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                           const std::vector<float>& free_energy) {
   std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
   std::vector<std::size_t> clustering(initial_clustering);
-  for (std::size_t i=0; i < initial_clustering.size(); ++i) {
-    if (clustering[i] == 0) {
-//TODO: finish
+  for (const auto& fe: fe_sorted) {
+    if (clustering[fe.first] == 0) {
+      // assign cluster of nearest neighbor with higher density
+      // (since it has higher density, it must have been assigned
+      //  before and will have a cluster-id not equal to zero).
+      clustering[fe.first] = clustering[nh_high_dens.find(fe.first)->first];
     }
   }
+  return clustering;
 }
 
 
@@ -446,12 +449,13 @@ int main(int argc, char* argv[]) {
   desc.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     // required
-    ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
-    ("output,o", b_po::value<std::string>()->required(), "output (required): clustering information.")
+    ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates "
+                                                       "(space separated ASCII).")
     ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
     ("threshold,t", b_po::value<float>()->required(),
                     "parameter (required): Free Energy threshold for clustering (FEL is normalized to zero).")
     // optional
+    ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
     ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
     ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
     ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame.")
@@ -460,7 +464,8 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
     ("only-initial,I", b_po::bool_switch()->default_value(false),
-                      "only assign initial (i.e. low free energy / high density) frames to clusters. leave unclustered frames as state '0'.")
+                      "only assign initial (i.e. low free energy / high density) frames to clusters. "
+                      "leave unclustered frames as state '0'.")
     ("nthreads,n", b_po::value<int>()->default_value(0),
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
@@ -517,7 +522,7 @@ int main(int argc, char* argv[]) {
         free_energies.push_back(buf);
       }
     }
-  } else {
+  } else if (args.count("free-energy") || args.count("output")) {
     logger(std::cout) << "calculating free energies" << std::endl;
     free_energies = calculate_free_energies(
                       calculate_populations(coords, n_rows, n_cols, radius));
@@ -552,7 +557,7 @@ int main(int argc, char* argv[]) {
         ++i;
       }
     }
-  } else {
+  } else if (args.count("nearest-neighbors") || args.count("output")) {
     logger(std::cout) << "calculating nearest neighbors" << std::endl;
     auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
     nh = std::get<0>(nh_tuple);
@@ -562,54 +567,56 @@ int main(int argc, char* argv[]) {
       auto p = nh.begin();
       auto p_hd = nh_high_dens.begin();
       while (p != nh.end() && p_hd != nh_high_dens.end()) {
-        ++p;
-        ++p_hd;
         // first: key (not used)
         // second: neighbor
         // second.first: id; second.second: squared dist
-        ofs << p->second.first    << " " << p->second.second
+        ofs << p->second.first    << " " << p->second.second    << " "
             << p_hd->second.first << " " << p_hd->second.second << "\n";
+        ++p;
+        ++p_hd;
       }
     }
   }
   //// clustering
-  std::vector<std::size_t> clustering;
-  if (args.count("input")) {
-    logger(std::cout) << "reading initial clusters from file." << std::endl;
-    std::ifstream ifs(args["input"].as<std::string>());
-    if (ifs.fail()) {
-      std::cerr << "error: cannot open file '" << args["input"].as<std::string>() << "'" << std::endl;
-      return 3;
+  if (args.count("output")) {
+    std::vector<std::size_t> clustering;
+    if (args.count("input")) {
+      logger(std::cout) << "reading initial clusters from file." << std::endl;
+      std::ifstream ifs(args["input"].as<std::string>());
+      if (ifs.fail()) {
+        std::cerr << "error: cannot open file '" << args["input"].as<std::string>() << "'" << std::endl;
+        return 3;
+      } else {
+        while (ifs.good()) {
+          std::size_t buf;
+          ifs >> buf;
+          clustering.push_back(buf);
+        }
+      }
     } else {
-      while (ifs.good()) {
-        std::size_t buf;
-        ifs >> buf;
-        clustering.push_back(buf);
+      logger(std::cout) << "calculating initial clusters" << std::endl;
+      clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
+    }
+    logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
+    if ( ! args["only-initial"].as<bool>()) {
+      //clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
+      clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
+    }
+    logger(std::cout) << "freeing coords" << std::endl;
+    logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+    // write clusters to file
+    {
+      std::ofstream ofs(output_file);
+      if (ofs.fail()) {
+        std::cerr << "error: cannot open file '" << output_file << "' for writing." << std::endl;
+        return 3;
+      }
+      for (std::size_t i: clustering) {
+        ofs << i << "\n";
       }
     }
-  } else {
-    logger(std::cout) << "calculating initial clusters" << std::endl;
-    clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
   }
-  logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
-  if ( ! args["only-initial"].as<bool>()) {
-    //clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
-    clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
-  }
-  logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
-  logger(std::cout) << "writing clusters to file " << output_file << std::endl;
-  // write clusters to file
-  {
-    std::ofstream ofs(output_file);
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file '" << output_file << "' for writing." << std::endl;
-      return 3;
-    }
-    for (std::size_t i: clustering) {
-      ofs << i << "\n";
-    }
-  }
   return 0;
 }
 

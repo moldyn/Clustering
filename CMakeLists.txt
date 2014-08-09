@@ -7,19 +7,18 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
   set (CMAKE_CXX_FLAGS "-std=c++11 -O2 -fopenmp -Wall -ffast-math -fvectorize")
 
 
+
 elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")
-  if (DC_USE_NATIVE)
+  if (DC_NATIVE_COMPILATION)
     message("native compilation: this code will ONLY run on THIS machine")
-    set (CMAKE_CXX_FLAGS "-std=c++0x -march=native -ftree-vectorize -ftree-vectorizer-verbose=9 -ffast-math -O2 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
+    set (CMAKE_CXX_FLAGS "-std=c++0x -march=native -ftree-vectorize -ftree-vectorizer-verbose=1 -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
   else()
     set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ffast-math -O2 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
   endif()
-
   if (DC_USE_XEON_PHI)
     message(SEND_ERROR "XeonPhi not supported with Gnu compiler")
   endif()
-
   set (DC_MEM_ALIGNMENT 32)
   if (DC_CPU_ACCELERATION)
     if (${DC_CPU_ACCELERATION} STREQUAL "SSE2")
@@ -48,6 +47,8 @@ elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     message("using standard CPU acceleration with memory aligned at ${DC_MEM_ALIGNMENT} bytes")
   endif()
 
+
+
 elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
   message("using Intel compiler")
 
@@ -56,7 +57,6 @@ elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
     set (DC_MEM_ALIGNMENT 32)
   else()
     set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -xAVX -vec-report=1 -O3")
-    #set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -xAVX -O3")
     set (DC_MEM_ALIGNMENT 32)
   endif()
 
