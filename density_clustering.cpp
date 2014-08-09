@@ -433,7 +433,7 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
 ////////
 
 int main(int argc, char* argv[]) {
-  using b_po = boost::program_options;
+  namespace b_po = boost::program_options;
   b_po::variables_map args;
   b_po::options_description desc (std::string(argv[0]).append(
     "\n\n"

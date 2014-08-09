@@ -1,5 +1,5 @@
 
-# density_clustering (version 0.5)
+# density\_clustering (version 0.5)
 ... a fast code for density-based clustering of MD data
 
 ## installation
