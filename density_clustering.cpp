@@ -96,45 +96,45 @@ sorted_free_energies(const std::vector<float>& fe) {
   return fe_sorted;
 }
 
-const std::pair<std::size_t, float>
-nearest_neighbor(const float* coords,
-                 const std::vector<FreeEnergy>& sorted_free_energies,
-                 const std::size_t n_cols,
-                 const std::size_t frame_id,
-                 const std::pair<std::size_t, std::size_t> search_range) {
-  std::size_t c,j;
-  const std::size_t real_id = sorted_free_energies[frame_id].first;
-  float d, dist;
-  std::size_t sr_first = search_range.first;
-  std::size_t sr_second = search_range.second;
-  std::vector<float> distances(sr_second - sr_first);
-  std::vector<std::size_t> sorted_ids;
-  for (FreeEnergy fe: sorted_free_energies) {
-    sorted_ids.push_back(fe.first);
-  }
-  ASSUME_ALIGNED(coords);
-  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
-  for (j=sr_first; j < sr_second; ++j) {
-    if (frame_id == j) {
-      distances[j-sr_first] = std::numeric_limits<float>::max();
-    } else {
-      dist = 0.0f;
-      #pragma simd reduction(+:dist)
-      for (c=0; c < n_cols; ++c) {
-        //d = coords[real_id*n_cols+c] - coords[sorted_free_energies[j].first*n_cols+c];
-        d = coords[real_id*n_cols+c] - coords[sorted_ids[j]*n_cols+c];
-        dist += d*d;
-      }
-      distances[j-sr_first] = dist;
-    }
-  }
-  if (distances.size() == 0) {
-    return {0, 0.0f};
-  } else {
-    std::size_t min_ndx = std::min_element(distances.begin(), distances.end()) - distances.begin();
-    return {min_ndx+sr_first, distances[min_ndx]};
-  }
-}
+//const std::pair<std::size_t, float>
+//nearest_neighbor(const float* coords,
+//                 const std::vector<FreeEnergy>& sorted_free_energies,
+//                 const std::size_t n_cols,
+//                 const std::size_t frame_id,
+//                 const std::pair<std::size_t, std::size_t> search_range) {
+//  std::size_t c,j;
+//  const std::size_t real_id = sorted_free_energies[frame_id].first;
+//  float d, dist;
+//  std::size_t sr_first = search_range.first;
+//  std::size_t sr_second = search_range.second;
+//  std::vector<float> distances(sr_second - sr_first);
+//  std::vector<std::size_t> sorted_ids;
+//  for (FreeEnergy fe: sorted_free_energies) {
+//    sorted_ids.push_back(fe.first);
+//  }
+//  ASSUME_ALIGNED(coords);
+//  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
+//  for (j=sr_first; j < sr_second; ++j) {
+//    if (frame_id == j) {
+//      distances[j-sr_first] = std::numeric_limits<float>::max();
+//    } else {
+//      dist = 0.0f;
+//      #pragma simd reduction(+:dist)
+//      for (c=0; c < n_cols; ++c) {
+//        //d = coords[real_id*n_cols+c] - coords[sorted_free_energies[j].first*n_cols+c];
+//        d = coords[real_id*n_cols+c] - coords[sorted_ids[j]*n_cols+c];
+//        dist += d*d;
+//      }
+//      distances[j-sr_first] = dist;
+//    }
+//  }
+//  if (distances.size() == 0) {
+//    return {0, 0.0f};
+//  } else {
+//    std::size_t min_ndx = std::min_element(distances.begin(), distances.end()) - distances.begin();
+//    return {min_ndx+sr_first, distances[min_ndx]};
+//  }
+//}
 
 
 std::tuple<Neighborhood, Neighborhood>
@@ -389,40 +389,40 @@ initial_density_clustering(const std::vector<float>& free_energy,
   return clustering;
 }
 
-std::vector<std::size_t>
-assign_low_density_frames_old(const std::vector<std::size_t>& initial_clustering,
-                          const float* coords,
-                          const std::size_t n_rows,
-                          const std::size_t n_cols,
-                          const float free_energy_threshold,
-                          const std::vector<float>& free_energy) {
-  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
-  // find last frame below free energy threshold
-  auto lb = std::upper_bound(fe_sorted.begin(),
-                             fe_sorted.end(),
-                             FreeEnergy(0, free_energy_threshold), 
-                             [](const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
-  std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
-  std::vector<std::size_t> clustering(initial_clustering);
-  // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
-  for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
-    auto nn = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i));
-    clustering[fe_sorted[i].first] = clustering[fe_sorted[nn.first].first];
-  }
-  logger(std::cout) << "clustering finished" << std::endl;
-  return clustering;
-}
+//std::vector<std::size_t>
+//assign_low_density_frames_old(const std::vector<std::size_t>& initial_clustering,
+//                          const float* coords,
+//                          const std::size_t n_rows,
+//                          const std::size_t n_cols,
+//                          const float free_energy_threshold,
+//                          const std::vector<float>& free_energy) {
+//  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
+//  // find last frame below free energy threshold
+//  auto lb = std::upper_bound(fe_sorted.begin(),
+//                             fe_sorted.end(),
+//                             FreeEnergy(0, free_energy_threshold), 
+//                             [](const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
+//  std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
+//  std::vector<std::size_t> clustering(initial_clustering);
+//  // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
+//  for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
+//    auto nn = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i));
+//    clustering[fe_sorted[i].first] = clustering[fe_sorted[nn.first].first];
+//  }
+//  logger(std::cout) << "clustering finished" << std::endl;
+//  return clustering;
+//}
+
 
 
 std::vector<std::size_t>
 assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                           const Neighborhood& nh_high_dens,
-                          const std::size_t n_rows,
                           const std::vector<float>& free_energy) {
   std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
   std::vector<std::size_t> clustering(initial_clustering);
-  for (std::size_t i=0; i < n_rows; ++i) {
-    if (clustering[i] != 0) {
+  for (std::size_t i=0; i < initial_clustering.size(); ++i) {
+    if (clustering[i] == 0) {
 //TODO: finish
     }
   }
@@ -593,7 +593,8 @@ int main(int argc, char* argv[]) {
   }
   logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
   if ( ! args["only-initial"].as<bool>()) {
-    clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
+    //clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
+    clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
   }
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
