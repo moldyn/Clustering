@@ -2,6 +2,7 @@
 #include "density_clustering.hpp"
 #include "tools.hpp"
 
+//TODO: check for unnecessary headers
 #include <sstream>
 #include <fstream>
 #include <iterator>
@@ -19,20 +20,16 @@
 #include <omp.h>
 #include <boost/program_options.hpp>
 
-namespace b_po = boost::program_options;
-
 namespace {
-
-bool verbose = false;
-std::ostream devnull(0);
-std::ostream& logger(std::ostream& s) {
-  if (verbose) {
-    return s;
-  } else {
-    return devnull; 
+  bool verbose = false;
+  std::ostream devnull(0);
+  std::ostream& logger(std::ostream& s) {
+    if (verbose) {
+      return s;
+    } else {
+      return devnull; 
+    }
   }
-}
-
 } // end local namespace
 
 
@@ -436,7 +433,7 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
 ////////
 
 int main(int argc, char* argv[]) {
-
+  using b_po = boost::program_options;
   b_po::variables_map args;
   b_po::options_description desc (std::string(argv[0]).append(
     "\n\n"
@@ -470,7 +467,7 @@ int main(int argc, char* argv[]) {
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
-
+  // parse cmd arguments
   try {
     b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
     b_po::notify(args);
@@ -481,32 +478,25 @@ int main(int argc, char* argv[]) {
     std::cout << desc << std::endl;
     return 2;
   }
-
   if (args["help"].as<bool>()) {
     std::cout << desc << std::endl;
     return 1;
   }
-
-  ////
+  // setup general flags / options
   verbose = args["verbose"].as<bool>();
-
   const std::string input_file = args["file"].as<std::string>();
-  const std::string output_file = args["output"].as<std::string>();
-
   const float radius = args["radius"].as<float>();
   const float threshold = args["threshold"].as<float>();
-
   // setup OpenMP
   const int n_threads = args["nthreads"].as<int>();
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
-
+  // setup coords
   float* coords;
   std::size_t n_rows;
   std::size_t n_cols;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
-
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
@@ -579,6 +569,7 @@ int main(int argc, char* argv[]) {
   }
   //// clustering
   if (args.count("output")) {
+    const std::string output_file = args["output"].as<std::string>();
     std::vector<std::size_t> clustering;
     if (args.count("input")) {
       logger(std::cout) << "reading initial clusters from file." << std::endl;
