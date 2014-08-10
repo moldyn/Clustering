@@ -10,15 +10,24 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")
+
+  set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ftree-vectorizer-verbose=1 -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
+
+
   if (DC_NATIVE_COMPILATION)
     message("native compilation: this code will ONLY run on THIS machine")
-    set (CMAKE_CXX_FLAGS "-std=c++0x -march=native -ftree-vectorize -ftree-vectorizer-verbose=1 -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
-  else()
-    set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+#  elseif (DC_USE_OPENCL)
+#    message("including OpenCL support")
+#    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   endif()
+
+
   if (DC_USE_XEON_PHI)
     message(SEND_ERROR "XeonPhi not supported with Gnu compiler")
   endif()
+
+
   set (DC_MEM_ALIGNMENT 32)
   if (DC_CPU_ACCELERATION)
     if (${DC_CPU_ACCELERATION} STREQUAL "SSE2")
@@ -71,5 +80,17 @@ target_link_libraries(density_clustering ${Boost_LIBRARIES})
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
-#add_executable(test_read_coords test_read_coords.cpp)
+
+#set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
+#find_package(OpenCL REQUIRED)
+#include_directories(${OPENCL_INCLUDE_DIRS})
+#
+#if( OPENCL_HAS_CPP_BINDINGS )
+#	message( "OpenCL has CPP bindings. Full include is: " ${OPENCL_INCLUDE_DIRS} )
+#else( OPENCL_HAS_CPP_BINDINGS )
+#	message( "No OpenCL CPP bindings found" )
+#endif( OPENCL_HAS_CPP_BINDINGS )
+#
+#add_executable(density_clustering_opencl density_clustering_opencl.cpp)
+#target_link_libraries(density_clustering_opencl ${OPENCL_LIBRARIES})
 

@@ -186,47 +186,6 @@ nearest_neighbors(const float* coords,
   return std::make_tuple(nh, nh_high_dens);
 }
 
-
-// returns neighborhood set of single frame.
-// all ids are sorted in free energy.
-//std::set<std::size_t>
-//high_density_neighborhood(const float* coords,
-//                          const std::size_t n_cols,
-//                          const std::vector<FreeEnergy>& sorted_fe,
-//                          const std::size_t i_frame,
-//                          const std::size_t limit,
-//                          const float max_dist) {
-//  std::set<std::size_t> nh;
-//  std::size_t j,c;
-//  float d,dist2;
-//  ASSUME_ALIGNED(coords);
-//  #pragma omp parallel for default(shared) private(j,c,d,dist2) firstprivate(i_frame,limit,max_dist)
-//  for (j=0; j < limit; ++j) {
-//    if (i_frame != j) {
-//      dist2 = 0.0f;
-//      #pragma simd reduction(+:dist2)
-//      for (c=0; c < n_cols; ++c) {
-//        d = coords[sorted_fe[i_frame].first*n_cols+c] - coords[sorted_fe[j].first*n_cols+c];
-//        dist2 += d*d;
-//      }
-//      if (dist2 < max_dist) {
-//        #pragma omp critical
-//        {
-//          nh.insert(j);
-//        }
-//      }
-//    } else {
-//      #pragma omp critical
-//      {
-//        nh.insert(i_frame);
-//      }
-//    }
-//  }
-//  return nh;
-//}
-
-
-
 // returns neighborhood set of single frame.
 // all ids are sorted in free energy.
 std::set<std::size_t>
@@ -256,8 +215,7 @@ high_density_neighborhood(const float* coords,
         dist2 += d*d;
       }
       if (dist2 < max_dist) {
-        #pragma omp atomic
-        frame_in_nh[j] += 1;
+        frame_in_nh[j] = 1;
       }
     }
   }

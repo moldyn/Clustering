@@ -21,7 +21,7 @@
 #endif
 
 // read coordinates from space-separated ASCII file.
-// will write data with precision of MY_FLOAT into memory.
+// will write data with precision of NUM-type into memory.
 // format: [row * n_cols + col]
 // return value: tuple of {data (unique_ptr<NUM> with custom deleter), n_rows (size_t), n_cols (size_t)}.
 template <typename NUM>
