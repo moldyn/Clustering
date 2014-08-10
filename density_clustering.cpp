@@ -1,6 +1,11 @@
 
-#include "density_clustering.hpp"
+
 #include "tools.hpp"
+#include "density_clustering.hpp"
+
+#ifdef DC_USE_OPENCL
+  #include "density_clustering_opencl.hpp"
+#endif
 
 //TODO: check for unnecessary headers
 #include <sstream>
@@ -472,8 +477,13 @@ int main(int argc, char* argv[]) {
     }
   } else if (args.count("free-energy") || args.count("output")) {
     logger(std::cout) << "calculating free energies" << std::endl;
+    #ifdef DC_USE_OPENCL
+    free_energies = calculate_free_energies(
+                      DC_OpenCL::calculate_populations(coords, n_rows, n_cols, radius));
+    #else
     free_energies = calculate_free_energies(
                       calculate_populations(coords, n_rows, n_cols, radius));
+    #endif
     if (args.count("free-energy")) {
       std::ofstream ofs(args["free-energy"].as<std::string>());
       ofs << std::scientific;
