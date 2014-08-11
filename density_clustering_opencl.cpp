@@ -18,101 +18,153 @@
 
 namespace DC_OpenCL {
 
-std::tuple<cl::Context, cl::Kernel, cl::CommandQueue>
-setup_cl(std::string kernel_name, std::string src) {
+namespace {
+  std::map<std::string, cl::Kernel> kernels;
+  
+  // device buffer for coordinates
+  cl::Buffer d_coords;
+  
   std::vector<cl::Platform> platforms;
-  std::vector<cl::Device> devices;
-  cl::Program program;
   cl::Context context;
-  cl::CommandQueue q;
-  cl::Kernel kernel;
-  try {
-    // create platform
-    cl::Platform::get(&platforms);
-    platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    // create context
-    context = cl::Context(devices);
-    // create cmd queue
-    // TODO: if that stuff works, scale to multiple devices
-    q = cl::CommandQueue(context, devices[0]);
-    // setup kernel source
-    cl::Program::Sources source(1, std::make_pair(src.c_str(), src.length() + 1));
-    // create program
-    program = cl::Program(context, source);
-    program.build(devices);
-    // load kernel
-    kernel = cl::Kernel(program, kernel_name.c_str());
-  } catch (cl::Error e) {
-    std::cout << e.what() << " :  " << e.err() << std::endl;
-    if (e.err() == CL_BUILD_PROGRAM_FAILURE) {
-      cl::STRING_CLASS buildlog;
-      program.getBuildInfo(devices[0], (cl_program_build_info)CL_PROGRAM_BUILD_LOG, &buildlog);
-      std::cerr << buildlog << std::endl;
+  std::vector<cl::Device> devices;
+  std::vector<cl::CommandQueue> queues;
+  
+  void
+  setup_context() {
+    try {
+      // create platform
+      cl::Platform::get(&platforms);
+      platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
+      // create context
+      context = cl::Context(devices);
+      // create cmd queue
+      // TODO: if that stuff works, scale to multiple devices
+      qs.push_back(cl::CommandQueue(context, devices[0]));
+    catch (cl::Error e) {
+      std::cerr << "error during OpenCL setup" << std::endl;
+      std::cerr << e.what() << " :  " << e.err() << std::endl;
+      exit(EXIT_FAILURE);
     }
-    exit(EXIT_FAILURE);
   }
-  return std::make_tuple(context, kernel, q);
-}
-
-std::vector<std::size_t>
-calculate_populations(const float* coords,
-                      const std::size_t n_rows,
-                      const std::size_t n_cols,
-                      const float radius) {
-  ASSUME_ALIGNED(coords);
-  // vector for final results
-  std::vector<std::size_t> pops(n_rows);
-  // kernel calculates population of frame i
-  // by comparing distances to all frames j.
-  // population is stored in integer-array of length n_rows.
-  // every field of the array gets a zero if j is not in
-  // range of i and a one if it is.
-  // to get the total population of i, reduce array with a simple
-  // sum on the host.
-  std::string src =
-    "__kernel void pop_i (__global float* coords,\n"
-    "                     ulong n_cols,\n"
-    "                     float rad2,\n"
-    "                     __global uint* in_range,\n"
-    "                     ulong i) {\n"
-    "  ulong j = get_global_id(0);\n"
-    "  float dist = 0.0f;\n"
-    "  float d;\n"
-    "  ulong k;\n"
-    "  for (k=0; k < n_cols; ++k) {\n"
-    "    d = coords[i*n_cols+k] - coords[j*n_cols+k];\n"
-    "    dist += d*d;\n"
-    "  }\n"
-    "  in_range[j] = dist < rad2 ? 1 : 0;\n"
-    "}\n"
-  ;
-  try {
-    auto cl_context_kernel_queue = setup_cl("pop_i", src);
-    cl::Context context = std::get<0>(cl_context_kernel_queue);
-    cl::Kernel kernel = std::get<1>(cl_context_kernel_queue);
-    cl::CommandQueue q = std::get<2>(cl_context_kernel_queue);
-    ulong ulong_n_cols = (ulong) n_cols;
-    ulong ulong_n_rows = (ulong) n_rows;
+  
+  void
+  upload_coords(const float* coords,
+                const std::size_t n_rows,
+                const std::size_t n_cols) {
     // setup buffers on device
     cl::Buffer d_coords(context,
                         CL_MEM_READ_ONLY,
-                        sizeof(float) * ulong_n_rows * ulong_n_cols,
+                        sizeof(float) * n_rows * n_cols,
                         NULL,
                         NULL);
+    // transmit coords to device
+    q.enqueueWriteBuffer(d_coords,
+                         CL_TRUE,
+                         0,
+                         sizeof(float) * n_rows * n_cols,
+                         coords,
+                         NULL,
+                         NULL);
+    q.finish();
+  }
+  
+  void
+  build_kernel(std::string name, std::string src) {
+    cl::Program program;
+    try {
+      // setup kernel source
+      cl::Program::Sources source(1, std::make_pair(src.c_str(), src.length() + 1));
+      // create program
+      program = cl::Program(context, source);
+      program.build(devices);
+      // load kernel
+      kernel[name] = cl::Kernel(program, name.c_str());
+    } catch (cl::Error e) {
+      std::cout << e.what() << " :  " << e.err() << std::endl;
+      if (e.err() == CL_BUILD_PROGRAM_FAILURE) {
+        cl::STRING_CLASS buildlog;
+        program.getBuildInfo(devices[0], (cl_program_build_info)CL_PROGRAM_BUILD_LOG, &buildlog);
+        std::cerr << buildlog << std::endl;
+      }
+      exit(EXIT_FAILURE);
+    }
+  }
+  
+  void
+  setup_kernels() {
+    std::string src;
+  
+    //// pop_i
+    //
+    // kernel calculates population of frame i
+    // by comparing distances to all frames j.
+    // population is stored in integer-array of length n_rows.
+    // every field of the array gets a zero if j is not in
+    // range of i and a one if it is.
+    src =
+      "__kernel void pop_i (__global float* coords,\n"
+      "                     ulong n_cols,\n"
+      "                     float rad2,\n"
+      "                     __global uint* in_range,\n"
+      "                     ulong i) {\n"
+      "  ulong j = get_global_id(0);\n"
+      "  float dist = 0.0f;\n"
+      "  float d;\n"
+      "  ulong k;\n"
+      "  for (k=0; k < n_cols; ++k) {\n"
+      "    d = coords[i*n_cols+k] - coords[j*n_cols+k];\n"
+      "    dist += d*d;\n"
+      "  }\n"
+      "  in_range[j] = dist < rad2 ? 1 : 0;\n"
+      "}\n"
+    ;
+    build_kernel("pop_i", src);
+  
+    //// sum_uints (single task kernel)
+    //
+    // kernel calculates total sum of unsigned integer array.
+    src =
+      "__kernel void sum_uints (__global uint* uints,\n"
+      "                         ulong n_rows,\n"
+      "                         __global ulong* result) {\n"
+      "  ulong r=0;\n"
+      "  for(ulong i=0; i < n_rows; ++i) {\n"
+      "    r += uints[i]\n"
+      "  }\n"
+      "  *result = r;\n"
+      "}\n"
+    build_kernel("sum_uints", src);
+  }
+} // end local namespace
+
+
+void
+setup(const float* coords,
+      const std::size_t n_rows,
+      const std::size_t n_cols) {
+
+
+}
+
+
+
+
+
+std::vector<std::size_t>
+calculate_populations(const float radius) {
+  // vector for final results
+  std::vector<std::size_t> pops(n_rows);
+
+
+
+  try {
+    ulong ulong_n_cols = (ulong) n_cols;
+    ulong ulong_n_rows = (ulong) n_rows;
     cl::Buffer d_in_range(context,
                           CL_MEM_WRITE_ONLY,
                           sizeof(uint) * ulong_n_rows,
                           NULL,
                           NULL);
-    // transmit coords to device
-    q.enqueueWriteBuffer(d_coords,
-                         CL_TRUE,
-                         0,
-                         sizeof(float) * ulong_n_rows * ulong_n_cols,
-                         coords,
-                         NULL,
-                         NULL);
-    q.finish();
     // set common arguments
     float rad2 = radius*radius;
     kernel.setArg(0, d_coords);
