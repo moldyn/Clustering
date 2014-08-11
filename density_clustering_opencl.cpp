@@ -18,9 +18,13 @@
 
 namespace DC_OpenCL {
 
-namespace {
+namespace { // local namespace
   std::map<std::string, cl::Kernel> kernels;
   
+  ulong ul_n_rows;
+  ulong ul_n_cols;
+  ulong ul_n_size;
+
   // device buffer for coordinates
   cl::Buffer d_coords;
   
@@ -32,15 +36,16 @@ namespace {
   void
   setup_context() {
     try {
+      // TODO: if that stuff works, scale to multiple devices
       // create platform
       cl::Platform::get(&platforms);
       platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
+      std::cout << "using platform 0: " << platforms[0].getInfo<CL_PLATFORM_NAME>() << std::endl;
       // create context
       context = cl::Context(devices);
       // create cmd queue
-      // TODO: if that stuff works, scale to multiple devices
-      qs.push_back(cl::CommandQueue(context, devices[0]));
-    catch (cl::Error e) {
+      queues.push_back(cl::CommandQueue(context, devices[0]));
+    } catch (cl::Error e) {
       std::cerr << "error during OpenCL setup" << std::endl;
       std::cerr << e.what() << " :  " << e.err() << std::endl;
       exit(EXIT_FAILURE);
@@ -51,21 +56,24 @@ namespace {
   upload_coords(const float* coords,
                 const std::size_t n_rows,
                 const std::size_t n_cols) {
+    ul_n_rows = (ulong) n_rows;
+    ul_n_cols = (ulong) n_cols;
+    ul_n_size = ul_n_rows * ul_n_cols;
     // setup buffers on device
-    cl::Buffer d_coords(context,
-                        CL_MEM_READ_ONLY,
-                        sizeof(float) * n_rows * n_cols,
-                        NULL,
-                        NULL);
+    d_coords = cl::Buffer(context,
+                          CL_MEM_READ_ONLY,
+                          sizeof(float) * ul_n_size,
+                          NULL,
+                          NULL);
     // transmit coords to device
-    q.enqueueWriteBuffer(d_coords,
-                         CL_TRUE,
-                         0,
-                         sizeof(float) * n_rows * n_cols,
-                         coords,
-                         NULL,
-                         NULL);
-    q.finish();
+    queues[0].enqueueWriteBuffer(d_coords,
+                                 CL_TRUE,
+                                 0,
+                                 sizeof(float) * ul_n_size,
+                                 coords,
+                                 NULL,
+                                 NULL);
+    queues[0].finish();
   }
   
   void
@@ -78,7 +86,7 @@ namespace {
       program = cl::Program(context, source);
       program.build(devices);
       // load kernel
-      kernel[name] = cl::Kernel(program, name.c_str());
+      kernels[name] = cl::Kernel(program, name.c_str());
     } catch (cl::Error e) {
       std::cout << e.what() << " :  " << e.err() << std::endl;
       if (e.err() == CL_BUILD_PROGRAM_FAILURE) {
@@ -119,81 +127,66 @@ namespace {
       "}\n"
     ;
     build_kernel("pop_i", src);
-  
+
     //// sum_uints (single task kernel)
     //
     // kernel calculates total sum of unsigned integer array.
     src =
       "__kernel void sum_uints (__global uint* uints,\n"
       "                         ulong n_rows,\n"
-      "                         __global ulong* result) {\n"
+      "                         __global ulong* result,\n"
+      "                         ulong i_result) {\n"
       "  ulong r=0;\n"
       "  for(ulong i=0; i < n_rows; ++i) {\n"
       "    r += uints[i]\n"
       "  }\n"
-      "  *result = r;\n"
+      "  result[i_result] = r;\n"
       "}\n"
+    ;
     build_kernel("sum_uints", src);
   }
 } // end local namespace
+
+
 
 
 void
 setup(const float* coords,
       const std::size_t n_rows,
       const std::size_t n_cols) {
-
-
+  setup_context();
+  setup_kernels();
+  upload_coords(coords, n_rows, n_cols);
 }
-
-
-
-
 
 std::vector<std::size_t>
 calculate_populations(const float radius) {
   // vector for final results
-  std::vector<std::size_t> pops(n_rows);
-
-
-
+  std::vector<ulong> pops(ul_n_rows);
+  const float rad2 = radius * radius;
   try {
-    ulong ulong_n_cols = (ulong) n_cols;
-    ulong ulong_n_rows = (ulong) n_rows;
+    // buffer to hold info per j if it is no
+    // range of i or not.
+    // values will be equal to one or zero.
     cl::Buffer d_in_range(context,
                           CL_MEM_WRITE_ONLY,
-                          sizeof(uint) * ulong_n_rows,
+                          sizeof(uint) * ul_n_rows,
                           NULL,
                           NULL);
     // set common arguments
-    float rad2 = radius*radius;
-    kernel.setArg(0, d_coords);
-    kernel.setArg(1, ulong_n_cols);
-    kernel.setArg(2, rad2);
-    kernel.setArg(3, d_in_range);
+    kernels["pop_i"].setArg(0, d_coords);
+    kernels["pop_i"].setArg(1, ul_n_cols);
+    kernels["pop_i"].setArg(2, rad2);
+    kernels["pop_i"].setArg(3, d_in_range);
     // screen all frames i
-    for (ulong i=0; i < ulong_n_rows; ++i) {
-      kernel.setArg(4, i);
+    for (ulong i=0; i < ul_n_rows; ++i) {
+      kernels["pop_i"].setArg(4, i);
       // run kernel
-      q.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(ulong_n_rows), cl::NullRange, NULL, NULL);
-      // wait for completion
-      q.finish();
-      std::vector<uint> buf(ulong_n_rows);
-      q.enqueueReadBuffer(d_in_range, CL_TRUE, 0, sizeof(uint) * ulong_n_rows, buf.data(), NULL, NULL);
-
-      //TODO: run reduction on device instead of host
-      
-      std::size_t j; 
-      std::size_t pop_i = 0;
-      #pragma omp parallel for default(none) \
-                               private(j) \
-                               firstprivate(n_rows) \
-                               shared(pops,buf) \
-                               reduction(+:pop_i)
-      for (j=0; j < n_rows; ++j) {
-        pop_i += buf[j];
-      }
-      pops[i] = pop_i;
+      queues[0].enqueueNDRangeKernel(kernels["pop_i"], cl::NullRange, cl::NDRange(ul_n_rows), cl::NullRange, NULL, NULL);
+      queues[0].finish();
+      // run reduction and save result
+      queues[0].enqueueTask(kernels["sum_uints"], NULL, NULL);
+      queues[0].finish();
     }
   } catch (cl::Error e) {
     std::cout << e.what() << " :  " << e.err() << std::endl;
@@ -203,3 +196,4 @@ calculate_populations(const float radius) {
 }
 
 } // end namespace DC_OpenCL
+

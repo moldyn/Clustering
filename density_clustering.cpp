@@ -460,6 +460,9 @@ int main(int argc, char* argv[]) {
   std::size_t n_rows;
   std::size_t n_cols;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
+  #ifdef DC_USE_OPENCL
+  DC_OpenCL::setup(coords, n_rows, n_cols);
+  #endif
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
@@ -479,7 +482,7 @@ int main(int argc, char* argv[]) {
     logger(std::cout) << "calculating free energies" << std::endl;
     #ifdef DC_USE_OPENCL
     free_energies = calculate_free_energies(
-                      DC_OpenCL::calculate_populations(coords, n_rows, n_cols, radius));
+                      DC_OpenCL::calculate_populations(radius));
     #else
     free_energies = calculate_free_energies(
                       calculate_populations(coords, n_rows, n_cols, radius));
