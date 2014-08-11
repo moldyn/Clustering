@@ -1,4 +1,5 @@
 
+#include "density_clustering.hpp"
 #include "density_clustering_opencl.hpp"
 #include "tools.hpp"
 
@@ -8,13 +9,12 @@
 #include <CL/cl.hpp>
 #include <CL/opencl.h>
 
-#include <omp.h>
-
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <map>
 #include <tuple>
+#include <limits>
 
 namespace DC_OpenCL {
 
@@ -138,17 +138,12 @@ namespace { // local namespace
       "                         ulong i_result) {\n"
       "  ulong r=0;\n"
       "  for(ulong i=0; i < n_rows; ++i) {\n"
-      "    r += uints[i]\n"
+      "    r += uints[i];\n"
       "  }\n"
       "  result[i_result] = r;\n"
       "}\n"
     ;
     build_kernel("sum_uints", src);
-
-
-
-
-//TODO: handle i == j
 
     //// calc_dist2
     //
@@ -156,10 +151,9 @@ namespace { // local namespace
     // reference frame i to all other frames j.
     src =
       "__kernel void calc_dist2 (__global float* coords,\n"
-      "                          ulong n_rows,\n"
       "                          ulong n_cols,\n"
-      "                          ulong i,\n"
-      "                          __global float* dist) {\n"
+      "                          __global float* dist,\n"
+      "                          ulong i) {\n"
       "  ulong j = get_global_id(0);\n"
       "  float d;\n"
       "  ulong k;\n"
@@ -168,62 +162,68 @@ namespace { // local namespace
       "    d = coords[i*n_cols+k] - coords[j*n_cols+k];\n"
       "    dist2 += d*d;\n"
       "  }\n"
-      "  dist[j] = dist2\n"
+      "  dist[j] = dist2;\n"
       "}\n" 
     ;
     build_kernel("calc_dist2", src);
 
-    //// find_minimum_ndx
+    //// find_minimum
     //
     // find index of minimum value in float array.
     src = 
-      "__kernel void find_minimum_ndx (__global float* dist,\n"
-      "                                ulong n_size,\n"
-      "                                __global ulong* ndx_min) {\n"
+      "__kernel void find_minimum (__global float* dist,\n"
+      "                            ulong n_size,\n"
+      "                            __global ulong* ndx_min,\n"
+      "                            __global float* d_min,\n"
+      "                            ulong i_ref) {\n"
       "  ulong i;\n"
-      "  /* HUGE_VAL is defined in math.h */\n"
-      "  float f_min = HUGE_VAL;\n"
+      "  float f_min = INFINITY;\n"
       "  ulong i_min = n_size+1;\n"
       "  for (i=0; i < n_size; ++i) {\n"
-      "    if (dist[i] < f_min) {\n"
+      "    if ((i != i_ref) && (dist[i] < f_min)) {\n"
       "      f_min = dist[i];\n"
       "      i_min = i;\n"
       "    }\n"
       "  }\n"
+      "  ndx_min[i_ref] = i_min;\n"
+      "  d_min[i_ref] = f_min;\n"
       "}\n"
     ;
-    build_kernel("find_minimum_ndx", src);
+    build_kernel("find_minimum", src);
 
-    //// find_minimum_ndx_low_fe
+    //// find_minimum_low_fe
     //
     // find index of minimum value in float array while
     // keeping a lower free energy than current frame
-    //
-    // TODO: finish
     src = 
-      "__kernel void find_minimum_ndx (__global float* dist,\n"
-      "                                ulong n_size,\n"
-      "                                __global ulong* ndx_min,\n"
-      "                                __global float* fe,\n"
-      "                                float fe_frame) {\n"
+      "__kernel void find_minimum_low_fe (__global float* dist,\n"
+      "                                   ulong n_size,\n"
+      "                                   __global ulong* ndx_min,\n"
+      "                                   __global float* d_min,\n"
+      "                                   __global float* fe,\n"
+      "                                   ulong i_ref) {\n"
       "  ulong i;\n"
       "  /* HUGE_VAL is defined in math.h */\n"
-      "  float f_min = HUGE_VAL;\n"
+      "  float f_min = INFINITY;\n"
       "  ulong i_min = n_size+1;\n"
+      "  float fe_ref = fe[i_ref];\n"
       "  for (i=0; i < n_size; ++i) {\n"
-      "    if (dist[i] < f_min) {\n"
+      "    if ((i != i_ref) && (dist[i] < f_min) && (fe[i] < fe_ref)) {\n"
       "      f_min = dist[i];\n"
       "      i_min = i;\n"
       "    }\n"
       "  }\n"
+      "  ndx_min[i_ref] = i_min;\n"
+      "  d_min[i_ref] = f_min;\n"
       "}\n"
     ;
-    build_kernel("find_minimum_ndx", src);
+    build_kernel("find_minimum_low_fe", src);
   }
 } // end local namespace
 
 
 
+//// public functions
 
 void
 setup(const float* coords,
@@ -240,19 +240,27 @@ calculate_populations(const float radius) {
   std::vector<ulong> pops(ul_n_rows);
   const float rad2 = radius * radius;
   try {
-    // buffer to hold info per j if it is no
+    // buffer to hold info per j if it is in
     // range of i or not.
     // values will be equal to one or zero.
     cl::Buffer d_in_range(context,
-                          CL_MEM_WRITE_ONLY,
+                          CL_MEM_READ_WRITE,
                           sizeof(uint) * ul_n_rows,
                           NULL,
                           NULL);
+    cl::Buffer d_pops(context,
+                      CL_MEM_WRITE_ONLY,
+                      sizeof(ulong) * ul_n_rows,
+                      NULL,
+                      NULL);
     // set common arguments
     kernels["pop_i"].setArg(0, d_coords);
     kernels["pop_i"].setArg(1, ul_n_cols);
     kernels["pop_i"].setArg(2, rad2);
     kernels["pop_i"].setArg(3, d_in_range);
+    kernels["sum_uints"].setArg(0, d_in_range);
+    kernels["sum_uints"].setArg(1, ul_n_rows);
+    kernels["sum_uints"].setArg(2, d_pops);
     // screen all frames i
     for (ulong i=0; i < ul_n_rows; ++i) {
       kernels["pop_i"].setArg(4, i);
@@ -260,9 +268,13 @@ calculate_populations(const float radius) {
       queues[0].enqueueNDRangeKernel(kernels["pop_i"], cl::NullRange, cl::NDRange(ul_n_rows), cl::NullRange, NULL, NULL);
       queues[0].finish();
       // run reduction and save result
+      kernels["sum_uints"].setArg(3, i);
       queues[0].enqueueTask(kernels["sum_uints"], NULL, NULL);
       queues[0].finish();
     }
+    // read pops from device
+    queues[0].enqueueReadBuffer(d_pops, CL_TRUE, 0, sizeof(float) * ul_n_rows, pops.data(), NULL, NULL);
+    queues[0].finish();
   } catch (cl::Error e) {
     std::cout << e.what() << " :  " << e.err() << std::endl;
     exit(EXIT_FAILURE);
@@ -276,56 +288,91 @@ calculate_populations(const float radius) {
 // second Neighborhood: nearest neighbors with lower free energy
 std::tuple<Neighborhood, Neighborhood>
 nearest_neighbors(const std::vector<float>& free_energy) {
+  // setup buffers
+  cl::Buffer d_free_energy(context,
+                           CL_MEM_READ_ONLY,
+                           sizeof(float) * ul_n_rows,
+                           NULL,
+                           NULL);
+  cl::Buffer d_dist(context,
+                    CL_MEM_WRITE_ONLY,
+                    sizeof(float) * ul_n_rows,
+                    NULL,
+                    NULL);
+  cl::Buffer d_mindist(context,
+                       CL_MEM_WRITE_ONLY,
+                       sizeof(float) * ul_n_rows,
+                       NULL,
+                       NULL);
+  cl::Buffer d_mindist_low_fe(context,
+                              CL_MEM_WRITE_ONLY,
+                              sizeof(float) * ul_n_rows,
+                              NULL,
+                              NULL);
+  cl::Buffer d_min_ndx(context,
+                       CL_MEM_WRITE_ONLY,
+                       sizeof(ulong) * ul_n_rows,
+                       NULL,
+                       NULL);
+  cl::Buffer d_min_ndx_low_fe(context,
+                              CL_MEM_WRITE_ONLY,
+                              sizeof(ulong) * ul_n_rows,
+                              NULL,
+                              NULL);
+  // transmit free_energy to device
+  queues[0].enqueueWriteBuffer(d_free_energy,
+                               CL_TRUE,
+                               0,
+                               sizeof(float) * ul_n_rows,
+                               free_energy.data(),
+                               NULL,
+                               NULL);
+  queues[0].finish();
+  // setup kernel arguments
+  kernels["calc_dist2"].setArg(0, d_coords);
+  kernels["calc_dist2"].setArg(1, ul_n_cols);
+  kernels["calc_dist2"].setArg(2, d_dist);
+  kernels["find_minimum"].setArg(0, d_dist);
+  kernels["find_minimum"].setArg(1, ul_n_rows);
+  kernels["find_minimum"].setArg(2, d_min_ndx);
+  kernels["find_minimum"].setArg(3, d_mindist);
+  kernels["find_minimum_low_fe"].setArg(0, d_dist);
+  kernels["find_minimum_low_fe"].setArg(1, ul_n_rows);
+  kernels["find_minimum_low_fe"].setArg(2, d_min_ndx);
+  kernels["find_minimum_low_fe"].setArg(3, d_mindist);
+  kernels["find_minimum_low_fe"].setArg(4, d_free_energy);
+  for (ulong i=0; i < ul_n_rows; ++i) {
+    // run kernel to calculate distances for all j in [0, n_rows]
+    kernels["calc_dist2"].setArg(3, i);
+    queues[0].enqueueNDRangeKernel(kernels["calc_dist2"], cl::NullRange, cl::NDRange(ul_n_rows), cl::NullRange, NULL, NULL);
+    queues[0].finish();
+    // run single-task kernels to identify (normal) mindist
+    // and mindist with lower free energy
+    kernels["find_minimum"].setArg(4, i);
+    kernels["find_minimum_low_fe"].setArg(5, i);
+    queues[0].enqueueTask(kernels["find_minimum"], NULL, NULL);
+    queues[0].enqueueTask(kernels["find_minimum_low_fe"], NULL, NULL);
+    queues[0].finish();
+  }
+  // read results from device
   Neighborhood nh;
-  Neighborhood nh_high_dens;
-  // initialize neighborhood
-  for (std::size_t i=0; i < n_rows; ++i) {
-    nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
-    nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+  Neighborhood nh_low_fe;
+  std::vector<ulong> ndx(ul_n_rows);
+  std::vector<float> dist(ul_n_rows);
+  queues[0].enqueueReadBuffer(d_min_ndx, CL_TRUE, 0, sizeof(ulong) * ul_n_rows, ndx.data(), NULL, NULL);
+  queues[0].enqueueReadBuffer(d_mindist, CL_TRUE, 0, sizeof(float) * ul_n_rows, dist.data(), NULL, NULL);
+  queues[0].finish();
+  for (ulong i=0; i < ul_n_rows; ++i) {
+    nh[i] = Neighbor(ndx[i], dist[i]);
   }
-  for (i=0; i < n_rows; ++i) {
-    mindist = std::numeric_limits<float>::max();
-    mindist_high_dens = std::numeric_limits<float>::max();
-    min_j = n_rows+1;
-    min_j_high_dens = n_rows+1;
-
-    //TODO: setup buffer for distances
-    //TODO: run kernel to calculate distances for all j in [0, n_rows]
-    //TODO: run single-task kernel to identify mindist
-    //TODO: run second single-task kernel to identify mindist_high_dens
-
-    for (j=1; j < n_rows; ++j) {
-      if (i != j) {
-        dist = 0.0f;
-        #pragma simd reduction(+:dist)
-        for (c=0; c < n_cols; ++c) {
-          d = coords[i*n_cols+c] - coords[j*n_cols+c];
-          dist += d*d;
-        }
-        // direct neighbor
-        if (dist < mindist) {
-          mindist = dist;
-          min_j = j;
-        }
-        // next neighbor with higher density / lower free energy
-        if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
-          mindist_high_dens = dist;
-          min_j_high_dens = j;
-        }
-      }
-    }
-    nh[i] = Neighbor(min_j, mindist);
-    nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
+  queues[0].enqueueReadBuffer(d_min_ndx_low_fe, CL_TRUE, 0, sizeof(ulong) * ul_n_rows, ndx.data(), NULL, NULL);
+  queues[0].enqueueReadBuffer(d_mindist_low_fe, CL_TRUE, 0, sizeof(float) * ul_n_rows, dist.data(), NULL, NULL);
+  queues[0].finish();
+  for (ulong i=0; i < ul_n_rows; ++i) {
+    nh_low_fe[i] = Neighbor(ndx[i], dist[i]);
   }
-  return std::make_tuple(nh, nh_high_dens);
+  return std::make_tuple(nh, nh_low_fe);
 }
-
-
-
-
-
-
-
 
 } // end namespace DC_OpenCL
 
