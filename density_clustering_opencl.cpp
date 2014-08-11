@@ -144,6 +144,81 @@ namespace { // local namespace
       "}\n"
     ;
     build_kernel("sum_uints", src);
+
+
+
+
+//TODO: handle i == j
+
+    //// calc_dist2
+    //
+    // calculate squared distances between
+    // reference frame i to all other frames j.
+    src =
+      "__kernel void calc_dist2 (__global float* coords,\n"
+      "                          ulong n_rows,\n"
+      "                          ulong n_cols,\n"
+      "                          ulong i,\n"
+      "                          __global float* dist) {\n"
+      "  ulong j = get_global_id(0);\n"
+      "  float d;\n"
+      "  ulong k;\n"
+      "  float dist2 = 0.0f;\n"
+      "  for (k=0; k < n_cols; ++k) {\n"
+      "    d = coords[i*n_cols+k] - coords[j*n_cols+k];\n"
+      "    dist2 += d*d;\n"
+      "  }\n"
+      "  dist[j] = dist2\n"
+      "}\n" 
+    ;
+    build_kernel("calc_dist2", src);
+
+    //// find_minimum_ndx
+    //
+    // find index of minimum value in float array.
+    src = 
+      "__kernel void find_minimum_ndx (__global float* dist,\n"
+      "                                ulong n_size,\n"
+      "                                __global ulong* ndx_min) {\n"
+      "  ulong i;\n"
+      "  /* HUGE_VAL is defined in math.h */\n"
+      "  float f_min = HUGE_VAL;\n"
+      "  ulong i_min = n_size+1;\n"
+      "  for (i=0; i < n_size; ++i) {\n"
+      "    if (dist[i] < f_min) {\n"
+      "      f_min = dist[i];\n"
+      "      i_min = i;\n"
+      "    }\n"
+      "  }\n"
+      "}\n"
+    ;
+    build_kernel("find_minimum_ndx", src);
+
+    //// find_minimum_ndx_low_fe
+    //
+    // find index of minimum value in float array while
+    // keeping a lower free energy than current frame
+    //
+    // TODO: finish
+    src = 
+      "__kernel void find_minimum_ndx (__global float* dist,\n"
+      "                                ulong n_size,\n"
+      "                                __global ulong* ndx_min,\n"
+      "                                __global float* fe,\n"
+      "                                float fe_frame) {\n"
+      "  ulong i;\n"
+      "  /* HUGE_VAL is defined in math.h */\n"
+      "  float f_min = HUGE_VAL;\n"
+      "  ulong i_min = n_size+1;\n"
+      "  for (i=0; i < n_size; ++i) {\n"
+      "    if (dist[i] < f_min) {\n"
+      "      f_min = dist[i];\n"
+      "      i_min = i;\n"
+      "    }\n"
+      "  }\n"
+      "}\n"
+    ;
+    build_kernel("find_minimum_ndx", src);
   }
 } // end local namespace
 
@@ -194,6 +269,63 @@ calculate_populations(const float radius) {
   }
   return pops;
 }
+
+
+
+// first Neighborhood: nearest neighbors
+// second Neighborhood: nearest neighbors with lower free energy
+std::tuple<Neighborhood, Neighborhood>
+nearest_neighbors(const std::vector<float>& free_energy) {
+  Neighborhood nh;
+  Neighborhood nh_high_dens;
+  // initialize neighborhood
+  for (std::size_t i=0; i < n_rows; ++i) {
+    nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+    nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+  }
+  for (i=0; i < n_rows; ++i) {
+    mindist = std::numeric_limits<float>::max();
+    mindist_high_dens = std::numeric_limits<float>::max();
+    min_j = n_rows+1;
+    min_j_high_dens = n_rows+1;
+
+    //TODO: setup buffer for distances
+    //TODO: run kernel to calculate distances for all j in [0, n_rows]
+    //TODO: run single-task kernel to identify mindist
+    //TODO: run second single-task kernel to identify mindist_high_dens
+
+    for (j=1; j < n_rows; ++j) {
+      if (i != j) {
+        dist = 0.0f;
+        #pragma simd reduction(+:dist)
+        for (c=0; c < n_cols; ++c) {
+          d = coords[i*n_cols+c] - coords[j*n_cols+c];
+          dist += d*d;
+        }
+        // direct neighbor
+        if (dist < mindist) {
+          mindist = dist;
+          min_j = j;
+        }
+        // next neighbor with higher density / lower free energy
+        if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
+          mindist_high_dens = dist;
+          min_j_high_dens = j;
+        }
+      }
+    }
+    nh[i] = Neighbor(min_j, mindist);
+    nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
+  }
+  return std::make_tuple(nh, nh_high_dens);
+}
+
+
+
+
+
+
+
 
 } // end namespace DC_OpenCL
 
