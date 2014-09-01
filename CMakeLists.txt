@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (supervised_clustering) 
+project (density_clustering) 
 
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
@@ -57,8 +57,7 @@ if (DC_USE_OPENCL)
   else( OPENCL_HAS_CPP_BINDINGS )
   	message( "No OpenCL CPP bindings found" )
   endif( OPENCL_HAS_CPP_BINDINGS )
-#  add_executable(test_opencl test_opencl.cpp)
-#  target_link_libraries(test_opencl ${OPENCL_LIBRARIES})
+  include_directories("${CMAKE_SOURCE_DIR}")
 else()
   set (DC_USE_OPENCL "")
 endif(DC_USE_OPENCL)
@@ -75,4 +74,7 @@ else()
   target_link_libraries(density_clustering ${Boost_LIBRARIES})
 endif()
 
+
+add_executable(network_builder network_builder.cpp tools.cpp)
+target_link_libraries(network_builder ${Boost_LIBRARIES})
 

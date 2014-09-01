@@ -33,6 +33,9 @@ template <typename NUM>
 void
 free_coords(NUM* coords);
 
+
+std::string stringprintf(const std::string& str, ...);
+
 // template implementations
 #include "tools.hxx"
 
