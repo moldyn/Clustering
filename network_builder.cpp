@@ -136,9 +136,11 @@ int main(int argc, char* argv[]) {
     }
   }
   // if minpop given: delete nodes and edges not fulfilling min. population criterium
+  //TODO: ineffective, needs optimization
   if (minpop > 1) {
     auto pop_it = pops.begin();
     while (pop_it != pops.end()) {
+      logger(std::cout) << "cleaning from low pop. states: " << pop_it->first << std::endl;
       if (pop_it->second < minpop) {
         uint node_id = pop_it->first;
         auto net_it = network.begin();
