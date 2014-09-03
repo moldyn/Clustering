@@ -383,8 +383,9 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
   for (const auto& fe: fe_sorted) {
     if (clustering[fe.first] == 0) {
       // assign cluster of nearest neighbor with higher density
-      // (since it has higher density, it must have been assigned
-      //  before and will have a cluster-id not equal to zero).
+      // TODO
+      // (if it is equal to zero, too, traverse recursively until
+      //  a cluster has been found).
       clustering[fe.first] = clustering[nh_high_dens.find(fe.first)->first];
     }
   }
@@ -412,9 +413,8 @@ int main(int argc, char* argv[]) {
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates "
                                                        "(space separated ASCII).")
     ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
-    ("threshold,t", b_po::value<float>()->required(),
-                    "parameter (required): Free Energy threshold for clustering (FEL is normalized to zero).")
     // optional
+    ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
     ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
     ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
@@ -449,7 +449,6 @@ int main(int argc, char* argv[]) {
   verbose = args["verbose"].as<bool>();
   const std::string input_file = args["file"].as<std::string>();
   const float radius = args["radius"].as<float>();
-  const float threshold = args["threshold"].as<float>();
   // setup OpenMP
   const int n_threads = args["nthreads"].as<int>();
   if (n_threads > 0) {
@@ -547,21 +546,27 @@ int main(int argc, char* argv[]) {
       std::ifstream ifs(args["input"].as<std::string>());
       if (ifs.fail()) {
         std::cerr << "error: cannot open file '" << args["input"].as<std::string>() << "'" << std::endl;
-        return 3;
+        exit(EXIT_FAILURE);
       } else {
         while (ifs.good()) {
           std::size_t buf;
           ifs >> buf;
-          clustering.push_back(buf);
+          if ( ! ifs.fail()) {
+            clustering.push_back(buf);
+          }
         }
       }
     } else {
       logger(std::cout) << "calculating initial clusters" << std::endl;
+      if (args.count("threshold") == 0) {
+        std::cerr << "error: need threshold value for initial clustering" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      float threshold = args["threshold"].as<float>();
       clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
     }
-    logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
     if ( ! args["only-initial"].as<bool>()) {
-      //clustering = assign_low_density_frames(clustering, coords, n_rows, n_cols, threshold, free_energies);
+      logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
       clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
     }
     logger(std::cout) << "freeing coords" << std::endl;
