@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <set>
+#include <unordered_set>
 #include <string>
 
 #include <boost/program_options.hpp>
@@ -126,7 +127,7 @@ int main(int argc, char* argv[]) {
     }
   }
   // handle last trajectory
-  logger(std::cout) << "free energy level: " << d_max << std::endl;
+  logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
   cl_now = cl_next;
   write_clustered_trajectory("remapped_" + stringprintf(basename, d_max), cl_now);
   for (std::size_t i=0; i < n_rows; ++i) {
@@ -136,29 +137,35 @@ int main(int argc, char* argv[]) {
     }
   }
   // if minpop given: delete nodes and edges not fulfilling min. population criterium
-  //TODO: ineffective, needs optimization
   if (minpop > 1) {
+    logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
+    std::unordered_set<uint> removals;
     auto pop_it = pops.begin();
+    logger(std::cout) << "  ... search nodes to remove" << std::endl;
     while (pop_it != pops.end()) {
-      logger(std::cout) << "cleaning from low pop. states: " << pop_it->first << std::endl;
       if (pop_it->second < minpop) {
-        uint node_id = pop_it->first;
-        auto net_it = network.begin();
-        while (net_it != network.end()) {
-          if (net_it->first == node_id || net_it->second == node_id) {
-            network.erase(net_it++); // first increment, then remove with old address
-          } else {
-            ++net_it;
-          }
-        }
+        removals.insert(pop_it->first);
         pops.erase(pop_it++); // as above
       } else {
         ++pop_it;
       }
     }
+    logger(std::cout) << "  ... search edges to remove" << std::endl;
+    auto net_it = network.begin();
+    while (net_it != network.end()) {
+      uint a = net_it->first;
+      uint b = net_it->second;
+      if (removals.count(a) > 0 || removals.count(b) > 0) {
+        network.erase(net_it++);
+      } else {
+        ++net_it;
+      }
+    }
+    logger(std::cout) << "  ... finished." << std::endl;
   }
   // save network links
   {
+    logger(std::cout) << "saving links" << std::endl;
     std::ofstream ofs("network_links.dat");
     if (ofs.fail()) {
       std::cerr << "error: cannot open file 'network_links.dat'" << std::endl;
@@ -171,6 +178,7 @@ int main(int argc, char* argv[]) {
   }
   // save node info
   {
+    logger(std::cout) << "saving nodes" << std::endl;
     std::ofstream ofs("network_nodes.dat");
     if (ofs.fail()) {
       std::cerr << "error: cannot open file 'network_nodes.dat'" << std::endl;

@@ -98,46 +98,6 @@ sorted_free_energies(const std::vector<float>& fe) {
   return fe_sorted;
 }
 
-//const std::pair<std::size_t, float>
-//nearest_neighbor(const float* coords,
-//                 const std::vector<FreeEnergy>& sorted_free_energies,
-//                 const std::size_t n_cols,
-//                 const std::size_t frame_id,
-//                 const std::pair<std::size_t, std::size_t> search_range) {
-//  std::size_t c,j;
-//  const std::size_t real_id = sorted_free_energies[frame_id].first;
-//  float d, dist;
-//  std::size_t sr_first = search_range.first;
-//  std::size_t sr_second = search_range.second;
-//  std::vector<float> distances(sr_second - sr_first);
-//  std::vector<std::size_t> sorted_ids;
-//  for (FreeEnergy fe: sorted_free_energies) {
-//    sorted_ids.push_back(fe.first);
-//  }
-//  ASSUME_ALIGNED(coords);
-//  #pragma omp parallel for default(shared) private(dist,j,c,d) firstprivate(n_cols,real_id,sr_first)
-//  for (j=sr_first; j < sr_second; ++j) {
-//    if (frame_id == j) {
-//      distances[j-sr_first] = std::numeric_limits<float>::max();
-//    } else {
-//      dist = 0.0f;
-//      #pragma simd reduction(+:dist)
-//      for (c=0; c < n_cols; ++c) {
-//        //d = coords[real_id*n_cols+c] - coords[sorted_free_energies[j].first*n_cols+c];
-//        d = coords[real_id*n_cols+c] - coords[sorted_ids[j]*n_cols+c];
-//        dist += d*d;
-//      }
-//      distances[j-sr_first] = dist;
-//    }
-//  }
-//  if (distances.size() == 0) {
-//    return {0, 0.0f};
-//  } else {
-//    std::size_t min_ndx = std::min_element(distances.begin(), distances.end()) - distances.begin();
-//    return {min_ndx+sr_first, distances[min_ndx]};
-//  }
-//}
-
 
 std::tuple<Neighborhood, Neighborhood>
 nearest_neighbors(const float* coords,
@@ -348,31 +308,6 @@ initial_density_clustering(const std::vector<float>& free_energy,
   return clustering;
 }
 
-//std::vector<std::size_t>
-//assign_low_density_frames_old(const std::vector<std::size_t>& initial_clustering,
-//                          const float* coords,
-//                          const std::size_t n_rows,
-//                          const std::size_t n_cols,
-//                          const float free_energy_threshold,
-//                          const std::vector<float>& free_energy) {
-//  std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
-//  // find last frame below free energy threshold
-//  auto lb = std::upper_bound(fe_sorted.begin(),
-//                             fe_sorted.end(),
-//                             FreeEnergy(0, free_energy_threshold), 
-//                             [](const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
-//  std::size_t first_frame_above_threshold = (lb - fe_sorted.begin());
-//  std::vector<std::size_t> clustering(initial_clustering);
-//  // assign unassigned frames to clusters via neighbor-info (in order of ascending free energy)
-//  for (std::size_t i=first_frame_above_threshold; i < n_rows; ++i) {
-//    auto nn = nearest_neighbor(coords, fe_sorted, n_cols, i, SizePair(0,i));
-//    clustering[fe_sorted[i].first] = clustering[fe_sorted[nn.first].first];
-//  }
-//  logger(std::cout) << "clustering finished" << std::endl;
-//  return clustering;
-//}
-
-
 
 std::vector<std::size_t>
 assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
@@ -381,13 +316,29 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
   std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
   std::vector<std::size_t> clustering(initial_clustering);
   for (const auto& fe: fe_sorted) {
-    if (clustering[fe.first] == 0) {
-      // assign cluster of nearest neighbor with higher density
-      // TODO
-      // (if it is equal to zero, too, traverse recursively until
-      //  a cluster has been found).
-      clustering[fe.first] = clustering[nh_high_dens.find(fe.first)->first];
-    }
+    std::size_t id = fe.first;
+
+//TODO
+    logger(std::cout) << " frame " << id << " with G=" << fe.second << " has cluster " << clustering[id] << std::endl;
+    std::size_t neighbor = nh_high_dens.find(id)->first;
+    logger(std::cout) << "    neighbor is " << neighbor << " with G=" << fe_sorted[neighbor].second << " and has cluster " << clustering[neighbor] << std::endl;
+
+//    if (clustering[id] == 0) {
+//      // assign cluster of nearest neighbor with higher density
+//      // (if it is equal to zero, too, traverse recursively until
+//      //  a cluster has been found).
+//      std::set<std::size_t> unassigned_frames;
+//      unassigned_frames.insert(id);
+//      std::size_t neighbor = nh_high_dens.find(id)->first;
+//      while (clustering[neighbor] == 0) {
+//        unassigned_frames.insert(neighbor);
+//        neighbor = nh_high_dens.find(neighbor)->first;
+//      }
+//      std::size_t found_cluster = clustering[neighbor];
+//      for (auto unassigned_id: unassigned_frames) {
+//        clustering[unassigned_id] = found_cluster;
+//      }
+//    }
   }
   return clustering;
 }
@@ -458,6 +409,7 @@ int main(int argc, char* argv[]) {
   float* coords;
   std::size_t n_rows;
   std::size_t n_cols;
+  logger(std::cout) << "reading coords" << std::endl;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
   #ifdef DC_USE_OPENCL
   DC_OpenCL::setup(coords, n_rows, n_cols);
@@ -469,12 +421,14 @@ int main(int argc, char* argv[]) {
     std::ifstream ifs(args["free-energy-input"].as<std::string>());
     if (ifs.fail()) {
       std::cerr << "error: cannot open file '" << args["free-energy-input"].as<std::string>() << "'" << std::endl;
-      return 3;
+      exit(EXIT_FAILURE);
     } else {
       while(ifs.good()) {
         float buf;
         ifs >> buf;
-        free_energies.push_back(buf);
+        if ( ! ifs.fail()) {
+          free_energies.push_back(buf);
+        }
       }
     }
   } else if (args.count("free-energy") || args.count("output")) {
@@ -502,19 +456,23 @@ int main(int argc, char* argv[]) {
     std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
     if (ifs.fail()) {
       std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
-      return 3;
+      exit(EXIT_FAILURE);
     } else {
       std::size_t i=0;
       while (ifs.good()) {
         std::size_t buf1;
         float buf2;
+        std::size_t buf3;
+        float buf4;
         ifs >> buf1;
         ifs >> buf2;
-        nh[i] = std::pair<std::size_t, float>(buf1, buf2);
-        ifs >> buf1;
-        ifs >> buf2;
-        nh_high_dens[i] = std::pair<std::size_t, float>(buf1, buf2);
-        ++i;
+        ifs >> buf3;
+        ifs >> buf4;
+        if ( ! ifs.fail()) {
+          nh[i] = std::pair<std::size_t, float>(buf1, buf2);
+          nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
+          ++i;
+        }
       }
     }
   } else if (args.count("nearest-neighbors") || args.count("output")) {
@@ -569,20 +527,20 @@ int main(int argc, char* argv[]) {
       logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
       clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
     }
-    logger(std::cout) << "freeing coords" << std::endl;
-    logger(std::cout) << "writing clusters to file " << output_file << std::endl;
     // write clusters to file
     {
+      logger(std::cout) << "writing clusters to file " << output_file << std::endl;
       std::ofstream ofs(output_file);
       if (ofs.fail()) {
         std::cerr << "error: cannot open file '" << output_file << "' for writing." << std::endl;
-        return 3;
+        exit(EXIT_FAILURE);
       }
       for (std::size_t i: clustering) {
         ofs << i << "\n";
       }
     }
   }
+  logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
   return 0;
 }
