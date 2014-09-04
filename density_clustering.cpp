@@ -317,28 +317,11 @@ assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
   std::vector<std::size_t> clustering(initial_clustering);
   for (const auto& fe: fe_sorted) {
     std::size_t id = fe.first;
-
-//TODO
-    logger(std::cout) << " frame " << id << " with G=" << fe.second << " has cluster " << clustering[id] << std::endl;
-    std::size_t neighbor = nh_high_dens.find(id)->first;
-    logger(std::cout) << "    neighbor is " << neighbor << " with G=" << fe_sorted[neighbor].second << " and has cluster " << clustering[neighbor] << std::endl;
-
-//    if (clustering[id] == 0) {
-//      // assign cluster of nearest neighbor with higher density
-//      // (if it is equal to zero, too, traverse recursively until
-//      //  a cluster has been found).
-//      std::set<std::size_t> unassigned_frames;
-//      unassigned_frames.insert(id);
-//      std::size_t neighbor = nh_high_dens.find(id)->first;
-//      while (clustering[neighbor] == 0) {
-//        unassigned_frames.insert(neighbor);
-//        neighbor = nh_high_dens.find(neighbor)->first;
-//      }
-//      std::size_t found_cluster = clustering[neighbor];
-//      for (auto unassigned_id: unassigned_frames) {
-//        clustering[unassigned_id] = found_cluster;
-//      }
-//    }
+    if (clustering[id] == 0) {
+      std::size_t neighbor_id = nh_high_dens.find(id)->second.first;
+      // assign cluster of nearest neighbor with higher density
+      clustering[id] = clustering[neighbor_id];
+    }
   }
   return clustering;
 }
