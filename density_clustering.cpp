@@ -1,8 +1,7 @@
 
-
 #include "tools.hpp"
+#include "mpp.hpp"
 #include "density_clustering.hpp"
-
 #ifdef DC_USE_OPENCL
   #include "density_clustering_opencl.hpp"
 #endif
@@ -19,9 +18,7 @@
 #include <limits>
 #include <numeric>
 #include <cmath>
-
 #include <time.h>
-
 #include <omp.h>
 #include <boost/program_options.hpp>
 
