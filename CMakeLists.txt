@@ -4,7 +4,7 @@ project (density_clustering)
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")
-  set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas")
+  set (CMAKE_CXX_FLAGS "-std=c++0x -ftree-vectorize -ffast-math -O3 -fopenmp -Wall -Wextra -Wno-unknown-pragmas -Wmissing-declarations")
   if (DC_NATIVE_COMPILATION)
     message("native compilation: this code will ONLY run on THIS machine")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
