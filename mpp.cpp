@@ -213,13 +213,17 @@ namespace Clustering {
       std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
       std::vector<std::size_t> traj = initial_trajectory;
       const uint MAX_ITER=100;
-      for (uint iter=0; iter < MAX_ITER; ++iter) {
+      uint iter;
+      for (iter=0; iter < MAX_ITER; ++iter) {
         // get transition probabilities
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
                                      transition_counts(traj, lagtime),
                                      microstate_names);
         // get immediate future
-        std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob, microstate_names, q_min);
+        std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob,
+                                                                                   microstate_names,
+                                                                                   q_min,
+                                                                                   microstate_min_free_energy(traj, free_energy));
         // compute MPP
         std::map<std::size_t, std::vector<std::size_t>> mpp = most_probable_path(future_state, microstate_names);
         // compute sinks (i.e. states with lowest Free Energy per path)

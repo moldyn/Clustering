@@ -9,18 +9,6 @@
 
 #include <boost/program_options.hpp>
 
-namespace {
-  bool verbose = false;
-  std::ostream devnull(0);
-  std::ostream& logger(std::ostream& s) {
-    if (verbose) {
-      return s;
-    } else {
-      return devnull; 
-    }
-  }
-} // end local namespace
-
 
 std::vector<uint>
 read_clustered_trajectory(std::string filename) {
