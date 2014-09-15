@@ -103,6 +103,25 @@ namespace Clustering {
       return pops;
     }
 
+    // assign every state the lowest free energy value
+    // of all of its frames.
+    std::map<std::size_t, float>
+    microstate_min_free_energy(const std::vector<std::size_t>& clustering,
+                               const std::vector<float>& free_energy) {
+      std::map<std::size_t, float> min_fe;
+      for (std::size_t i=0; i < clustering.size(); ++i) {
+        std::size_t state = clustering[i];
+        if (min_fe.count(state) == 0) {
+          min_fe[state] = free_energy[i];
+        } else {
+          if (free_energy[i] < min_fe[state]) {
+            min_fe[state] = free_energy[i];
+          }
+        }
+      }
+      return min_fe;
+    }
+
     std::map<std::size_t, std::size_t>
     path_sinks(std::vector<std::size_t> clusters,
                std::map<std::size_t, std::vector<std::size_t>> mpp,
@@ -159,19 +178,20 @@ namespace Clustering {
       return sinks;
     }
 
-    // basins: all microstates that fall into given sink
-    std::map<std::size_t, std::vector<std::size_t>>
-    basins(std::map<std::size_t, std::size_t> sinks) {
-      std::map<std::size_t, std::vector<std::size_t>> basins;
-      for (auto state_sink: sinks) {
-        if (basins.count(state_sink.second) == 0) {
-          basins[state_sink.second] = {state_sink.first};
-        } else {
-          basins[state_sink.second].push_back(state_sink.first);
-        }
-      }
-      return basins;
-    }
+//TODO: remove, probably unnecessary
+//    // basins: all microstates that fall into given sink
+//    std::map<std::size_t, std::vector<std::size_t>>
+//    basins(std::map<std::size_t, std::size_t> sinks) {
+//      std::map<std::size_t, std::vector<std::size_t>> basins;
+//      for (auto state_sink: sinks) {
+//        if (basins.count(state_sink.second) == 0) {
+//          basins[state_sink.second] = {state_sink.first};
+//        } else {
+//          basins[state_sink.second].push_back(state_sink.first);
+//        }
+//      }
+//      return basins;
+//    }
 
     // lump states based on path sinks and return new trajectory.
     // new microstates will have IDs of sinks.
@@ -188,7 +208,8 @@ namespace Clustering {
     std::vector<std::size_t>
     metastable_clustering(std::vector<std::size_t> initial_trajectory,
                           float q_min,
-                          std::size_t lagtime) {
+                          std::size_t lagtime,
+                          std::vector<float> free_energy) {
       std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
       std::vector<std::size_t> traj = initial_trajectory;
       const uint MAX_ITER=100;
@@ -201,12 +222,20 @@ namespace Clustering {
         std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob, microstate_names, q_min);
         // compute MPP
         std::map<std::size_t, std::vector<std::size_t>> mpp = most_probable_path(future_state, microstate_names);
-        //TODO get sinks
-
-
-
-        //TODO lump traj
-        //TODO check convergence
+        // compute sinks (i.e. states with lowest Free Energy per path)
+        std::map<std::size_t, std::size_t> sinks = path_sinks(traj, mpp, trans_prob, microstate_names, q_min, free_energy);
+        // lump trajectory into sinks
+        std::vector<std::size_t> traj_old = traj;
+        traj = lumped_trajectory(traj, sinks);
+        // check convergence
+        if (traj_old == traj) {
+          break;
+        }
+      }
+      if (iter == MAX_ITER) {
+        return {}; // TODO: throw exception
+      } else {
+        return traj;
       }
     }
   } // end namespace MPP

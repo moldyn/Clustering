@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (density_clustering) 
+project (cluster) 
 
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
@@ -44,9 +44,6 @@ elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
   set (DC_MEM_ALIGNMENT 32)
 endif()
 
-find_package (Boost COMPONENTS program_options REQUIRED)
-include_directories (${Boost_INCLUDE_DIR})
-
 if (DC_USE_OPENCL)
   set (DC_USE_OPENCL "#define DC_USE_OPENCL")
   set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
@@ -63,17 +60,19 @@ else()
 endif(DC_USE_OPENCL)
 
 
+find_package (Boost 1.55 COMPONENTS program_options REQUIRED)
+include_directories (${Boost_INCLUDE_DIR})
+
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 if (DC_USE_OPENCL)
-  add_executable(density_clustering density_clustering.cpp density_clustering_opencl.cpp mpp.cpp)
-  target_link_libraries(density_clustering ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
+  add_executable(cluster cluster.cpp density_clustering.cpp density_clustering_opencl.cpp mpp.cpp)
+  target_link_libraries(cluster ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
 else()
-  add_executable(density_clustering density_clustering.cpp mpp.cpp)
-  target_link_libraries(density_clustering ${Boost_LIBRARIES})
+  add_executable(cluster cluster.cpp density_clustering.cpp mpp.cpp)
+  target_link_libraries(cluster ${Boost_LIBRARIES})
 endif()
-
 
 add_executable(network_builder network_builder.cpp tools.cpp)
 target_link_libraries(network_builder ${Boost_LIBRARIES})

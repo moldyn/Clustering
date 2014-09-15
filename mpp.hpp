@@ -22,7 +22,10 @@ namespace Clustering {
 
     // compute immediate future (i.e. without lag) of every state from highest probable transitions
     std::map<std::size_t, std::size_t>
-    single_step_future_state(SparseMatrixF transition_matrix, std::set<std::size_t> cluster_names, float q_min);
+    single_step_future_state(SparseMatrixF transition_matrix,
+                             std::set<std::size_t> cluster_names,
+                             float q_min,
+                             std::map<std::size_t, float> min_free_energy);
 
     // for every state, compute most probable path by following
     // the 'future_state'-mapping recursively
@@ -32,6 +35,34 @@ namespace Clustering {
     // compute cluster populations
     std::map<std::size_t, std::size_t>
     microstate_populations(std::vector<std::size_t> clusters, std::set<std::size_t> cluster_names);
+
+    // assign every state the lowest free energy value
+    // of all of its frames.
+    std::map<std::size_t, float>
+    microstate_min_free_energy(const std::vector<std::size_t>& clustering,
+                               const std::vector<float>& free_energy);
+
+    //TODO doc
+    std::map<std::size_t, std::size_t>
+    path_sinks(std::vector<std::size_t> clusters,
+               std::map<std::size_t, std::vector<std::size_t>> mpp,
+               SparseMatrixF transition_matrix,
+               std::set<std::size_t> cluster_names,
+               float q_min,
+               std::vector<float> free_energy);
+
+    // lump states based on path sinks and return new trajectory.
+    // new microstates will have IDs of sinks.
+    std::vector<std::size_t>
+    lumped_trajectory(std::vector<std::size_t> trajectory,
+                      std::map<std::size_t, std::size_t> sinks);
+
+    // run clustering for given Q_min value
+    std::vector<std::size_t>
+    metastable_clustering(std::vector<std::size_t> initial_trajectory,
+                          float q_min,
+                          std::size_t lagtime,
+                          std::vector<float> free_energy);
   } // end namespace Clustering::MPP
 } // end namespace Clustering
 

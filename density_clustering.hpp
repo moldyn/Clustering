@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include <utility>
 #include <string>
 
@@ -62,12 +63,6 @@ namespace Clustering {
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
-  
-    // assign every state the lowest free energy value
-    // of all of its frames.
-    std::map<std::size_t, float>
-    microstate_min_free_energy(const std::vector<std::size_t>& clustering,
-                               const std::vector<float>& free_energy);
   } // end namespace Density
 } // end namespace Clustering
 
