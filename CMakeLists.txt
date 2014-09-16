@@ -67,10 +67,10 @@ configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 if (DC_USE_OPENCL)
-  add_executable(cluster cluster.cpp density_clustering.cpp density_clustering_opencl.cpp mpp.cpp)
+  add_executable(cluster cluster.cpp density_clustering.cpp density_clustering_opencl.cpp mpp.cpp tools.cpp)
   target_link_libraries(cluster ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
 else()
-  add_executable(cluster cluster.cpp density_clustering.cpp mpp.cpp)
+  add_executable(cluster cluster.cpp density_clustering.cpp mpp.cpp tools.cpp)
   target_link_libraries(cluster ${Boost_LIBRARIES})
 endif()
 

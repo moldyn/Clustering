@@ -1,11 +1,12 @@
 
+#include "network_builder.hpp"
 #include "tools.hpp"
+#include "logger.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <set>
 #include <unordered_set>
-#include <string>
 
 #include <boost/program_options.hpp>
 
@@ -57,11 +58,13 @@ int main(int argc, char* argv[]) {
   desc.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.1f"), "(optional): basename of input files (default: clust.\%0.1f).")
+    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.1f"),
+          "(optional): basename of input files (default: clust.\%0.1f).")
     ("min", b_po::value<float>()->default_value(0.1f), "(optional): minimum free energy (default: 0.1).")
     ("max", b_po::value<float>()->default_value(8.0f), "(optional): maximum free energy (default: 8.0).")
     ("step", b_po::value<float>()->default_value(0.1f), "(optional): minimum free energy (default: 0.1).")
-    ("minpop,p", b_po::value<uint>()->default_value(1), "(optional): minimum population of node to be considered for network (default: 1).")
+    ("minpop,p", b_po::value<uint>()->default_value(1),
+          "(optional): minimum population of node to be considered for network (default: 1).")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;

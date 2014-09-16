@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <stdexcept>
 
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 #include <boost/numeric/ublas/io.hpp>
@@ -59,10 +60,19 @@ namespace Clustering {
 
     // run clustering for given Q_min value
     std::vector<std::size_t>
-    metastable_clustering(std::vector<std::size_t> initial_trajectory,
-                          float q_min,
-                          std::size_t lagtime,
-                          std::vector<float> free_energy);
+    fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
+                                   float q_min,
+                                   std::size_t lagtime,
+                                   std::vector<float> free_energy);
+
+    //TODO doc
+    std::map<float, std::vector<std::size_t>>
+    clustering(std::vector<std::size_t> initial_trajectory,
+               float q_min_from,
+               float q_min_to,
+               float q_min_step,
+               std::size_t lagtime,
+               std::vector<float> free_energy);
   } // end namespace Clustering::MPP
 } // end namespace Clustering
 

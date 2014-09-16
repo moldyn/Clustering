@@ -5,6 +5,7 @@
 #include "tools.hpp"
 #include "density_clustering.hpp"
 #include "mpp.hpp"
+#include "logger.hpp"
 
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
@@ -20,10 +21,8 @@ int main(int argc, char* argv[]) {
     "options"));
   desc.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    // required
-    ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates "
-                                                       "(space separated ASCII).")
-    ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
+    ("file,f", b_po::value<std::string>(), "input (required): phase space coordinates (space separated ASCII).")
+    ("radius,r", b_po::value<float>(), "parameter (required): hypersphere radius.")
     // optional
     ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
@@ -33,6 +32,13 @@ int main(int argc, char* argv[]) {
     ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
+    // MPP specific
+    // TODO: implement these options
+    ("mpp", b_po::bool_switch()->default_value(false), "run Most Probable Path clustering.")
+    ("qmin-from", b_po::value<float>(), "initial Qmin value.")
+    ("qmin-to", b_po::value<float>(), "final Qmin value.")
+    ("qmin-step", b_po::value<float>(), "Qmin stepping.")
+    ("lagtime", b_po::value<std::size_t>(), "lagtime (in units of frame numbers).")
     // defaults
     ("only-initial,I", b_po::bool_switch()->default_value(false),
                       "only assign initial (i.e. low free energy / high density) frames to clusters. "
@@ -50,11 +56,11 @@ int main(int argc, char* argv[]) {
       std::cout << "\n" << e.what() << "\n\n" << std::endl;
     }
     std::cout << desc << std::endl;
-    return 2;
+    return EXIT_FAILURE;
   }
   if (args["help"].as<bool>()) {
     std::cout << desc << std::endl;
-    return 1;
+    return EXIT_SUCCESS;
   }
   // setup general flags / options
   verbose = args["verbose"].as<bool>();
@@ -202,6 +208,6 @@ int main(int argc, char* argv[]) {
   }
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
-  return 0;
+  return EXIT_SUCCESS;
 }
 

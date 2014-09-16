@@ -1,4 +1,5 @@
 
+#include "tools.hpp"
 #include "mpp.hpp"
 
 namespace Clustering {
@@ -206,10 +207,10 @@ namespace Clustering {
 
     // run clustering for given Q_min value
     std::vector<std::size_t>
-    metastable_clustering(std::vector<std::size_t> initial_trajectory,
-                          float q_min,
-                          std::size_t lagtime,
-                          std::vector<float> free_energy) {
+    fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
+                                   float q_min,
+                                   std::size_t lagtime,
+                                   std::vector<float> free_energy) {
       std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
       std::vector<std::size_t> traj = initial_trajectory;
       const uint MAX_ITER=100;
@@ -237,10 +238,26 @@ namespace Clustering {
         }
       }
       if (iter == MAX_ITER) {
-        return {}; // TODO: throw exception
+        throw std::runtime_error(stringprintf("reached max. no. of iterations for Q_min convergence: %d", iter));
       } else {
         return traj;
       }
+    }
+
+    std::map<float, std::vector<std::size_t>>
+    clustering(std::vector<std::size_t> initial_trajectory,
+               float q_min_from,
+               float q_min_to,
+               float q_min_step,
+               std::size_t lagtime,
+               std::vector<float> free_energy) {
+      std::map<float, std::vector<std::size_t>> metastable_trajectories;
+      std::vector<std::size_t> traj = initial_trajectory;
+      for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
+        traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
+        metastable_trajectories[q_min] = traj;
+      }
+      return metastable_trajectories;
     }
   } // end namespace MPP
 } // end namespace Clustering

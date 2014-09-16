@@ -21,18 +21,6 @@
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
 #endif
 
-namespace {
-  bool verbose = false;
-  std::ostream devnull(0);
-  std::ostream& logger(std::ostream& s) {
-    if (verbose) {
-      return s;
-    } else {
-      return devnull; 
-    }
-  }
-} // end local namespace
-
 // read coordinates from space-separated ASCII file.
 // will write data with precision of NUM-type into memory.
 // format: [row * n_cols + col]
@@ -45,7 +33,6 @@ read_coords(std::string filename,
 template <typename NUM>
 void
 free_coords(NUM* coords);
-
 
 std::string stringprintf(const std::string& str, ...);
 
