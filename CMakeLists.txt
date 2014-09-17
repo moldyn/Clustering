@@ -60,7 +60,7 @@ else()
 endif(DC_USE_OPENCL)
 
 
-find_package (Boost 1.55 COMPONENTS program_options REQUIRED)
+find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)

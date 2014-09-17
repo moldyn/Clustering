@@ -11,7 +11,8 @@ int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   using namespace Clustering::Density;
   b_po::variables_map args;
-  b_po::options_description desc (std::string(argv[0]).append(
+  // density options
+  b_po::options_description desc_dens (std::string(argv[0]).append(
     "\n\n"
     "perform clustering of MD data based on phase space densities.\n"
     "densities are approximated by counting neighboring frames inside\n"
@@ -19,7 +20,7 @@ int main(int argc, char* argv[]) {
     "distances are measured with n-dim P2-norm.\n"
     "\n"
     "options"));
-  desc.add_options()
+  desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("file,f", b_po::value<std::string>(), "input (required): phase space coordinates (space separated ASCII).")
     ("radius,r", b_po::value<float>(), "parameter (required): hypersphere radius.")
@@ -32,13 +33,6 @@ int main(int argc, char* argv[]) {
     ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
-    // MPP specific
-    // TODO: implement these options
-    ("mpp", b_po::bool_switch()->default_value(false), "run Most Probable Path clustering.")
-    ("qmin-from", b_po::value<float>(), "initial Qmin value.")
-    ("qmin-to", b_po::value<float>(), "final Qmin value.")
-    ("qmin-step", b_po::value<float>(), "Qmin stepping.")
-    ("lagtime", b_po::value<std::size_t>(), "lagtime (in units of frame numbers).")
     // defaults
     ("only-initial,I", b_po::bool_switch()->default_value(false),
                       "only assign initial (i.e. low free energy / high density) frames to clusters. "
@@ -47,19 +41,32 @@ int main(int argc, char* argv[]) {
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
+  // MPP options
+  b_po::options_description desc_mpp (std::string(argv[1]).append(
+    "\n\n"
+    "TODO: description for MPP"
+    "\n"
+    "options"));
+  desc_mpp.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("qmin-from", b_po::value<float>()->default_value(0.01), "initial Qmin value (default: 0.01).")
+    ("qmin-to", b_po::value<float>()->default_value(1.0), "final Qmin value (default: 1.0).")
+    ("qmin-step", b_po::value<float>()->default_value(0.01), "Qmin stepping (default: 0.01).")
+    ("lagtime", b_po::value<std::size_t>(), "lagtime (in units of frame numbers).")
+  ;
   // parse cmd arguments
   try {
-    b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
+    b_po::store(b_po::command_line_parser(argc, argv).options(desc_dens).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
     if ( ! args["help"].as<bool>()) {
       std::cout << "\n" << e.what() << "\n\n" << std::endl;
     }
-    std::cout << desc << std::endl;
+    std::cout << desc_dens << std::endl;
     return EXIT_FAILURE;
   }
   if (args["help"].as<bool>()) {
-    std::cout << desc << std::endl;
+    std::cout << desc_dens << std::endl;
     return EXIT_SUCCESS;
   }
   // setup general flags / options
