@@ -10,9 +10,39 @@
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   using namespace Clustering::Density;
+  std::string general_help = 
+    "clustering - a classification framework for MD data\n"
+    "\n"
+    "modes:\n"
+    "  density: run density clustering\n"
+    "  mpp:     run MPP (Most Probable Path) clustering\n"
+    "           (based on density-results)\n"
+    "\n"
+    "usage:\n"
+    "  clustering MODE --option1 --option2 ...\n"
+    "\n"
+    "for a list of available options per mode, run with '-h' option, e.g.\n"
+    "  clustering density -h\n"
+  ;
+  enum {DENSITY, MPP} mode;
+  if (argc <= 2) {
+    std::cerr << general_help;
+    return EXIT_FAILURE;
+  } else {
+    std::string str_mode(argv[1]);
+    if (str_mode.compare("density") == 0) {
+      mode = DENSITY;
+    } else if (str_mode.compare("mpp") == 0) {
+      mode = MPP;
+    } else {
+      std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
+      std::cerr << general_help;
+      return EXIT_FAILURE;
+    }
+  }
   b_po::variables_map args;
   // density options
-  b_po::options_description desc_dens (std::string(argv[0]).append(
+  b_po::options_description desc_dens (std::string(argv[1]).append(
     "\n\n"
     "perform clustering of MD data based on phase space densities.\n"
     "densities are approximated by counting neighboring frames inside\n"
@@ -49,24 +79,30 @@ int main(int argc, char* argv[]) {
     "options"));
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    ("qmin-from", b_po::value<float>()->default_value(0.01), "initial Qmin value (default: 0.01).")
-    ("qmin-to", b_po::value<float>()->default_value(1.0), "final Qmin value (default: 1.0).")
-    ("qmin-step", b_po::value<float>()->default_value(0.01), "Qmin stepping (default: 0.01).")
+    ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
+    ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
+    ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
     ("lagtime", b_po::value<std::size_t>(), "lagtime (in units of frame numbers).")
   ;
   // parse cmd arguments
+  b_po::options_description desc;
+  if (mode == DENSITY) {
+    desc.add(desc_dens);
+  } else {
+    desc.add(desc_mpp);
+  }
   try {
-    b_po::store(b_po::command_line_parser(argc, argv).options(desc_dens).run(), args);
+    b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
     if ( ! args["help"].as<bool>()) {
       std::cout << "\n" << e.what() << "\n\n" << std::endl;
     }
-    std::cout << desc_dens << std::endl;
+    std::cout << desc << std::endl;
     return EXIT_FAILURE;
   }
   if (args["help"].as<bool>()) {
-    std::cout << desc_dens << std::endl;
+    std::cout << desc << std::endl;
     return EXIT_SUCCESS;
   }
   // setup general flags / options
