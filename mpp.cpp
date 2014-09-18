@@ -243,22 +243,6 @@ namespace Clustering {
         return traj;
       }
     }
-
-    std::map<float, std::vector<std::size_t>>
-    clustering(std::vector<std::size_t> initial_trajectory,
-               float q_min_from,
-               float q_min_to,
-               float q_min_step,
-               std::size_t lagtime,
-               std::vector<float> free_energy) {
-      std::map<float, std::vector<std::size_t>> metastable_trajectories;
-      std::vector<std::size_t> traj = initial_trajectory;
-      for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
-        traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
-        metastable_trajectories[q_min] = traj;
-      }
-      return metastable_trajectories;
-    }
   } // end namespace MPP
 } // end namespace Clustering
 

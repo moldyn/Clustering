@@ -1,5 +1,6 @@
 
-#include <boost/program_options.hpp>
+#include "cluster.hpp"
+
 #include <omp.h>
 
 #include "tools.hpp"
@@ -7,113 +8,16 @@
 #include "mpp.hpp"
 #include "logger.hpp"
 
-int main(int argc, char* argv[]) {
-  namespace b_po = boost::program_options;
+void density_main(boost::program_options::variables_map args) {
   using namespace Clustering::Density;
-  std::string general_help = 
-    "clustering - a classification framework for MD data\n"
-    "\n"
-    "modes:\n"
-    "  density: run density clustering\n"
-    "  mpp:     run MPP (Most Probable Path) clustering\n"
-    "           (based on density-results)\n"
-    "\n"
-    "usage:\n"
-    "  clustering MODE --option1 --option2 ...\n"
-    "\n"
-    "for a list of available options per mode, run with '-h' option, e.g.\n"
-    "  clustering density -h\n"
-  ;
-  enum {DENSITY, MPP} mode;
-  if (argc <= 2) {
-    std::cerr << general_help;
-    return EXIT_FAILURE;
-  } else {
-    std::string str_mode(argv[1]);
-    if (str_mode.compare("density") == 0) {
-      mode = DENSITY;
-    } else if (str_mode.compare("mpp") == 0) {
-      mode = MPP;
-    } else {
-      std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
-      std::cerr << general_help;
-      return EXIT_FAILURE;
-    }
-  }
-  b_po::variables_map args;
-  // density options
-  b_po::options_description desc_dens (std::string(argv[1]).append(
-    "\n\n"
-    "perform clustering of MD data based on phase space densities.\n"
-    "densities are approximated by counting neighboring frames inside\n"
-    "a n-dimensional hypersphere of specified radius.\n"
-    "distances are measured with n-dim P2-norm.\n"
-    "\n"
-    "options"));
-  desc_dens.add_options()
-    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    ("file,f", b_po::value<std::string>(), "input (required): phase space coordinates (space separated ASCII).")
-    ("radius,r", b_po::value<float>(), "parameter (required): hypersphere radius.")
-    // optional
-    ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
-    ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
-    ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
-    ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
-    ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame.")
-    ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
-    ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
-    ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
-    // defaults
-    ("only-initial,I", b_po::bool_switch()->default_value(false),
-                      "only assign initial (i.e. low free energy / high density) frames to clusters. "
-                      "leave unclustered frames as state '0'.")
-    ("nthreads,n", b_po::value<int>()->default_value(0),
-                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
-  ;
-  // MPP options
-  b_po::options_description desc_mpp (std::string(argv[1]).append(
-    "\n\n"
-    "TODO: description for MPP"
-    "\n"
-    "options"));
-  desc_mpp.add_options()
-    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
-    ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
-    ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
-    ("lagtime", b_po::value<std::size_t>(), "lagtime (in units of frame numbers).")
-  ;
-  // parse cmd arguments
-  b_po::options_description desc;
-  if (mode == DENSITY) {
-    desc.add(desc_dens);
-  } else {
-    desc.add(desc_mpp);
-  }
-  try {
-    b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
-    b_po::notify(args);
-  } catch (b_po::error& e) {
-    if ( ! args["help"].as<bool>()) {
-      std::cout << "\n" << e.what() << "\n\n" << std::endl;
-    }
-    std::cout << desc << std::endl;
-    return EXIT_FAILURE;
-  }
-  if (args["help"].as<bool>()) {
-    std::cout << desc << std::endl;
-    return EXIT_SUCCESS;
-  }
-  // setup general flags / options
   verbose = args["verbose"].as<bool>();
-  const std::string input_file = args["file"].as<std::string>();
-  const float radius = args["radius"].as<float>();
   // setup OpenMP
   const int n_threads = args["nthreads"].as<int>();
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
+  const std::string input_file = args["file"].as<std::string>();
+  const float radius = args["radius"].as<float>();
   // setup coords
   float* coords;
   std::size_t n_rows;
@@ -209,6 +113,7 @@ int main(int argc, char* argv[]) {
     const std::string output_file = args["output"].as<std::string>();
     std::vector<std::size_t> clustering;
     if (args.count("input")) {
+    //TODO put in separate function
       logger(std::cout) << "reading initial clusters from file." << std::endl;
       std::ifstream ifs(args["input"].as<std::string>());
       if (ifs.fail()) {
@@ -251,6 +156,143 @@ int main(int argc, char* argv[]) {
   }
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
+}
+
+void mpp_main(boost::program_options::variables_map args) {
+  using namespace Clustering::MPP;
+
+  std::string input_file = args["input"].as<std::string>();
+
+//TODO finish input
+
+
+  std::map<float, std::vector<std::size_t>> metastable_trajectories;
+  std::vector<std::size_t> traj = initial_trajectory;
+  for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
+    traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
+    metastable_trajectories[q_min] = traj;
+  }
+
+  //TODO save trajectories, populations, etc
+
+}
+
+int main(int argc, char* argv[]) {
+  namespace b_po = boost::program_options;
+  std::string general_help = 
+    "cluster - a classification framework for MD data\n"
+    "\n"
+    "modes:\n"
+    "  density: run density clustering\n"
+    "  mpp:     run MPP (Most Probable Path) clustering\n"
+    "           (based on density-results)\n"
+    "\n"
+    "usage:\n"
+    "  cluster MODE --option1 --option2 ...\n"
+    "\n"
+    "for a list of available options per mode, run with '-h' option, e.g.\n"
+    "  cluster density -h\n"
+  ;
+  enum {DENSITY, MPP} mode;
+  if (argc <= 2) {
+    std::cerr << general_help;
+    return EXIT_FAILURE;
+  } else {
+    std::string str_mode(argv[1]);
+    if (str_mode.compare("density") == 0) {
+      mode = DENSITY;
+    } else if (str_mode.compare("mpp") == 0) {
+      mode = MPP;
+    } else {
+      std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
+      std::cerr << general_help;
+      return EXIT_FAILURE;
+    }
+  }
+  b_po::variables_map args;
+  // density options
+  b_po::options_description desc_dens (std::string(argv[1]).append(
+    "\n\n"
+    "perform clustering of MD data based on phase space densities.\n"
+    "densities are approximated by counting neighboring frames inside\n"
+    "a n-dimensional hypersphere of specified radius.\n"
+    "distances are measured with n-dim P2-norm.\n"
+    "\n"
+    "options"));
+  desc_dens.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
+    ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
+    // optional
+    ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
+    ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
+    ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
+    ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
+    ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame.")
+    ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
+    ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
+    ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
+    // defaults
+    ("only-initial,I", b_po::bool_switch()->default_value(false),
+                      "only assign initial (i.e. low free energy / high density) frames to clusters. "
+                      "leave unclustered frames as state '0'.")
+    ("nthreads,n", b_po::value<int>()->default_value(0),
+                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
+    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
+  ;
+  // MPP options
+  b_po::options_description desc_mpp (std::string(argv[1]).append(
+    "\n\n"
+    "TODO: description for MPP"
+    "\n"
+    "options"));
+  desc_mpp.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
+    ("lagtime", b_po::value<std::size_t>()->required(), "lagtime (required): in units of frame numbers.")
+    ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
+    ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
+    ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
+  ;
+  // parse cmd arguments
+  b_po::options_description desc;
+  switch(mode){
+    case DENSITY:
+      desc.add(desc_dens);
+      break;
+    case MPP:
+      desc.add(desc_mpp);
+      break;
+    default:
+      std::cerr << "error: unknown mode. this should never happen." << std::endl;
+      return EXIT_FAILURE;
+  }
+  try {
+    b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
+    b_po::notify(args);
+  } catch (b_po::error& e) {
+    if ( ! args["help"].as<bool>()) {
+      std::cout << "\n" << e.what() << "\n\n" << std::endl;
+    }
+    std::cout << desc << std::endl;
+    return EXIT_FAILURE;
+  }
+  if (args["help"].as<bool>()) {
+    std::cout << desc << std::endl;
+    return EXIT_SUCCESS;
+  }
+  // run clustering subroutines
+  switch(mode) {
+    case DENSITY:
+      density_main(args);
+      break;
+    case MPP:
+      mpp_main(args);
+      break;
+    default:
+      std::cerr << "error: unknown mode. this should never happen." << std::endl;
+      return EXIT_FAILURE;
+  }
   return EXIT_SUCCESS;
 }
 

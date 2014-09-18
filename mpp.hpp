@@ -64,15 +64,6 @@ namespace Clustering {
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy);
-
-    //TODO doc
-    std::map<float, std::vector<std::size_t>>
-    clustering(std::vector<std::size_t> initial_trajectory,
-               float q_min_from,
-               float q_min_to,
-               float q_min_step,
-               std::size_t lagtime,
-               std::vector<float> free_energy);
   } // end namespace Clustering::MPP
 } // end namespace Clustering
 
