@@ -8,6 +8,75 @@
 #include "mpp.hpp"
 #include "logger.hpp"
 
+template <typename NUM>
+std::vector<NUM>
+read_single_column(std::string filename) {
+  std::vector<NUM> dat;
+  std::ifstream ifs(filename);
+  if (ifs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    while (ifs.good()) {
+      NUM buf;
+      ifs >> buf;
+      if ( ! ifs.fail()) {
+        dat.push_back(buf);
+      }
+    }
+  }
+  return dat;
+}
+
+template <typename NUM>
+void
+write_single_column(std::string filename, std::vector<NUM> dat) {
+  std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  for (NUM i: dat) {
+    ofs << i << "\n";
+  }
+}
+
+std::vector<std::size_t>
+read_clustered_trajectory(std::string filename) {
+  return read_single_column<std::size_t>(filename);
+}
+
+std::vector<float>
+read_free_energies(std::string filename) {
+  return read_single_column<float>(filename);
+}
+
+template <typename KEY, typename VAL>
+void
+write_map(std::string filename, std::map<KEY, VAL> mapping) {
+  std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  for (auto key_val: mapping) {
+    ofs << key_val.first << " " << key_val.second << "\n";
+  }
+}
+
+std::map<std::size_t, std::size_t>
+microstate_populations(std::vector<std::size_t> traj) {
+  std::map<std::size_t, std::size_t> populations;
+  for (std::size_t state: traj) {
+    if (populations.count(state) == 0) {
+      populations[state] = 1;
+    } else {
+      ++populations[state];
+    }
+  }
+  return populations;
+}
+
 void density_main(boost::program_options::variables_map args) {
   using namespace Clustering::Density;
   verbose = args["verbose"].as<bool>();
@@ -31,19 +100,7 @@ void density_main(boost::program_options::variables_map args) {
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
     logger(std::cout) << "re-using free energy data." << std::endl;
-    std::ifstream ifs(args["free-energy-input"].as<std::string>());
-    if (ifs.fail()) {
-      std::cerr << "error: cannot open file '" << args["free-energy-input"].as<std::string>() << "'" << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      while(ifs.good()) {
-        float buf;
-        ifs >> buf;
-        if ( ! ifs.fail()) {
-          free_energies.push_back(buf);
-        }
-      }
-    }
+    free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
   } else if (args.count("free-energy") || args.count("output")) {
     logger(std::cout) << "calculating free energies" << std::endl;
     #ifdef DC_USE_OPENCL
@@ -113,21 +170,8 @@ void density_main(boost::program_options::variables_map args) {
     const std::string output_file = args["output"].as<std::string>();
     std::vector<std::size_t> clustering;
     if (args.count("input")) {
-    //TODO put in separate function
       logger(std::cout) << "reading initial clusters from file." << std::endl;
-      std::ifstream ifs(args["input"].as<std::string>());
-      if (ifs.fail()) {
-        std::cerr << "error: cannot open file '" << args["input"].as<std::string>() << "'" << std::endl;
-        exit(EXIT_FAILURE);
-      } else {
-        while (ifs.good()) {
-          std::size_t buf;
-          ifs >> buf;
-          if ( ! ifs.fail()) {
-            clustering.push_back(buf);
-          }
-        }
-      }
+      clustering = read_clustered_trajectory(args["input"].as<std::string>());
     } else {
       logger(std::cout) << "calculating initial clusters" << std::endl;
       if (args.count("threshold") == 0) {
@@ -141,18 +185,8 @@ void density_main(boost::program_options::variables_map args) {
       logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
       clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
     }
-    // write clusters to file
-    {
-      logger(std::cout) << "writing clusters to file " << output_file << std::endl;
-      std::ofstream ofs(output_file);
-      if (ofs.fail()) {
-        std::cerr << "error: cannot open file '" << output_file << "' for writing." << std::endl;
-        exit(EXIT_FAILURE);
-      }
-      for (std::size_t i: clustering) {
-        ofs << i << "\n";
-      }
-    }
+    logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+    write_single_column<std::size_t>(output_file, clustering);
   }
   logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
@@ -160,21 +194,18 @@ void density_main(boost::program_options::variables_map args) {
 
 void mpp_main(boost::program_options::variables_map args) {
   using namespace Clustering::MPP;
-
-  std::string input_file = args["input"].as<std::string>();
-
-//TODO finish input
-
-
-  std::map<float, std::vector<std::size_t>> metastable_trajectories;
-  std::vector<std::size_t> traj = initial_trajectory;
+  // load initial trajectory
+  std::vector<std::size_t> traj = read_clustered_trajectory(args["input"].as<std::string>());
+  std::vector<float> free_energy = read_free_energies(args["input"].as<std::string>());
+  float q_min_from = args["qmin-from"].as<float>();
+  float q_min_to = args["qmin-to"].as<float>();
+  float q_min_step = args["qmin-step"].as<float>();
+  int lagtime = args["lagtime"].as<int>();
   for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
     traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
-    metastable_trajectories[q_min] = traj;
+    //TODO save traj
+    //TODO save pop
   }
-
-  //TODO save trajectories, populations, etc
-
 }
 
 int main(int argc, char* argv[]) {
@@ -249,7 +280,8 @@ int main(int argc, char* argv[]) {
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
-    ("lagtime", b_po::value<std::size_t>()->required(), "lagtime (required): in units of frame numbers.")
+    ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
+    ("lagtime", b_po::value<std::size_t>()->required(), "input (required): lagtime in units of frame numbers.")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
