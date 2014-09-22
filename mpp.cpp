@@ -47,16 +47,13 @@ namespace Clustering {
                              std::map<std::size_t, float> min_free_energy) {
       std::map<std::size_t, std::size_t> future_state;
       for (std::size_t i: cluster_names) {
-        debug() << " trans prob state " << i << std::endl;
         std::vector<std::size_t> candidates;
         float max_trans_prob = 0.0f;
-        debug() << "  " << i << " -> " << i << ": " << transition_matrix(i,i) << std::endl;
         if (transition_matrix(i,i) >= q_min) {
           // self-transition is greater than stability measure: stay.
           candidates = {i};
         } else {
           for (std::size_t j: cluster_names) {
-            debug() << "  " << i << " -> " << j << ": " << transition_matrix(i,j) << std::endl;
             if (transition_matrix(i,j) > max_trans_prob) {
               max_trans_prob = transition_matrix(i,j);
               candidates = {j};
@@ -214,6 +211,16 @@ namespace Clustering {
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
                                      transition_counts(traj, lagtime),
                                      microstate_names);
+        // debug
+        {
+          std::ofstream ofs(stringprintf("mpp_trans_prob_%0.2f.dat", q_min));
+          for (auto from: microstate_names) {
+            for (auto to: microstate_names) {
+              ofs << from << " " << to << " " << trans_prob(from, to) << "\n";
+            }
+          }
+        }
+
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob,
@@ -229,17 +236,7 @@ namespace Clustering {
         // lump trajectory into sinks
         std::vector<std::size_t> traj_old = traj;
         logger(std::cout) << "  lumping trajectory" << std::endl;
-
-        //debug
-        {
-          std::ofstream ofs("traj_before.dat");
-          for (auto x: traj) ofs << x << "\n";
-        }
         traj = lumped_trajectory(traj, sinks);
-        {
-          std::ofstream ofs("traj_after.dat");
-          for (auto x: traj) ofs << x << "\n";
-        }
         // check convergence
         if (traj_old == traj) {
           break;

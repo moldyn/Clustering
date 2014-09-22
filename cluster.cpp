@@ -199,7 +199,7 @@ void mpp_main(boost::program_options::variables_map args) {
   float q_min_step = args["qmin-step"].as<float>();
   int lagtime = args["lagtime"].as<int>();
   Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
-  for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
+  for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
     traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
     write_single_column(stringprintf("mpp_traj_%0.2f.dat", q_min), traj);
     write_map<std::size_t, std::size_t>(stringprintf("mpp_pop_%0.2f.dat", q_min), microstate_populations(traj));
