@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   // setup general flags / options
-  verbose = args["verbose"].as<bool>();
+  Clustering::verbose = args["verbose"].as<bool>();
 
   float d_min = args["min"].as<float>();
   float d_max = args["max"].as<float>();
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   uint max_id;
   std::size_t n_rows = cl_next.size();
   for (float d=d_min; d < d_max; d += d_step) {
-    logger(std::cout) << "free energy level: " << d << std::endl;
+    Clustering::logger(std::cout) << "free energy level: " << d << std::endl;
     cl_now = cl_next;
     write_clustered_trajectory("remapped_" + stringprintf(basename, d), cl_now);
     max_id = *std::max_element(cl_now.begin(), cl_now.end());
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
     }
   }
   // handle last trajectory
-  logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
+  Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
   cl_now = cl_next;
   write_clustered_trajectory("remapped_" + stringprintf(basename, d_max), cl_now);
   for (std::size_t i=0; i < n_rows; ++i) {
@@ -129,10 +129,10 @@ int main(int argc, char* argv[]) {
   }
   // if minpop given: delete nodes and edges not fulfilling min. population criterium
   if (minpop > 1) {
-    logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
+    Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
     std::unordered_set<uint> removals;
     auto pop_it = pops.begin();
-    logger(std::cout) << "  ... search nodes to remove" << std::endl;
+    Clustering::logger(std::cout) << "  ... search nodes to remove" << std::endl;
     while (pop_it != pops.end()) {
       if (pop_it->second < minpop) {
         removals.insert(pop_it->first);
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
         ++pop_it;
       }
     }
-    logger(std::cout) << "  ... search edges to remove" << std::endl;
+    Clustering::logger(std::cout) << "  ... search edges to remove" << std::endl;
     auto net_it = network.begin();
     while (net_it != network.end()) {
       uint a = net_it->first;
@@ -152,11 +152,11 @@ int main(int argc, char* argv[]) {
         ++net_it;
       }
     }
-    logger(std::cout) << "  ... finished." << std::endl;
+    Clustering::logger(std::cout) << "  ... finished." << std::endl;
   }
   // save network links
   {
-    logger(std::cout) << "saving links" << std::endl;
+    Clustering::logger(std::cout) << "saving links" << std::endl;
     std::ofstream ofs("network_links.dat");
     if (ofs.fail()) {
       std::cerr << "error: cannot open file 'network_links.dat'" << std::endl;
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
   }
   // save node info
   {
-    logger(std::cout) << "saving nodes" << std::endl;
+    Clustering::logger(std::cout) << "saving nodes" << std::endl;
     std::ofstream ofs("network_nodes.dat");
     if (ofs.fail()) {
       std::cerr << "error: cannot open file 'network_nodes.dat'" << std::endl;

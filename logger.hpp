@@ -1,16 +1,12 @@
 #pragma once
 
-#include <ostream>
+#include <iostream>
 
-namespace {
-  bool verbose = false;
-  std::ostream devnull(0);
-  std::ostream& logger(std::ostream& s) {
-    if (verbose) {
-      return s;
-    } else {
-      return devnull; 
-    }
-  }
-} // end local namespace
+namespace Clustering {
+  extern bool verbose;
+  extern std::ostream devnull;
+
+  std::ostream& logger(std::ostream& s);
+  std::ostream& debug();
+} // end namespace Clustering
 

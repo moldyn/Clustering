@@ -1,6 +1,7 @@
 
 #include "tools.hpp"
 #include "mpp.hpp"
+#include "logger.hpp"
 
 namespace Clustering {
   namespace MPP {
@@ -8,7 +9,7 @@ namespace Clustering {
     transition_counts(std::vector<std::size_t> trajectory,
                       std::size_t n_lag_steps) {
       std::size_t i_max = (*std::max_element(trajectory.begin(), trajectory.end()));
-      SparseMatrixF count_matrix(i_max, i_max);
+      SparseMatrixF count_matrix(i_max+1, i_max+1);
       for (std::size_t i=0; i < trajectory.size() - n_lag_steps; ++i) {
         std::size_t from = trajectory[i];
         std::size_t to = trajectory[i+n_lag_steps];
@@ -46,18 +47,21 @@ namespace Clustering {
                              std::map<std::size_t, float> min_free_energy) {
       std::map<std::size_t, std::size_t> future_state;
       for (std::size_t i: cluster_names) {
+        debug() << " trans prob state " << i << std::endl;
         std::vector<std::size_t> candidates;
         float max_trans_prob = 0.0f;
+        debug() << "  " << i << " -> " << i << ": " << transition_matrix(i,i) << std::endl;
         if (transition_matrix(i,i) >= q_min) {
           // self-transition is greater than stability measure: stay.
           candidates = {i};
         } else {
           for (std::size_t j: cluster_names) {
+            debug() << "  " << i << " -> " << j << ": " << transition_matrix(i,j) << std::endl;
             if (transition_matrix(i,j) > max_trans_prob) {
               max_trans_prob = transition_matrix(i,j);
-              candidates = {i};
+              candidates = {j};
             } else if (transition_matrix(i,j) == max_trans_prob && max_trans_prob > 0.0f) {
-              candidates.push_back(i);
+              candidates.push_back(j);
             }
           }
         }
@@ -152,16 +156,16 @@ namespace Clustering {
         // find sink candidate state by population
         auto candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
         std::size_t max_pop = pops[*candidate];
-        std::set<std::size_t> sink_candidates = {*candidate};
-        metastable_states.erase(candidate);
-        // there may be several states with same (max.) population,
-        // collect them all into one set
-        while (sink_candidates.count(*candidate) == 1) {
-          candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
+        //std::set<std::size_t> sink_candidates = {*candidate};
+        std::set<std::size_t> sink_candidates;
+        //metastable_states.erase(candidate);
+        //while (sink_candidates.count(*candidate) == 1) {
+        while (candidate != metastable_states.end() && pops[*candidate] == max_pop) {
+          // there may be several states with same (max.) population,
+          // collect them all into one set
+          sink_candidates.insert(*candidate);
           metastable_states.erase(candidate);
-          if (pops[*candidate] == max_pop) {
-            sink_candidates.insert(*candidate);
-          }
+          candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
         }
         // helper function: compare states by their min. Free Energy
         auto min_fe_compare = [&](std::size_t i, std::size_t j) -> bool {
@@ -178,21 +182,6 @@ namespace Clustering {
       }
       return sinks;
     }
-
-//TODO: remove, probably unnecessary
-//    // basins: all microstates that fall into given sink
-//    std::map<std::size_t, std::vector<std::size_t>>
-//    basins(std::map<std::size_t, std::size_t> sinks) {
-//      std::map<std::size_t, std::vector<std::size_t>> basins;
-//      for (auto state_sink: sinks) {
-//        if (basins.count(state_sink.second) == 0) {
-//          basins[state_sink.second] = {state_sink.first};
-//        } else {
-//          basins[state_sink.second].push_back(state_sink.first);
-//        }
-//      }
-//      return basins;
-//    }
 
     // lump states based on path sinks and return new trajectory.
     // new microstates will have IDs of sinks.
@@ -211,27 +200,46 @@ namespace Clustering {
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy) {
-      std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
+      //std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
+      std::set<std::size_t> microstate_names;
       std::vector<std::size_t> traj = initial_trajectory;
       const uint MAX_ITER=100;
       uint iter;
       for (iter=0; iter < MAX_ITER; ++iter) {
+        // reset names in case of vanished states (due to lumping)
+        microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
+        logger(std::cout) << "iteration " << iter+1 << " for q_min " << q_min << std::endl;
         // get transition probabilities
+        logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
                                      transition_counts(traj, lagtime),
                                      microstate_names);
         // get immediate future
+        logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob,
                                                                                    microstate_names,
                                                                                    q_min,
                                                                                    microstate_min_free_energy(traj, free_energy));
         // compute MPP
+        logger(std::cout) << "  calculating most probable path" << std::endl;
         std::map<std::size_t, std::vector<std::size_t>> mpp = most_probable_path(future_state, microstate_names);
         // compute sinks (i.e. states with lowest Free Energy per path)
+        logger(std::cout) << "  calculating path sinks" << std::endl;
         std::map<std::size_t, std::size_t> sinks = path_sinks(traj, mpp, trans_prob, microstate_names, q_min, free_energy);
         // lump trajectory into sinks
         std::vector<std::size_t> traj_old = traj;
+        logger(std::cout) << "  lumping trajectory" << std::endl;
+
+        //debug
+        {
+          std::ofstream ofs("traj_before.dat");
+          for (auto x: traj) ofs << x << "\n";
+        }
         traj = lumped_trajectory(traj, sinks);
+        {
+          std::ofstream ofs("traj_after.dat");
+          for (auto x: traj) ofs << x << "\n";
+        }
         // check convergence
         if (traj_old == traj) {
           break;

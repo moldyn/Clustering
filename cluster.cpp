@@ -79,19 +79,13 @@ microstate_populations(std::vector<std::size_t> traj) {
 
 void density_main(boost::program_options::variables_map args) {
   using namespace Clustering::Density;
-  verbose = args["verbose"].as<bool>();
-  // setup OpenMP
-  const int n_threads = args["nthreads"].as<int>();
-  if (n_threads > 0) {
-    omp_set_num_threads(n_threads);
-  }
   const std::string input_file = args["file"].as<std::string>();
   const float radius = args["radius"].as<float>();
   // setup coords
   float* coords;
   std::size_t n_rows;
   std::size_t n_cols;
-  logger(std::cout) << "reading coords" << std::endl;
+  Clustering::logger(std::cout) << "reading coords" << std::endl;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
   #ifdef DC_USE_OPENCL
   DC_OpenCL::setup(coords, n_rows, n_cols);
@@ -99,10 +93,10 @@ void density_main(boost::program_options::variables_map args) {
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
-    logger(std::cout) << "re-using free energy data." << std::endl;
+    Clustering::logger(std::cout) << "re-using free energy data." << std::endl;
     free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
   } else if (args.count("free-energy") || args.count("output")) {
-    logger(std::cout) << "calculating free energies" << std::endl;
+    Clustering::logger(std::cout) << "calculating free energies" << std::endl;
     #ifdef DC_USE_OPENCL
     free_energies = calculate_free_energies(
                       DC_OpenCL::calculate_populations(radius));
@@ -122,7 +116,7 @@ void density_main(boost::program_options::variables_map args) {
   Neighborhood nh;
   Neighborhood nh_high_dens;
   if (args.count("nearest-neighbors-input")) {
-    logger(std::cout) << "re-using nearest neighbor data." << std::endl;
+    Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
     std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
     if (ifs.fail()) {
       std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
@@ -146,7 +140,7 @@ void density_main(boost::program_options::variables_map args) {
       }
     }
   } else if (args.count("nearest-neighbors") || args.count("output")) {
-    logger(std::cout) << "calculating nearest neighbors" << std::endl;
+    Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
     auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
     nh = std::get<0>(nh_tuple);
     nh_high_dens = std::get<1>(nh_tuple);
@@ -170,10 +164,10 @@ void density_main(boost::program_options::variables_map args) {
     const std::string output_file = args["output"].as<std::string>();
     std::vector<std::size_t> clustering;
     if (args.count("input")) {
-      logger(std::cout) << "reading initial clusters from file." << std::endl;
+      Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
       clustering = read_clustered_trajectory(args["input"].as<std::string>());
     } else {
-      logger(std::cout) << "calculating initial clusters" << std::endl;
+      Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
       if (args.count("threshold") == 0) {
         std::cerr << "error: need threshold value for initial clustering" << std::endl;
         exit(EXIT_FAILURE);
@@ -182,29 +176,33 @@ void density_main(boost::program_options::variables_map args) {
       clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
     }
     if ( ! args["only-initial"].as<bool>()) {
-      logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
+      Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
       clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
     }
-    logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+    Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
     write_single_column<std::size_t>(output_file, clustering);
   }
-  logger(std::cout) << "freeing coords" << std::endl;
+  Clustering::logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
 }
 
 void mpp_main(boost::program_options::variables_map args) {
+  //TODO make basename for traj & pops a parameter?
   using namespace Clustering::MPP;
   // load initial trajectory
+  Clustering::logger(std::cout) << "loading microstates" << std::endl;
   std::vector<std::size_t> traj = read_clustered_trajectory(args["input"].as<std::string>());
+  Clustering::logger(std::cout) << "loading free energies" << std::endl;
   std::vector<float> free_energy = read_free_energies(args["input"].as<std::string>());
   float q_min_from = args["qmin-from"].as<float>();
   float q_min_to = args["qmin-to"].as<float>();
   float q_min_step = args["qmin-step"].as<float>();
   int lagtime = args["lagtime"].as<int>();
+  Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
   for (float q_min=q_min_from; q_min < q_min_to + q_min_step; q_min += q_min_step) {
     traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
-    //TODO save traj
-    //TODO save pop
+    write_single_column(stringprintf("mpp_traj_%0.2f.dat", q_min), traj);
+    write_map<std::size_t, std::size_t>(stringprintf("mpp_pop_%0.2f.dat", q_min), microstate_populations(traj));
   }
 }
 
@@ -281,10 +279,14 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("lagtime", b_po::value<std::size_t>()->required(), "input (required): lagtime in units of frame numbers.")
+    ("lagtime", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
+    // defaults
+    ("nthreads,n", b_po::value<int>()->default_value(0),
+                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
+    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // parse cmd arguments
   b_po::options_description desc;
@@ -304,14 +306,21 @@ int main(int argc, char* argv[]) {
     b_po::notify(args);
   } catch (b_po::error& e) {
     if ( ! args["help"].as<bool>()) {
-      std::cout << "\n" << e.what() << "\n\n" << std::endl;
+      std::cerr << "\nerror parsing arguments:\n\n" << e.what() << "\n\n" << std::endl;
     }
-    std::cout << desc << std::endl;
+    std::cerr << desc << std::endl;
     return EXIT_FAILURE;
   }
   if (args["help"].as<bool>()) {
     std::cout << desc << std::endl;
     return EXIT_SUCCESS;
+  }
+  // setup defaults
+  Clustering::verbose = args["verbose"].as<bool>();
+  // setup OpenMP
+  const int n_threads = args["nthreads"].as<int>();
+  if (n_threads > 0) {
+    omp_set_num_threads(n_threads);
   }
   // run clustering subroutines
   switch(mode) {
