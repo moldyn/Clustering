@@ -190,6 +190,9 @@ void mpp_main(boost::program_options::variables_map args) {
   using namespace Clustering::MPP;
   std::string basename = args["basename"].as<std::string>();
   // load initial trajectory
+  std::map<std::size_t, std::size_t> transitions;
+  std::map<std::size_t, std::size_t> max_pop;
+  std::map<std::size_t, float> max_qmin;
   Clustering::logger(std::cout) << "loading microstates" << std::endl;
   std::vector<std::size_t> traj = read_clustered_trajectory(args["input"].as<std::string>());
   Clustering::logger(std::cout) << "loading free energies" << std::endl;
@@ -201,14 +204,24 @@ void mpp_main(boost::program_options::variables_map args) {
   Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
   for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
     auto traj_sinks = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
-    traj = std::get<0>(traj_sinks);
-    // write sinks to file. this way we can see later, which states lump into which basins.
-    write_map<std::size_t, std::size_t>(stringprintf("%s_sinks_%0.2f.dat", basename.c_str(), q_min), std::get<1>(traj_sinks));
     // write trajectory at current Qmin level to file
+    traj = std::get<0>(traj_sinks);
     write_single_column(stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
+    // save transitions (i.e. lumping of states)
+    std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
+    transitions.insert(sinks.begin(), sinks.end());
     // write microstate populations to file
-    write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), microstate_populations(traj));
+    std::map<std::size_t, std::size_t> pops = microstate_populations(traj);
+    write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), pops);
+    // collect max. pops + max. q_min per microstate
+    for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
+      max_pop[id] = pops[id];
+      max_qmin[id] = q_min;
+    }
   }
+  write_map<std::size_t, std::size_t>(stringprintf("%s_transitions.dat", basename.c_str()), transitions);
+  write_map<std::size_t, std::size_t>(stringprintf("%s_max_pop.dat", basename.c_str()), max_pop);
+  write_map<std::size_t, float>(stringprintf("%s_max_qmin.dat", basename.c_str()), max_qmin);
 }
 
 int main(int argc, char* argv[]) {

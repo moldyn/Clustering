@@ -211,7 +211,7 @@ namespace Clustering {
       for (iter=0; iter < MAX_ITER; ++iter) {
         // reset names in case of vanished states (due to lumping)
         microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
-        logger(std::cout) << "iteration " << iter+1 << " for q_min " << q_min << std::endl;
+        logger(std::cout) << "iteration " << iter+1 << " for q_min " << stringprintf("%0.2f", q_min) << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
