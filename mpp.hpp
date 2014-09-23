@@ -21,7 +21,8 @@ namespace Clustering {
     SparseMatrixF
     row_normalized_transition_probabilities(SparseMatrixF count_matrix, std::set<std::size_t> microstate_names);
 
-    // compute immediate future (i.e. without lag) of every state from highest probable transitions
+    // compute immediate future (i.e. without lag) of every state from highest probable transitions;
+    // exclude self-transitions.
     std::map<std::size_t, std::size_t>
     single_step_future_state(SparseMatrixF transition_matrix,
                              std::set<std::size_t> cluster_names,
@@ -59,7 +60,7 @@ namespace Clustering {
                       std::map<std::size_t, std::size_t> sinks);
 
     // run clustering for given Q_min value
-    std::vector<std::size_t>
+    std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
                                    float q_min,
                                    std::size_t lagtime,

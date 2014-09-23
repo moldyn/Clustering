@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (cluster) 
+project (clustering) 
 
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
@@ -67,11 +67,11 @@ configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 if (DC_USE_OPENCL)
-  add_executable(cluster cluster.cpp density_clustering.cpp density_clustering_opencl.cpp mpp.cpp tools.cpp logger.cpp)
-  target_link_libraries(cluster ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
+  add_executable(clustering clustering.cpp density_clustering.cpp density_clustering_opencl.cpp mpp.cpp tools.cpp logger.cpp)
+  target_link_libraries(clustering ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
 else()
-  add_executable(cluster cluster.cpp density_clustering.cpp mpp.cpp tools.cpp logger.cpp)
-  target_link_libraries(cluster ${Boost_LIBRARIES})
+  add_executable(clustering clustering.cpp density_clustering.cpp mpp.cpp tools.cpp logger.cpp)
+  target_link_libraries(clustering ${Boost_LIBRARIES})
 endif()
 
 add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)

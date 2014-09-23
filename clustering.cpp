@@ -1,5 +1,5 @@
 
-#include "cluster.hpp"
+#include "clustering.hpp"
 
 #include <omp.h>
 
@@ -187,8 +187,8 @@ void density_main(boost::program_options::variables_map args) {
 }
 
 void mpp_main(boost::program_options::variables_map args) {
-  //TODO make basename for traj & pops a parameter?
   using namespace Clustering::MPP;
+  std::string basename = args["basename"].as<std::string>();
   // load initial trajectory
   Clustering::logger(std::cout) << "loading microstates" << std::endl;
   std::vector<std::size_t> traj = read_clustered_trajectory(args["input"].as<std::string>());
@@ -200,16 +200,21 @@ void mpp_main(boost::program_options::variables_map args) {
   int lagtime = args["lagtime"].as<int>();
   Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
   for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-    traj = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
-    write_single_column(stringprintf("mpp_traj_%0.2f.dat", q_min), traj);
-    write_map<std::size_t, std::size_t>(stringprintf("mpp_pop_%0.2f.dat", q_min), microstate_populations(traj));
+    auto traj_sinks = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
+    traj = std::get<0>(traj_sinks);
+    // write sinks to file. this way we can see later, which states lump into which basins.
+    write_map<std::size_t, std::size_t>(stringprintf("%s_sinks_%0.2f.dat", basename.c_str(), q_min), std::get<1>(traj_sinks));
+    // write trajectory at current Qmin level to file
+    write_single_column(stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
+    // write microstate populations to file
+    write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), microstate_populations(traj));
   }
 }
 
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   std::string general_help = 
-    "cluster - a classification framework for MD data\n"
+    "clustering - a classification framework for MD data\n"
     "\n"
     "modes:\n"
     "  density: run density clustering\n"
@@ -217,10 +222,10 @@ int main(int argc, char* argv[]) {
     "           (based on density-results)\n"
     "\n"
     "usage:\n"
-    "  cluster MODE --option1 --option2 ...\n"
+    "  clustering MODE --option1 --option2 ...\n"
     "\n"
     "for a list of available options per mode, run with '-h' option, e.g.\n"
-    "  cluster density -h\n"
+    "  clustering density -h\n"
   ;
   enum {DENSITY, MPP} mode;
   if (argc <= 2) {
@@ -279,11 +284,12 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("lagtime", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
+    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
     // defaults
+    ("basename", b_po::value<std::string>()->default_value("mpp"), "basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")

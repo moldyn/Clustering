@@ -54,11 +54,16 @@ namespace Clustering {
           candidates = {i};
         } else {
           for (std::size_t j: cluster_names) {
-            if (transition_matrix(i,j) > max_trans_prob) {
-              max_trans_prob = transition_matrix(i,j);
-              candidates = {j};
-            } else if (transition_matrix(i,j) == max_trans_prob && max_trans_prob > 0.0f) {
-              candidates.push_back(j);
+            // self-transition lower than q_min:
+            // choose other state as immidiate future
+            // (even if it has lower probability than self-transition)
+            if (i != j) {
+              if (transition_matrix(i,j) > max_trans_prob) {
+                max_trans_prob = transition_matrix(i,j);
+                candidates = {j};
+              } else if (transition_matrix(i,j) == max_trans_prob && max_trans_prob > 0.0f) {
+                candidates.push_back(j);
+              }
             }
           }
         }
@@ -192,7 +197,7 @@ namespace Clustering {
     }
 
     // run clustering for given Q_min value
-    std::vector<std::size_t>
+    std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
                                    float q_min,
                                    std::size_t lagtime,
@@ -200,6 +205,7 @@ namespace Clustering {
       //std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
       std::set<std::size_t> microstate_names;
       std::vector<std::size_t> traj = initial_trajectory;
+      std::map<std::size_t, std::size_t> lumping;
       const uint MAX_ITER=100;
       uint iter;
       for (iter=0; iter < MAX_ITER; ++iter) {
@@ -211,16 +217,6 @@ namespace Clustering {
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
                                      transition_counts(traj, lagtime),
                                      microstate_names);
-        // debug
-        {
-          std::ofstream ofs(stringprintf("mpp_trans_prob_%0.2f.dat", q_min));
-          for (auto from: microstate_names) {
-            for (auto to: microstate_names) {
-              ofs << from << " " << to << " " << trans_prob(from, to) << "\n";
-            }
-          }
-        }
-
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob,
@@ -237,6 +233,13 @@ namespace Clustering {
         std::vector<std::size_t> traj_old = traj;
         logger(std::cout) << "  lumping trajectory" << std::endl;
         traj = lumped_trajectory(traj, sinks);
+        for (auto from_to: sinks) {
+          std::size_t from = from_to.first;
+          std::size_t to = from_to.second;
+          if (from != to) {
+            lumping[from] = to;
+          }
+        }
         // check convergence
         if (traj_old == traj) {
           break;
@@ -245,7 +248,7 @@ namespace Clustering {
       if (iter == MAX_ITER) {
         throw std::runtime_error(stringprintf("reached max. no. of iterations for Q_min convergence: %d", iter));
       } else {
-        return traj;
+        return std::make_tuple(traj, lumping);
       }
     }
   } // end namespace MPP
