@@ -60,9 +60,9 @@ int main(int argc, char* argv[]) {
     // optional
     ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.1f"),
           "(optional): basename of input files (default: clust.\%0.1f).")
-    ("min", b_po::value<float>()->default_value(0.1f), "(optional): minimum free energy (default: 0.1).")
-    ("max", b_po::value<float>()->default_value(8.0f), "(optional): maximum free energy (default: 8.0).")
-    ("step", b_po::value<float>()->default_value(0.1f), "(optional): minimum free energy (default: 0.1).")
+    ("min", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
+    ("max", b_po::value<float>()->default_value(8.0f, "8.0"), "(optional): maximum free energy (default: 8.0).")
+    ("step", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
     ("minpop,p", b_po::value<uint>()->default_value(1),
           "(optional): minimum population of node to be considered for network (default: 1).")
     // defaults
