@@ -95,15 +95,21 @@ void density_main(boost::program_options::variables_map args) {
   if (args.count("free-energy-input")) {
     Clustering::logger(std::cout) << "re-using free energy data." << std::endl;
     free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
-  } else if (args.count("free-energy") || args.count("output")) {
-    Clustering::logger(std::cout) << "calculating free energies" << std::endl;
+  } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
+    Clustering::logger(std::cout) << "calculating populations" << std::endl;
     #ifdef DC_USE_OPENCL
-    free_energies = calculate_free_energies(
-                      DC_OpenCL::calculate_populations(radius));
+      std::vector<std::size_t> pops = DC_OpenCL::calculate_poputions(radius);
     #else
-    free_energies = calculate_free_energies(
-                      calculate_populations(coords, n_rows, n_cols, radius));
+      std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
     #endif
+    if (args.count("population")) {
+      std::ofstream ofs(args["population"].as<std::string>());
+      for (std::size_t p: pops) {
+        ofs << p << "\n";
+      }
+    }
+    Clustering::logger(std::cout) << "calculating free energies" << std::endl;
+    free_energies = calculate_free_energies(pops);
     if (args.count("free-energy")) {
       std::ofstream ofs(args["free-energy"].as<std::string>());
       ofs << std::scientific;
