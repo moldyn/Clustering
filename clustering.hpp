@@ -7,9 +7,9 @@ template <typename NUM>
 std::vector<NUM>
 read_single_column(std::string filename);
 
-//TODO doc
-std::vector<std::size_t>
-read_clustered_trajectory(std::string filename);
+////TODO doc
+//std::vector<std::size_t>
+//read_clustered_trajectory(std::string filename);
 
 std::vector<float>
 read_free_energies(std::string filename);

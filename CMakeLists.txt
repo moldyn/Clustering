@@ -77,3 +77,7 @@ endif()
 add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)
 target_link_libraries(network_builder ${Boost_LIBRARIES})
 
+add_executable(state_filter state_filter.cpp)
+target_link_libraries(state_filter ${Boost_LIBRARIES})
+
+

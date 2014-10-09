@@ -41,10 +41,10 @@ write_single_column(std::string filename, std::vector<NUM> dat) {
   }
 }
 
-std::vector<std::size_t>
-read_clustered_trajectory(std::string filename) {
-  return read_single_column<std::size_t>(filename);
-}
+//std::vector<std::size_t>
+//read_clustered_trajectory(std::string filename) {
+//  return read_single_column<std::size_t>(filename);
+//}
 
 std::vector<float>
 read_free_energies(std::string filename) {

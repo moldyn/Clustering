@@ -1,5 +1,4 @@
 
-#include "network_builder.hpp"
 #include "tools.hpp"
 #include "logger.hpp"
 
@@ -9,43 +8,6 @@
 #include <unordered_set>
 
 #include <boost/program_options.hpp>
-
-
-std::vector<uint>
-read_clustered_trajectory(std::string filename) {
-  std::vector<uint> traj;
-  std::ifstream ifs(filename);
-  if (ifs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    while (ifs.good()) {
-      uint buf;
-      ifs >> buf;
-      if ( ! ifs.fail()) {
-        traj.push_back(buf);
-      }
-    }
-  }
-  return traj;
-}
-
-
-void
-write_clustered_trajectory(std::string filename, std::vector<uint> traj) {
-  std::ofstream ofs(filename);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    for (uint c: traj) {
-      ofs << c << "\n";
-    }
-  }
-}
-
-
-////////
 
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
@@ -63,7 +25,7 @@ int main(int argc, char* argv[]) {
     ("min", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
     ("max", b_po::value<float>()->default_value(8.0f, "8.0"), "(optional): maximum free energy (default: 8.0).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
-    ("minpop,p", b_po::value<uint>()->default_value(1),
+    ("minpop,p", b_po::value<std::size_t>()->default_value(1),
           "(optional): minimum population of node to be considered for network (default: 1).")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
@@ -90,15 +52,15 @@ int main(int argc, char* argv[]) {
   float d_max = args["max"].as<float>();
   float d_step = args["step"].as<float>();
   std::string basename = args["basename"].as<std::string>();
-  uint minpop = args["minpop"].as<uint>();
+  std::size_t minpop = args["minpop"].as<std::size_t>();
 
-  std::set<std::pair<uint, uint>> network;
-  std::map<uint, uint> pops;
-  std::map<uint, float> free_energies;
+  std::set<std::pair<std::size_t, std::size_t>> network;
+  std::map<std::size_t, std::size_t> pops;
+  std::map<std::size_t, float> free_energies;
 
-  std::vector<uint> cl_next = read_clustered_trajectory(stringprintf(basename, d_min));
-  std::vector<uint> cl_now;
-  uint max_id;
+  std::vector<std::size_t> cl_next = read_clustered_trajectory(stringprintf(basename, d_min));
+  std::vector<std::size_t> cl_now;
+  std::size_t max_id;
   std::size_t n_rows = cl_next.size();
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << d << std::endl;
@@ -130,7 +92,7 @@ int main(int argc, char* argv[]) {
   // if minpop given: delete nodes and edges not fulfilling min. population criterium
   if (minpop > 1) {
     Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
-    std::unordered_set<uint> removals;
+    std::unordered_set<std::size_t> removals;
     auto pop_it = pops.begin();
     Clustering::logger(std::cout) << "  ... search nodes to remove" << std::endl;
     while (pop_it != pops.end()) {
@@ -144,8 +106,8 @@ int main(int argc, char* argv[]) {
     Clustering::logger(std::cout) << "  ... search edges to remove" << std::endl;
     auto net_it = network.begin();
     while (net_it != network.end()) {
-      uint a = net_it->first;
-      uint b = net_it->second;
+      std::size_t a = net_it->first;
+      std::size_t b = net_it->second;
       if (removals.count(a) > 0 || removals.count(b) > 0) {
         network.erase(net_it++);
       } else {
@@ -176,7 +138,7 @@ int main(int argc, char* argv[]) {
       exit(EXIT_FAILURE);
     } else {
       for (auto node_pop: pops) {
-        uint key = node_pop.first;
+        std::size_t key = node_pop.first;
         ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
       }
     }

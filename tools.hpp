@@ -21,6 +21,14 @@
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
 #endif
 
+//TODO doc
+std::vector<std::size_t>
+read_clustered_trajectory(std::string filename);
+
+//TODO doc
+void
+write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
+
 // read coordinates from space-separated ASCII file.
 // will write data with precision of NUM-type into memory.
 // format: [row * n_cols + col]
