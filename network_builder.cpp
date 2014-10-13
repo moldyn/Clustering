@@ -143,6 +143,22 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+  // TODO: save 'leafs'
+  {
+    Clustering::logger(std::cout) << "saving leafs, i.e. tree end nodes" << std::endl;
+    std::ofstream ofs("network_leafs.dat");
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file 'network_leafs.dat'" << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+/////////
+//for to_from pair in nodes:
+//  insert from -> leafs-set
+//  if 'to' in leafs-set:
+//    del from leafs-set
+//    insert to -> leafs-set
+    }
+  }
   return 0;
 }
 
