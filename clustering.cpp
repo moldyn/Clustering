@@ -41,11 +41,6 @@ write_single_column(std::string filename, std::vector<NUM> dat) {
   }
 }
 
-//std::vector<std::size_t>
-//read_clustered_trajectory(std::string filename) {
-//  return read_single_column<std::size_t>(filename);
-//}
-
 std::vector<float>
 read_free_energies(std::string filename) {
   return read_single_column<float>(filename);
@@ -208,8 +203,17 @@ void mpp_main(boost::program_options::variables_map args) {
   float q_min_step = args["qmin-step"].as<float>();
   int lagtime = args["lagtime"].as<int>();
   Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
+  std::vector<std::size_t> concat_limits;
+  if (args.count("concat-limits")) {
+    concat_limits = read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+  } else if (args.count("concat-nframes")) {
+    std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+    for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
+      concat_limits.push_back(i);
+    }
+  }
   for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-    auto traj_sinks = fixed_metastability_clustering(traj, q_min, lagtime, free_energy);
+    auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
     // write trajectory at current Qmin level to file
     traj = std::get<0>(traj_sinks);
     write_single_column(stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
@@ -225,9 +229,9 @@ void mpp_main(boost::program_options::variables_map args) {
       max_qmin[id] = q_min;
     }
   }
-  write_map<std::size_t, std::size_t>(stringprintf("%s_transitions.dat", basename.c_str()), transitions);
-  write_map<std::size_t, std::size_t>(stringprintf("%s_max_pop.dat", basename.c_str()), max_pop);
-  write_map<std::size_t, float>(stringprintf("%s_max_qmin.dat", basename.c_str()), max_qmin);
+  write_map<std::size_t, std::size_t>(basename + "_transitions.dat", transitions);
+  write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
+  write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
 }
 
 int main(int argc, char* argv[]) {
@@ -307,6 +311,9 @@ int main(int argc, char* argv[]) {
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
+    ("concat-nframes", b_po::value<std::size_t>(), "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+      "input (file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
     // defaults
     ("basename", b_po::value<std::string>()->default_value("mpp"), "basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),

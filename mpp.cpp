@@ -7,13 +7,30 @@ namespace Clustering {
   namespace MPP {
     SparseMatrixF
     transition_counts(std::vector<std::size_t> trajectory,
+                      std::vector<std::size_t> concat_limits,
                       std::size_t n_lag_steps) {
+      if (n_lag_steps == 0) {
+        std::cerr << "error: lagtime of 0 does not make any sense for MPP clustering" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      std::vector<std::size_t>::iterator next_limit = concat_limits.begin();
       std::size_t i_max = (*std::max_element(trajectory.begin(), trajectory.end()));
       SparseMatrixF count_matrix(i_max+1, i_max+1);
       for (std::size_t i=0; i < trajectory.size() - n_lag_steps; ++i) {
         std::size_t from = trajectory[i];
         std::size_t to = trajectory[i+n_lag_steps];
-        count_matrix(from, to) += 1;
+        if (next_limit != concat_limits.end()) {
+          // check for sub-trajectory limits
+          if (i+n_lag_steps < (*next_limit)) {
+            count_matrix(from, to) += 1;
+          } else if (i+1 == (*next_limit)) {
+            ++next_limit;
+          }
+        } else {
+          // either last sub-trajectory or everything is
+          // a single, continuous trajectory
+          count_matrix(from, to) += 1;
+        }
       }
       return count_matrix;
     }
@@ -196,9 +213,15 @@ namespace Clustering {
       return trajectory;
     }
 
+
+
+//TODO: barriers for concatenated trajectories
+
+
     // run clustering for given Q_min value
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
+                                   std::vector<std::size_t> concat_limits,
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy) {
@@ -215,7 +238,7 @@ namespace Clustering {
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
-                                     transition_counts(traj, lagtime),
+                                     transition_counts(traj, concat_limits, lagtime),
                                      microstate_names);
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
