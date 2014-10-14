@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
   float d_max = args["max"].as<float>();
   float d_step = args["step"].as<float>();
   std::string basename = args["basename"].as<std::string>();
+  std::string remapped_name = "remapped_" + basename;
   std::size_t minpop = args["minpop"].as<std::size_t>();
 
   std::set<std::pair<std::size_t, std::size_t>> network;
@@ -65,7 +66,7 @@ int main(int argc, char* argv[]) {
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << d << std::endl;
     cl_now = cl_next;
-    write_clustered_trajectory("remapped_" + stringprintf(basename, d), cl_now);
+    write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
     max_id = *std::max_element(cl_now.begin(), cl_now.end());
     cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
     for (std::size_t i=0; i < n_rows; ++i) {
@@ -82,7 +83,7 @@ int main(int argc, char* argv[]) {
   // handle last trajectory
   Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
   cl_now = cl_next;
-  write_clustered_trajectory("remapped_" + stringprintf(basename, d_max), cl_now);
+  write_clustered_trajectory(stringprintf(remapped_name, d_max), cl_now);
   for (std::size_t i=0; i < n_rows; ++i) {
     if (cl_now[i] != 0) {
       ++pops[cl_now[i]];
@@ -143,7 +144,8 @@ int main(int argc, char* argv[]) {
       }
     }
   }
-  // TODO: save 'leafs'
+  // save network 'leafs', i.e. end nodes
+  std::set<std::size_t> leafs;
   {
     Clustering::logger(std::cout) << "saving leafs, i.e. tree end nodes" << std::endl;
     std::ofstream ofs("network_leafs.dat");
@@ -151,12 +153,43 @@ int main(int argc, char* argv[]) {
       std::cerr << "error: cannot open file 'network_leafs.dat'" << std::endl;
       exit(EXIT_FAILURE);
     } else {
-/////////
-//for to_from pair in nodes:
-//  insert from -> leafs-set
-//  if 'to' in leafs-set:
-//    del from leafs-set
-//    insert to -> leafs-set
+      std::set<std::size_t> srcs;
+      for (auto from_to: network) {
+        std::size_t src = from_to.first;
+        std::size_t target = from_to.second;
+        srcs.insert(src);
+        if ( ! srcs.count(target)) {
+          leafs.insert(target);
+        }
+        if (leafs.count(src)) {
+          leafs.erase(src);
+        }
+      }
+      for (std::size_t leaf: leafs) {
+        ofs << leaf << "\n";
+      }
+    }
+  }
+  // save end-node traj
+  {
+    Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
+    std::ofstream ofs("network_end_node_traj.dat");
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file 'network_end_node_traj.dat' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      std::vector<std::size_t> traj(n_rows);
+      for (float d=d_min; d < d_max+d_step; d += d_step) {
+        std::vector<std::size_t> cl_now = read_clustered_trajectory(stringprintf(remapped_name, d));
+        for (std::size_t i=0; i < n_rows; ++i) {
+          if (leafs.count(cl_now[i])) {
+            traj[i] = cl_now[i];
+          }
+        }
+      }
+      for (std::size_t i: traj) {
+        ofs << i << "\n";
+      }
     }
   }
   return 0;
