@@ -1,12 +1,16 @@
 
 #include "clustering.hpp"
 
-#include <omp.h>
-
-#include "tools.hpp"
 #include "density_clustering.hpp"
+#ifdef DC_USE_MPI
+  #include "density_clustering_mpi.hpp"
+#endif
+
 #include "mpp.hpp"
 #include "logger.hpp"
+#include "tools.hpp"
+
+#include <omp.h>
 
 template <typename NUM>
 std::vector<NUM>
@@ -73,6 +77,9 @@ microstate_populations(std::vector<std::size_t> traj) {
 }
 
 void density_main(boost::program_options::variables_map args) {
+#ifdef DC_USE_MPI
+  DC_MPI::density_main(args);
+#else
   using namespace Clustering::Density;
   const std::string input_file = args["file"].as<std::string>();
   const float radius = args["radius"].as<float>();
@@ -82,9 +89,6 @@ void density_main(boost::program_options::variables_map args) {
   std::size_t n_cols;
   Clustering::logger(std::cout) << "reading coords" << std::endl;
   std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
-  #ifdef DC_USE_OPENCL
-  DC_OpenCL::setup(coords, n_rows, n_cols);
-  #endif
   //// free energies
   std::vector<float> free_energies;
   if (args.count("free-energy-input")) {
@@ -92,11 +96,7 @@ void density_main(boost::program_options::variables_map args) {
     free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
   } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
     Clustering::logger(std::cout) << "calculating populations" << std::endl;
-    #ifdef DC_USE_OPENCL
-      std::vector<std::size_t> pops = DC_OpenCL::calculate_poputions(radius);
-    #else
-      std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
-    #endif
+    std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
     if (args.count("population")) {
       std::ofstream ofs(args["population"].as<std::string>());
       for (std::size_t p: pops) {
@@ -185,6 +185,7 @@ void density_main(boost::program_options::variables_map args) {
   }
   Clustering::logger(std::cout) << "freeing coords" << std::endl;
   free_coords(coords);
+#endif
 }
 
 void mpp_main(boost::program_options::variables_map args) {

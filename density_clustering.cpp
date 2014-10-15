@@ -2,9 +2,6 @@
 #include "tools.hpp"
 #include "logger.hpp"
 #include "density_clustering.hpp"
-#ifdef DC_USE_OPENCL
-  #include "density_clustering_opencl.hpp"
-#endif
 
 #include <algorithm>
 
