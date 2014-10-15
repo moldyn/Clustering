@@ -7,6 +7,8 @@
 #include <iterator>
 #include <map>
 
+namespace Clustering {
+namespace Tools {
 
 template <typename NUM>
 std::tuple<NUM*, std::size_t, std::size_t>
@@ -81,4 +83,54 @@ void
 free_coords(NUM* coords) {
   _mm_free(coords);
 }
+
+template <typename KEY, typename VAL>
+void
+write_map(std::string filename, std::map<KEY, VAL> mapping) {
+  std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  for (auto key_val: mapping) {
+    ofs << key_val.first << " " << key_val.second << "\n";
+  }
+}
+
+template <typename NUM>
+std::vector<NUM>
+read_single_column(std::string filename) {
+  std::vector<NUM> dat;
+  std::ifstream ifs(filename);
+  if (ifs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    while (ifs.good()) {
+      NUM buf;
+      ifs >> buf;
+      if ( ! ifs.fail()) {
+        dat.push_back(buf);
+      }
+    }
+  }
+  return dat;
+}
+
+
+template <typename NUM>
+void
+write_single_column(std::string filename, std::vector<NUM> dat) {
+  std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  for (NUM i: dat) {
+    ofs << i << "\n";
+  }
+}
+
+} // end namespace Tools
+} // end namespace Clustering
 

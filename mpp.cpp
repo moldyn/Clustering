@@ -213,11 +213,6 @@ namespace Clustering {
       return trajectory;
     }
 
-
-
-//TODO: barriers for concatenated trajectories
-
-
     // run clustering for given Q_min value
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
@@ -234,7 +229,7 @@ namespace Clustering {
       for (iter=0; iter < MAX_ITER; ++iter) {
         // reset names in case of vanished states (due to lumping)
         microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
-        logger(std::cout) << "iteration " << iter+1 << " for q_min " << stringprintf("%0.2f", q_min) << std::endl;
+        logger(std::cout) << "iteration " << iter+1 << " for q_min " << Clustering::Tools::stringprintf("%0.2f", q_min) << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
@@ -269,10 +264,57 @@ namespace Clustering {
         }
       }
       if (iter == MAX_ITER) {
-        throw std::runtime_error(stringprintf("reached max. no. of iterations for Q_min convergence: %d", iter));
+        throw std::runtime_error(Clustering::Tools::stringprintf("reached max. no. of iterations for Q_min convergence: %d", iter));
       } else {
         return std::make_tuple(traj, lumping);
       }
+    }
+
+    void
+    main(boost::program_options::variables_map args) {
+      std::string basename = args["basename"].as<std::string>();
+      // load initial trajectory
+      std::map<std::size_t, std::size_t> transitions;
+      std::map<std::size_t, std::size_t> max_pop;
+      std::map<std::size_t, float> max_qmin;
+      Clustering::logger(std::cout) << "loading microstates" << std::endl;
+      std::vector<std::size_t> traj = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
+      Clustering::logger(std::cout) << "loading free energies" << std::endl;
+      std::vector<float> free_energy = Clustering::Tools::read_free_energies(args["input"].as<std::string>());
+      float q_min_from = args["qmin-from"].as<float>();
+      float q_min_to = args["qmin-to"].as<float>();
+      float q_min_step = args["qmin-step"].as<float>();
+      int lagtime = args["lagtime"].as<int>();
+      Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
+      std::vector<std::size_t> concat_limits;
+      if (args.count("concat-limits")) {
+        concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+      } else if (args.count("concat-nframes")) {
+        std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+        for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
+          concat_limits.push_back(i);
+        }
+      }
+      for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
+        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
+        // write trajectory at current Qmin level to file
+        traj = std::get<0>(traj_sinks);
+        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
+        // save transitions (i.e. lumping of states)
+        std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
+        transitions.insert(sinks.begin(), sinks.end());
+        // write microstate populations to file
+        std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
+        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), pops);
+        // collect max. pops + max. q_min per microstate
+        for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
+          max_pop[id] = pops[id];
+          max_qmin[id] = q_min;
+        }
+      }
+      Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_transitions.dat", transitions);
+      Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
+      Clustering::Tools::write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
     }
   } // end namespace MPP
 } // end namespace Clustering

@@ -92,7 +92,7 @@ target_link_libraries(network_builder ${Boost_LIBRARIES})
 add_executable(state_filter state_filter.cpp)
 target_link_libraries(state_filter ${Boost_LIBRARIES})
 
-if (DC_USE_MPI)
+if(DC_USE_MPI)
   find_package(MPI REQUIRED)
   if (MPI_CXX_FOUND)
     include_directories("${MPI_CXX_INCLUDE_PATH")

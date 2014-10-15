@@ -289,6 +289,115 @@ namespace Clustering {
       }
       return clustering;
     }
+
+    void
+    main(boost::program_options::variables_map args) {
+      using namespace Clustering::Tools;
+      const std::string input_file = args["file"].as<std::string>();
+      const float radius = args["radius"].as<float>();
+      // setup coords
+      float* coords;
+      std::size_t n_rows;
+      std::size_t n_cols;
+      Clustering::logger(std::cout) << "reading coords" << std::endl;
+      std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
+      //// free energies
+      std::vector<float> free_energies;
+      if (args.count("free-energy-input")) {
+        Clustering::logger(std::cout) << "re-using free energy data." << std::endl;
+        free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
+      } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
+        Clustering::logger(std::cout) << "calculating populations" << std::endl;
+        std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
+        if (args.count("population")) {
+          std::ofstream ofs(args["population"].as<std::string>());
+          for (std::size_t p: pops) {
+            ofs << p << "\n";
+          }
+        }
+        Clustering::logger(std::cout) << "calculating free energies" << std::endl;
+        free_energies = calculate_free_energies(pops);
+        if (args.count("free-energy")) {
+          std::ofstream ofs(args["free-energy"].as<std::string>());
+          ofs << std::scientific;
+          for (float f: free_energies) {
+            ofs << f << "\n";
+          }
+        }
+      }
+      //// nearest neighbors
+      Neighborhood nh;
+      Neighborhood nh_high_dens;
+      if (args.count("nearest-neighbors-input")) {
+        Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
+        std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
+        if (ifs.fail()) {
+          std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          std::size_t i=0;
+          while (ifs.good()) {
+            std::size_t buf1;
+            float buf2;
+            std::size_t buf3;
+            float buf4;
+            ifs >> buf1;
+            ifs >> buf2;
+            ifs >> buf3;
+            ifs >> buf4;
+            if ( ! ifs.fail()) {
+              nh[i] = std::pair<std::size_t, float>(buf1, buf2);
+              nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
+              ++i;
+            }
+          }
+        }
+      } else if (args.count("nearest-neighbors") || args.count("output")) {
+        Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
+        auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+        nh = std::get<0>(nh_tuple);
+        nh_high_dens = std::get<1>(nh_tuple);
+        if (args.count("nearest-neighbors")) {
+          std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
+          auto p = nh.begin();
+          auto p_hd = nh_high_dens.begin();
+          while (p != nh.end() && p_hd != nh_high_dens.end()) {
+            // first: key (not used)
+            // second: neighbor
+            // second.first: id; second.second: squared dist
+            ofs << p->second.first    << " " << p->second.second    << " "
+                << p_hd->second.first << " " << p_hd->second.second << "\n";
+            ++p;
+            ++p_hd;
+          }
+        }
+      }
+      //// clustering
+      if (args.count("output")) {
+        const std::string output_file = args["output"].as<std::string>();
+        std::vector<std::size_t> clustering;
+        if (args.count("input")) {
+          Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
+          clustering = read_clustered_trajectory(args["input"].as<std::string>());
+        } else {
+          Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
+          if (args.count("threshold") == 0) {
+            std::cerr << "error: need threshold value for initial clustering" << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          float threshold = args["threshold"].as<float>();
+          clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
+        }
+        if ( ! args["only-initial"].as<bool>()) {
+          Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
+          clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
+        }
+        Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+        write_single_column<std::size_t>(output_file, clustering);
+      }
+      Clustering::logger(std::cout) << "freeing coords" << std::endl;
+      free_coords(coords);
+    }
   } // end namespace Density
 } // end namespace Clustering
 

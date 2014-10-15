@@ -10,6 +10,7 @@
 #include <boost/program_options.hpp>
 
 int main(int argc, char* argv[]) {
+  using namespace Clustering::Tools;
   namespace b_po = boost::program_options;
   b_po::variables_map args;
   b_po::options_description desc (std::string(argv[0]).append(

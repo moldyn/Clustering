@@ -3,6 +3,9 @@
 
 #include <stdarg.h>
 
+namespace Clustering {
+namespace Tools {
+
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename) {
   std::vector<std::size_t> traj;
@@ -59,4 +62,25 @@ stringprintf(const std::string& str, ...) {
   free(buf);
   return result;
 }
+
+std::vector<float>
+read_free_energies(std::string filename) {
+  return read_single_column<float>(filename);
+}
+
+std::map<std::size_t, std::size_t>
+microstate_populations(std::vector<std::size_t> traj) {
+  std::map<std::size_t, std::size_t> populations;
+  for (std::size_t state: traj) {
+    if (populations.count(state) == 0) {
+      populations[state] = 1;
+    } else {
+      ++populations[state];
+    }
+  }
+  return populations;
+}
+
+} // end namespace Tools
+} // end namespace Clustering
 

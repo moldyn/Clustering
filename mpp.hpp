@@ -5,6 +5,7 @@
 #include <set>
 #include <stdexcept>
 
+#include <boost/program_options.hpp>
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 #include <boost/numeric/ublas/io.hpp>
 
@@ -66,6 +67,18 @@ namespace Clustering {
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy);
+
+    /*
+     * run MPP clustering
+     *  args:
+     *   input (string)
+     *   lagtime (int)
+     *   qmin-from (float)
+     *   qmin-to (float)
+     *   qmin-step (float)
+     */
+    void
+    main(boost::program_options::variables_map args);
   } // end namespace Clustering::MPP
 } // end namespace Clustering
 

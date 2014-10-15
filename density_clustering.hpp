@@ -6,6 +6,8 @@
 #include <utility>
 #include <string>
 
+#include <boost/program_options.hpp>
+
 namespace Clustering {
   namespace Density {
     using FreeEnergy = std::pair<std::size_t, float>;
@@ -63,6 +65,10 @@ namespace Clustering {
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
+
+    // TODO doc
+    void
+    main(boost::program_options::variables_map args);
   } // end namespace Density
 } // end namespace Clustering
 

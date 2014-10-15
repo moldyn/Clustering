@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <tuple>
 #include <memory>
 #include <iostream>
@@ -21,6 +22,8 @@
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
 #endif
 
+namespace Clustering {
+namespace Tools {
 //TODO doc
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename);
@@ -28,6 +31,27 @@ read_clustered_trajectory(std::string filename);
 //TODO doc
 void
 write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
+
+//TODO doc
+template <typename NUM>
+std::vector<NUM>
+read_single_column(std::string filename);
+
+//TODO doc
+template <typename NUM>
+void
+write_single_column(std::string filename, std::vector<NUM> dat);
+
+template <typename KEY, typename VAL>
+void
+write_map(std::string filename, std::map<KEY, VAL> mapping);
+
+std::vector<float>
+read_free_energies(std::string filename);
+
+//TODO doc
+std::map<std::size_t, std::size_t>
+microstate_populations(std::vector<std::size_t> traj);
 
 // read coordinates from space-separated ASCII file.
 // will write data with precision of NUM-type into memory.
@@ -43,6 +67,9 @@ void
 free_coords(NUM* coords);
 
 std::string stringprintf(const std::string& str, ...);
+
+} // end namespace 'Tools'
+} // end namespace 'Clustering'
 
 // template implementations
 #include "tools.hxx"
