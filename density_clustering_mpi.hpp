@@ -4,18 +4,24 @@
 
 #include <vector>
 
-namespace DC_MPI {
+#include <boost/program_options.hpp>
 
-void
-density_main(boost::program_options::variables_map args);
-
-void
-setup();
+namespace Clustering {
+namespace Density {
+namespace MPI {
 
 std::vector<std::size_t>
 calculate_populations(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
-                      const float radius);
+                      const float radius,
+                      const int mpi_n_nodes,
+                      const int mpi_node_id);
 
-} // end namespace DC_MPI
+void
+main(boost::program_options::variables_map args);
+
+} // end namespace MPI
+} // end namespace Density
+} // end namespace Clustering
+

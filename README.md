@@ -69,7 +69,20 @@ however, every computer is different and it is worthwhile to do some benchmarkin
 
 
 
-### get it running with the intel compiler
+### MPI
+
+/usr/bin/mpirun -n 2 -bind-to-core -bynode -cpus-per-proc 2 -report-bindings   clustering_mpi density -f test.dat -r 0.5 -p pop_mpi -d fe_mpi -v -n 2
+
+
+
+
+
+### get it running with the intel compiler (**ATTENTION**: currently not supported!)
+
+This is currently not supported, but preliminary intel compiler support was implemented
+and is currently commented out in CMakeLists.txt.
+If you really want to get your hands dirty and/or need support for the intel compiler,
+you can use the code and adapt it to your needs.
 
 * be sure to have a BOOST version compiled with your intel compiler
   (i.e. not the standard-lib compiled with gcc)
@@ -83,5 +96,4 @@ however, every computer is different and it is worthwhile to do some benchmarkin
                -DBoost\_NO\_BOOST\_CMAKE=ON
                -DBOOST\_INCLUDEDIR=/vol/home/fs172/lib/bmdphi1/include/
                -DBOOST\_LIBRARYDIR=/vol/home/fs172/lib/bmdphi1/lib/
-
 

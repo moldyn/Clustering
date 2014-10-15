@@ -1,5 +1,5 @@
 
-#include "clustering.hpp"
+#include "config.hpp"
 
 #include "density_clustering.hpp"
 #ifdef DC_USE_MPI
@@ -11,6 +11,7 @@
 #include "tools.hpp"
 
 #include <omp.h>
+#include <boost/program_options.hpp>
 
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
@@ -89,7 +90,8 @@ int main(int argc, char* argv[]) {
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
-    ("concat-nframes", b_po::value<std::size_t>(), "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-nframes", b_po::value<std::size_t>(),
+      "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
       "input (file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
     // defaults
@@ -135,7 +137,13 @@ int main(int argc, char* argv[]) {
   // run clustering subroutines
   switch(mode) {
     case DENSITY:
-      Clustering::Density::main(args);
+      #ifdef DC_USE_MPI
+        std::cout << "MPI" << std::endl;
+        Clustering::Density::MPI::main(args);
+      #else
+        std::cout << "no MPI" << std::endl;
+        Clustering::Density::main(args);
+      #endif
       break;
     case MPP:
       Clustering::MPP::main(args);

@@ -76,12 +76,22 @@ endif()
 #endif(DC_USE_OPENCL)
 
 
+if(DC_USE_MPI)
+  set (DC_USE_MPI "#define DC_USE_MPI")
+  find_package(MPI REQUIRED)
+  if (MPI_CXX_FOUND)
+    message("using MPI for parallelization")
+  else()
+    message(SEND_ERROR "no MPI for C++ found!")
+  endif()
+endif()
+
+
 find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
-
 
 set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp mpp.cpp tools.cpp logger.cpp)
 set(CLUSTERING_BINARIES network_builder state_filter)
@@ -93,19 +103,14 @@ add_executable(state_filter state_filter.cpp)
 target_link_libraries(state_filter ${Boost_LIBRARIES})
 
 if(DC_USE_MPI)
-  find_package(MPI REQUIRED)
-  if (MPI_CXX_FOUND)
-    include_directories("${MPI_CXX_INCLUDE_PATH")
-    add_executable(clustering_mpi ${CLUSTERING_SRCS} density_clustering_mpi.cpp)
-    target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES})
-    set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_mpi)
-  else()
-    message(SEND_ERROR "no MPI for C++ found!")
-  endif()
+  include_directories("${MPI_CXX_INCLUDE_PATH}")
+  add_executable(clustering_mpi ${CLUSTERING_SRCS} density_clustering_mpi.cpp)
+  target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES})
+  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_mpi)
 else()
   add_executable(clustering ${CLUSTERING_SRCS})
   target_link_libraries(clustering ${Boost_LIBRARIES})
-    set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering)
+  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering)
 endif()
 
 install(TARGETS ${CLUSTERING_BINARIES} RUNTIME DESTINATION .)

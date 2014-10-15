@@ -120,11 +120,14 @@ read_single_column(std::string filename) {
 
 template <typename NUM>
 void
-write_single_column(std::string filename, std::vector<NUM> dat) {
+write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format) {
   std::ofstream ofs(filename);
   if (ofs.fail()) {
     std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
     exit(EXIT_FAILURE);
+  }
+  if (with_scientific_format) {
+    ofs << std::scientific;
   }
   for (NUM i: dat) {
     ofs << i << "\n";

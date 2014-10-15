@@ -40,7 +40,7 @@ read_single_column(std::string filename);
 //TODO doc
 template <typename NUM>
 void
-write_single_column(std::string filename, std::vector<NUM> dat);
+write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format=false);
 
 template <typename KEY, typename VAL>
 void
