@@ -22,33 +22,67 @@ namespace MPI {
                         const float radius,
                         const int mpi_n_nodes,
                         const int mpi_node_id) {
-    //TODO message passing
-    std::vector<std::size_t> pops(n_rows, 1);
-    const float rad2 = radius * radius;
-    std::size_t i, j, k;
-    float dist, c;
-    ASSUME_ALIGNED(coords);
-    #pragma omp parallel for default(none) private(i,j,k,c,dist) \
-                             firstprivate(n_rows,n_cols,rad2) \
-                             shared(coords,pops) \
-                             schedule(dynamic,1024)
-    for (i=0; i < n_rows; ++i) {
-      for (j=i+1; j < n_rows; ++j) {
-        dist = 0.0f;
-        #pragma simd reduction(+:dist)
-        for (k=0; k < n_cols; ++k) {
-          c = coords[i*n_cols+k] - coords[j*n_cols+k];
-          dist += c*c;
-        }
-        if (dist < rad2) {
-          #pragma omp atomic
-          pops[i] += 1;
-          #pragma omp atomic
-          pops[j] += 1;
+    unsigned int rows_per_chunk = n_rows / mpi_n_nodes;
+    unsigned int i_row_from = mpi_node_id * rows_per_chunk;
+    unsigned int i_row_to = i_row_from + rows_per_chunk;
+    // last process has to do slightly more work
+    // in case of uneven separation of workload
+    if (mpi_node_id == mpi_n_nodes-1 ) {
+      i_row_to = n_rows;
+    }
+    std::vector<unsigned int> pops(n_rows, 0);
+    // parallel computation of pops using shared memory
+    {
+      const float rad2 = radius * radius;
+      std::size_t i, j, k;
+      float dist, c;
+      ASSUME_ALIGNED(coords);
+      #pragma omp parallel for default(none) private(i,j,k,c,dist) \
+                               firstprivate(i_row_from,i_row_to,n_rows,n_cols,rad2) \
+                               shared(coords,pops) \
+                               schedule(dynamic,1024)
+      for (i=i_row_from; i < i_row_to; ++i) {
+        for (j=i+1; j < n_rows; ++j) {
+          dist = 0.0f;
+          #pragma simd reduction(+:dist)
+          for (k=0; k < n_cols; ++k) {
+            c = coords[i*n_cols+k] - coords[j*n_cols+k];
+            dist += c*c;
+          }
+          if (dist < rad2) {
+            #pragma omp atomic
+            pops[i] += 1;
+            #pragma omp atomic
+            pops[j] += 1;
+          }
         }
       }
     }
-    return pops;
+    // accumulate pops in main process and send result to slaves
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (mpi_node_id == MAIN_PROCESS) {
+      // collect slave results
+      for (int slave_id=1; slave_id < mpi_n_nodes; ++slave_id) {
+        std::vector<unsigned int> pops_buf(n_rows);
+        MPI_Recv(pops_buf.data(), n_rows, MPI_UNSIGNED, slave_id, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (std::size_t i=0; i < n_rows; ++i) {
+          pops[i] += pops_buf[i];
+        }
+      }
+    } else {
+      // send pops from slaves
+      MPI_Send(pops.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, 0, MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    // broadcast accumulated pops to slaves
+    MPI_Bcast(pops.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    // cast unsigned int to size_t and add 1 for own structure
+    std::vector<std::size_t> pops_result(n_rows);
+    for (std::size_t i=0; i < n_rows; ++i) {
+      pops_result[i] = (std::size_t) pops[i] + 1;
+    }
+    return pops_result;
   }
 
   void
@@ -82,17 +116,15 @@ namespace MPI {
         Clustering::logger(std::cout) << "calculating populations" << std::endl;
       }
       std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius, n_nodes, node_id);
+      if (node_id == MAIN_PROCESS && args.count("population")) {
+        Clustering::Tools::write_single_column<std::size_t>(args["population"].as<std::string>(), pops);
+      }
       if (node_id == MAIN_PROCESS) {
-        if (args.count("population")) {
-          Clustering::Tools::write_single_column<std::size_t>(args["population"].as<std::string>(), pops);
-        }
         Clustering::logger(std::cout) << "calculating free energies" << std::endl;
-        free_energies = Clustering::Density::calculate_free_energies(pops);
-        if (args.count("free-energy")) {
-          Clustering::Tools::write_single_column<float>(args["free-energy"].as<std::string>(), free_energies, true);
-        }
-      } else {
-        //TODO communicate free_energies
+      }
+      free_energies = Clustering::Density::calculate_free_energies(pops);
+      if (node_id == MAIN_PROCESS && args.count("free-energy")) {
+        Clustering::Tools::write_single_column<float>(args["free-energy"].as<std::string>(), free_energies, true);
       }
     }
 

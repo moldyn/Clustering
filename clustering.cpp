@@ -138,10 +138,8 @@ int main(int argc, char* argv[]) {
   switch(mode) {
     case DENSITY:
       #ifdef DC_USE_MPI
-        std::cout << "MPI" << std::endl;
         Clustering::Density::MPI::main(args);
       #else
-        std::cout << "no MPI" << std::endl;
         Clustering::Density::main(args);
       #endif
       break;
