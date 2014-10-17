@@ -1,7 +1,6 @@
 
 #include "density_clustering_mpi.hpp"
 
-#include "density_clustering.hpp"
 #include "tools.hpp"
 #include "logger.hpp"
 
@@ -104,12 +103,10 @@ namespace MPI {
     if (mpi_node_id == mpi_n_nodes-1 ) {
       i_row_to = n_rows;
     }
-  //TODO MPI
-
     Neighborhood nh;
     Neighborhood nh_high_dens;
     // initialize neighborhood
-    for (std::size_t i=0; i < n_rows; ++i) {
+    for (std::size_t i=i_row_from; i < i_row_to; ++i) {
       nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
       nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
     }
@@ -119,10 +116,10 @@ namespace MPI {
     ASSUME_ALIGNED(coords);
     #pragma omp parallel for default(none) \
                              private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
-                             firstprivate(n_rows,n_cols) \
+                             firstprivate(i_row_from,i_row_to,n_rows,n_cols) \
                              shared(coords,nh,nh_high_dens,free_energy) \
                              schedule(dynamic, 2048)
-    for (i=0; i < n_rows; ++i) {
+    for (i=i_row_from; i < i_row_to; ++i) {
       mindist = std::numeric_limits<float>::max();
       mindist_high_dens = std::numeric_limits<float>::max();
       min_j = n_rows+1;
@@ -150,6 +147,12 @@ namespace MPI {
       nh[i] = Neighbor(min_j, mindist);
       nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
     }
+    // TODO: collect results in MAIN_PROCESS and broadcast to slaves
+    MPI_Barrier(MPI_COMM_WORLD);
+
+
+
+
     return std::make_tuple(nh, nh_high_dens);
   }
 
