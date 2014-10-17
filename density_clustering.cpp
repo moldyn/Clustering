@@ -92,7 +92,7 @@ namespace Clustering {
         mindist_high_dens = std::numeric_limits<float>::max();
         min_j = n_rows+1;
         min_j_high_dens = n_rows+1;
-        for (j=1; j < n_rows; ++j) {
+        for (j=0; j < n_rows; ++j) {
           if (i != j) {
             dist = 0.0f;
             #pragma simd reduction(+:dist)

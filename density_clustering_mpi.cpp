@@ -22,6 +22,9 @@ namespace MPI {
                         const float radius,
                         const int mpi_n_nodes,
                         const int mpi_node_id) {
+    //TODO change this to quadratically falling number of rows
+    //     per chunk due to uneven workload of first chunks
+    //     compared to last chunks (shorter j-loop!)
     unsigned int rows_per_chunk = n_rows / mpi_n_nodes;
     unsigned int i_row_from = mpi_node_id * rows_per_chunk;
     unsigned int i_row_to = i_row_from + rows_per_chunk;
@@ -85,6 +88,66 @@ namespace MPI {
     return pops_result;
   }
 
+
+  //TODO MPI
+  std::tuple<Neighborhood, Neighborhood>
+  nearest_neighbors(const float* coords,
+                    const std::size_t n_rows,
+                    const std::size_t n_cols,
+                    const std::vector<float>& free_energy,
+                    const int mpi_n_nodes,
+                    const int mpi_node_id) {
+
+    //TODO i_row_from, i_row_to
+
+    Neighborhood nh;
+    Neighborhood nh_high_dens;
+    // initialize neighborhood
+    for (std::size_t i=0; i < n_rows; ++i) {
+      nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+      nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+    }
+    // calculate nearest neighbors with distances
+    std::size_t i, j, c, min_j, min_j_high_dens;
+    float dist, d, mindist, mindist_high_dens;
+    ASSUME_ALIGNED(coords);
+    #pragma omp parallel for default(none) \
+                             private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
+                             firstprivate(n_rows,n_cols) \
+                             shared(coords,nh,nh_high_dens,free_energy) \
+                             schedule(dynamic, 2048)
+    for (i=0; i < n_rows; ++i) {
+      mindist = std::numeric_limits<float>::max();
+      mindist_high_dens = std::numeric_limits<float>::max();
+      min_j = n_rows+1;
+      min_j_high_dens = n_rows+1;
+      for (j=0; j < n_rows; ++j) {
+        if (i != j) {
+          dist = 0.0f;
+          #pragma simd reduction(+:dist)
+          for (c=0; c < n_cols; ++c) {
+            d = coords[i*n_cols+c] - coords[j*n_cols+c];
+            dist += d*d;
+          }
+          // direct neighbor
+          if (dist < mindist) {
+            mindist = dist;
+            min_j = j;
+          }
+          // next neighbor with higher density / lower free energy
+          if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
+            mindist_high_dens = dist;
+            min_j_high_dens = j;
+          }
+        }
+      }
+      nh[i] = Neighbor(min_j, mindist);
+      nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
+    }
+    return std::make_tuple(nh, nh_high_dens);
+  }
+
+
   void
   main(boost::program_options::variables_map args) {
     // initialize MPI
@@ -128,10 +191,9 @@ namespace MPI {
       }
     }
 
+    // TODO use mpi for following code, too
 
     // run the rest on a single node only
-    // TODO use mpi here, too
-
     if (node_id == MAIN_PROCESS) {
       //// nearest neighbors
       Neighborhood nh;
