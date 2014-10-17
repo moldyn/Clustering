@@ -89,7 +89,6 @@ namespace MPI {
   }
 
 
-  //TODO MPI
   std::tuple<Neighborhood, Neighborhood>
   nearest_neighbors(const float* coords,
                     const std::size_t n_rows,
@@ -97,8 +96,15 @@ namespace MPI {
                     const std::vector<float>& free_energy,
                     const int mpi_n_nodes,
                     const int mpi_node_id) {
-
-    //TODO i_row_from, i_row_to
+    unsigned int rows_per_chunk = n_rows / mpi_n_nodes;
+    unsigned int i_row_from = mpi_node_id * rows_per_chunk;
+    unsigned int i_row_to = i_row_from + rows_per_chunk;
+    // last process has to do slightly more work
+    // in case of uneven separation of workload
+    if (mpi_node_id == mpi_n_nodes-1 ) {
+      i_row_to = n_rows;
+    }
+  //TODO MPI
 
     Neighborhood nh;
     Neighborhood nh_high_dens;
