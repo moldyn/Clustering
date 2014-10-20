@@ -12,7 +12,47 @@ namespace MPI {
 
   namespace {
     const int MAIN_PROCESS = 0;
+
+    /*
+     * use no. of rows and no. of MPI nodes to calculate the optimal
+     * indices for equal load balancing on all machines to
+     * calculate an upper triangular matrix by a nested loop
+     * of the form
+     *   FOR i=0 TO n_rows
+     *     FOR j=i+1 TO n_rows
+     *       [...]
+     *
+     * the returned indices are for the initial index of the outer loop.
+     * the inner loop will be local.
+     * i.e. on every MPI node, the loop will be of the form
+     *   FOR i=indices[node_id] TO (is_last_node ? n_rows : indices[next_node])
+     *     FOR j=i+1 TO n_rows
+     *       [...]
+     *
+     * computation of optimal indices is heavily based on triangular summation
+     * (please recall the 'algorithm of young C.F. Gauss').
+     */
+    std::vector<std::size_t>
+    triangular_load_balance(std::size_t n_rows,
+                            std::size_t n_nodes) {
+      auto young_gauss = [](std::size_t n) -> std::size_t {
+        return n*(n+1) / 2;
+      };
+      std::size_t workload = young_gauss(n_rows) / n_nodes;
+      std::size_t last_index = 0;
+      std::vector<std::size_t> load_balanced_indices(n_nodes);
+      for (int i=n_nodes-1; i >= 0; --i) {
+        if (i == 0) {
+          load_balanced_indices[i] = 0;
+        } else {
+          last_index = (std::size_t) sqrt(2*(young_gauss(last_index) + workload));
+          load_balanced_indices[i] = n_rows - last_index;
+        }
+      }
+      return load_balanced_indices;
+    }
   } // end local namespace
+
 
   std::vector<std::size_t>
   calculate_populations(const float* coords,
@@ -21,19 +61,17 @@ namespace MPI {
                         const float radius,
                         const int mpi_n_nodes,
                         const int mpi_node_id) {
-    //TODO change this to quadratically falling number of rows
-    //     per chunk due to uneven workload of first chunks
-    //     compared to last chunks (shorter j-loop!)
-    unsigned int rows_per_chunk = n_rows / mpi_n_nodes;
-    unsigned int i_row_from = mpi_node_id * rows_per_chunk;
-    unsigned int i_row_to = i_row_from + rows_per_chunk;
-    // last process has to do slightly more work
-    // in case of uneven separation of workload
-    if (mpi_node_id == mpi_n_nodes-1 ) {
+    std::vector<std::size_t> load_balanced_indices = triangular_load_balance(n_rows, mpi_n_nodes);
+    unsigned int i_row_from = load_balanced_indices[mpi_node_id];
+    unsigned int i_row_to;
+    if (mpi_node_id == mpi_n_nodes-1) {
+      // last node: run to end
       i_row_to = n_rows;
+    } else {
+      i_row_to = load_balanced_indices[mpi_node_id+1];
     }
     std::vector<unsigned int> pops(n_rows, 0);
-    // parallel computation of pops using shared memory
+    // per-node parallel computation of pops using shared memory
     {
       const float rad2 = radius * radius;
       std::size_t i, j, k;
