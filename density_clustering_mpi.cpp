@@ -359,8 +359,6 @@ namespace MPI {
         float threshold = args["threshold"].as<float>();
         clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, n_nodes, node_id);
       }
-
-      //TODO run this stuff MPI-parallelized, too?
       if (node_id == MAIN_PROCESS) {
         if ( ! args["only-initial"].as<bool>()) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
@@ -370,7 +368,6 @@ namespace MPI {
         Clustering::Tools::write_single_column<std::size_t>(output_file, clustering);
       }
     }
-
     // clean up
     if (node_id == MAIN_PROCESS) {
       Clustering::logger(std::cout) << "freeing coords" << std::endl;
