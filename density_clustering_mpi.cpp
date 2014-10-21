@@ -149,48 +149,90 @@ namespace MPI {
       nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
     }
     // calculate nearest neighbors with distances
-    std::size_t i, j, c, min_j, min_j_high_dens;
-    float dist, d, mindist, mindist_high_dens;
-    ASSUME_ALIGNED(coords);
-    #pragma omp parallel for default(none) \
-                             private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
-                             firstprivate(i_row_from,i_row_to,n_rows,n_cols) \
-                             shared(coords,nh,nh_high_dens,free_energy) \
-                             schedule(dynamic, 2048)
-    for (i=i_row_from; i < i_row_to; ++i) {
-      mindist = std::numeric_limits<float>::max();
-      mindist_high_dens = std::numeric_limits<float>::max();
-      min_j = n_rows+1;
-      min_j_high_dens = n_rows+1;
-      for (j=0; j < n_rows; ++j) {
-        if (i != j) {
-          dist = 0.0f;
-          #pragma simd reduction(+:dist)
-          for (c=0; c < n_cols; ++c) {
-            d = coords[i*n_cols+c] - coords[j*n_cols+c];
-            dist += d*d;
-          }
-          // direct neighbor
-          if (dist < mindist) {
-            mindist = dist;
-            min_j = j;
-          }
-          // next neighbor with higher density / lower free energy
-          if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
-            mindist_high_dens = dist;
-            min_j_high_dens = j;
+    {
+      std::size_t i, j, c, min_j, min_j_high_dens;
+      float dist, d, mindist, mindist_high_dens;
+      ASSUME_ALIGNED(coords);
+      #pragma omp parallel for default(none) \
+                               private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
+                               firstprivate(i_row_from,i_row_to,n_rows,n_cols) \
+                               shared(coords,nh,nh_high_dens,free_energy) \
+                               schedule(dynamic, 2048)
+      for (i=i_row_from; i < i_row_to; ++i) {
+        mindist = std::numeric_limits<float>::max();
+        mindist_high_dens = std::numeric_limits<float>::max();
+        min_j = n_rows+1;
+        min_j_high_dens = n_rows+1;
+        for (j=0; j < n_rows; ++j) {
+          if (i != j) {
+            dist = 0.0f;
+            #pragma simd reduction(+:dist)
+            for (c=0; c < n_cols; ++c) {
+              d = coords[i*n_cols+c] - coords[j*n_cols+c];
+              dist += d*d;
+            }
+            // direct neighbor
+            if (dist < mindist) {
+              mindist = dist;
+              min_j = j;
+            }
+            // next neighbor with higher density / lower free energy
+            if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
+              mindist_high_dens = dist;
+              min_j_high_dens = j;
+            }
           }
         }
+        nh[i] = Neighbor(min_j, mindist);
+        nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
       }
-      nh[i] = Neighbor(min_j, mindist);
-      nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
     }
-    // TODO: collect results in MAIN_PROCESS and broadcast to slaves
+    // collect results in MAIN_PROCESS
     MPI_Barrier(MPI_COMM_WORLD);
-
-
-
-
+    {
+      // buf: I_FROM, I_TO_NH, DIST, I_TO_NH_HD, DIST_HD
+      int BUF_SIZE = 5;
+      float buf[BUF_SIZE];
+      if (mpi_node_id == MAIN_PROCESS) {
+        while (nh.size() != n_rows) {
+          MPI_Recv(buf, BUF_SIZE, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          nh[(int) buf[0]] = Neighbor((int) buf[1], buf[2]);
+          nh_high_dens[(int) buf[0]] = Neighbor((int) buf[3], buf[4]);
+        }
+      } else {
+        for (std::size_t i=i_row_from; i < i_row_to; ++i) {
+          buf[0] = (float) i;
+          buf[1] = (float) nh[i].first;
+          buf[2] = nh[i].second;
+          buf[3] = nh_high_dens[i].first;
+          buf[4] = nh_high_dens[i].second;
+          MPI_Send(buf, BUF_SIZE, MPI_FLOAT, MAIN_PROCESS, 0, MPI_COMM_WORLD);
+        }
+      }
+    }
+    // broadcast result to slaves
+    MPI_Barrier(MPI_COMM_WORLD);
+    {
+      // buf: n_rows X {I_FROM, I_TO_NH, DIST, I_TO_NH_HD, DIST_HD}
+      int BUF_SIZE = 4*n_rows;
+      std::vector<float> buf(BUF_SIZE);
+      if (mpi_node_id == MAIN_PROCESS) {
+        for (std::size_t i=0; i < n_rows; ++i) {
+          buf[4*i] = (float) nh[i].first;
+          buf[4*i+1] = nh[i].second;
+          buf[4*i+2] = (float) nh_high_dens[i].first;
+          buf[4*i+3] = nh_high_dens[i].second;
+        }
+      }
+      MPI_Bcast(buf.data(), BUF_SIZE, MPI_FLOAT, MAIN_PROCESS, MPI_COMM_WORLD);
+      if (mpi_node_id != MAIN_PROCESS) {
+        // unpack broadcasted neighborhood data
+        for (std::size_t i=0; i < n_rows; ++i) {
+          nh[i] = Neighbor((int) buf[4*i], buf[4*i+1]);
+          nh_high_dens[i] = Neighbor((int) buf[4*i+2], buf[4*i+3]);
+        }
+      }
+    }
     return std::make_tuple(nh, nh_high_dens);
   }
 
@@ -237,58 +279,27 @@ namespace MPI {
         Clustering::Tools::write_single_column<float>(args["free-energy"].as<std::string>(), free_energies, true);
       }
     }
-
+    //// nearest neighbors
+    Neighborhood nh;
+    Neighborhood nh_high_dens;
+    if (args.count("nearest-neighbors-input")) {
+      Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
+      auto nh_pair = Clustering::Density::read_neighborhood(args["nearest-neighbors-input"].as<std::string>());
+      nh = nh_pair.first;
+      nh_high_dens = nh_pair.second;
+    } else if (args.count("nearest-neighbors") || args.count("output")) {
+      Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
+      auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies, n_nodes, node_id);
+      nh = std::get<0>(nh_tuple);
+      nh_high_dens = std::get<1>(nh_tuple);
+      if (node_id == MAIN_PROCESS && args.count("nearest-neighbors")) {
+        Clustering::Density::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens);
+      }
+    }
     // TODO use mpi for following code, too
 
     // run the rest on a single node only
     if (node_id == MAIN_PROCESS) {
-      //// nearest neighbors
-      Neighborhood nh;
-      Neighborhood nh_high_dens;
-      if (args.count("nearest-neighbors-input")) {
-        Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
-        std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
-        if (ifs.fail()) {
-          std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
-          exit(EXIT_FAILURE);
-        } else {
-          std::size_t i=0;
-          while (ifs.good()) {
-            std::size_t buf1;
-            float buf2;
-            std::size_t buf3;
-            float buf4;
-            ifs >> buf1;
-            ifs >> buf2;
-            ifs >> buf3;
-            ifs >> buf4;
-            if ( ! ifs.fail()) {
-              nh[i] = std::pair<std::size_t, float>(buf1, buf2);
-              nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
-              ++i;
-            }
-          }
-        }
-      } else if (args.count("nearest-neighbors") || args.count("output")) {
-        Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
-        auto nh_tuple = Clustering::Density::nearest_neighbors(coords, n_rows, n_cols, free_energies);
-        nh = std::get<0>(nh_tuple);
-        nh_high_dens = std::get<1>(nh_tuple);
-        if (args.count("nearest-neighbors")) {
-          std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
-          auto p = nh.begin();
-          auto p_hd = nh_high_dens.begin();
-          while (p != nh.end() && p_hd != nh_high_dens.end()) {
-            // first: key (not used)
-            // second: neighbor
-            // second.first: id; second.second: squared dist
-            ofs << p->second.first    << " " << p->second.second    << " "
-                << p_hd->second.first << " " << p_hd->second.second << "\n";
-            ++p;
-            ++p_hd;
-          }
-        }
-      }
       //// clustering
       if (args.count("output")) {
         const std::string output_file = args["output"].as<std::string>();

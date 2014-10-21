@@ -66,6 +66,17 @@ namespace Clustering {
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
 
+
+    //TODO doc
+    std::pair<Neighborhood, Neighborhood>
+    read_neighborhood(const std::string fname);
+
+    //TODO doc
+    void
+    write_neighborhood(const std::string fname,
+                       const Neighborhood& nh,
+                       const Neighborhood& nh_high_dens);
+
     // TODO doc
     void
     main(boost::program_options::variables_map args);

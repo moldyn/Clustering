@@ -290,6 +290,53 @@ namespace Clustering {
       return clustering;
     }
 
+    std::pair<Neighborhood, Neighborhood>
+    read_neighborhood(const std::string fname) {
+      Neighborhood nh;
+      Neighborhood nh_high_dens;
+      std::ifstream ifs(fname);
+      if (ifs.fail()) {
+        std::cerr << "error: cannot open file '" << fname << "' for reading." << std::endl;
+        exit(EXIT_FAILURE);
+      } else {
+        std::size_t i=0;
+        while (ifs.good()) {
+          std::size_t buf1;
+          float buf2;
+          std::size_t buf3;
+          float buf4;
+          ifs >> buf1;
+          ifs >> buf2;
+          ifs >> buf3;
+          ifs >> buf4;
+          if ( ! ifs.fail()) {
+            nh[i] = std::pair<std::size_t, float>(buf1, buf2);
+            nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
+            ++i;
+          }
+        }
+      }
+      return {nh, nh_high_dens};
+    }
+
+    void
+    write_neighborhood(const std::string fname,
+                       const Neighborhood& nh,
+                       const Neighborhood& nh_high_dens) {
+      std::ofstream ofs(fname);
+      auto p = nh.begin();
+      auto p_hd = nh_high_dens.begin();
+      while (p != nh.end() && p_hd != nh_high_dens.end()) {
+        // first: key (not used)
+        // second: neighbor
+        // second.first: id; second.second: squared dist
+        ofs << p->second.first    << " " << p->second.second    << " "
+            << p_hd->second.first << " " << p_hd->second.second << "\n";
+        ++p;
+        ++p_hd;
+      }
+    }
+
     void
     main(boost::program_options::variables_map args) {
       using namespace Clustering::Tools;
@@ -330,46 +377,16 @@ namespace Clustering {
       Neighborhood nh_high_dens;
       if (args.count("nearest-neighbors-input")) {
         Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
-        std::ifstream ifs(args["nearest-neighbors-input"].as<std::string>());
-        if (ifs.fail()) {
-          std::cerr << "error: cannot open file '" << args["nearest-neighbors-input"].as<std::string>() << "'" << std::endl;
-          exit(EXIT_FAILURE);
-        } else {
-          std::size_t i=0;
-          while (ifs.good()) {
-            std::size_t buf1;
-            float buf2;
-            std::size_t buf3;
-            float buf4;
-            ifs >> buf1;
-            ifs >> buf2;
-            ifs >> buf3;
-            ifs >> buf4;
-            if ( ! ifs.fail()) {
-              nh[i] = std::pair<std::size_t, float>(buf1, buf2);
-              nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
-              ++i;
-            }
-          }
-        }
+        auto nh_pair = read_neighborhood(args["nearest-neighbors-input"].as<std::string>());
+        nh = nh_pair.first;
+        nh_high_dens = nh_pair.second;
       } else if (args.count("nearest-neighbors") || args.count("output")) {
         Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
         auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
         nh = std::get<0>(nh_tuple);
         nh_high_dens = std::get<1>(nh_tuple);
         if (args.count("nearest-neighbors")) {
-          std::ofstream ofs(args["nearest-neighbors"].as<std::string>());
-          auto p = nh.begin();
-          auto p_hd = nh_high_dens.begin();
-          while (p != nh.end() && p_hd != nh_high_dens.end()) {
-            // first: key (not used)
-            // second: neighbor
-            // second.first: id; second.second: squared dist
-            ofs << p->second.first    << " " << p->second.second    << " "
-                << p_hd->second.first << " " << p_hd->second.second << "\n";
-            ++p;
-            ++p_hd;
-          }
+          Clustering::Density::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens);
         }
       }
       //// clustering
