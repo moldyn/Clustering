@@ -53,15 +53,6 @@ namespace Clustering {
 
     //TODO doc
     std::vector<std::size_t>
-    initial_density_clustering(const std::vector<float>& free_energy,
-                               const Neighborhood& nh,
-                               const float free_energy_threshold,
-                               const float* coords,
-                               const std::size_t n_rows,
-                               const std::size_t n_cols);
-  
-    //TODO doc
-    std::vector<std::size_t>
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);

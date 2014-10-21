@@ -93,7 +93,7 @@ include_directories (${Boost_INCLUDE_DIR})
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
-set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp mpp.cpp tools.cpp logger.cpp)
+set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp density_clustering_common.cpp mpp.cpp tools.cpp logger.cpp)
 set(CLUSTERING_BINARIES network_builder state_filter)
 
 add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)

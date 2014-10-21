@@ -11,6 +11,8 @@ namespace Clustering {
 namespace Density {
 namespace MPI {
 
+const int MAIN_PROCESS = 0;
+
 std::vector<std::size_t>
 calculate_populations(const float* coords,
                       const std::size_t n_rows,
@@ -26,6 +28,18 @@ nearest_neighbors(const float* coords,
                   const std::vector<float>& free_energy,
                   const int mpi_n_nodes,
                   const int mpi_node_id);
+
+// returns neighborhood set of single frame.
+// all ids are sorted in free energy.
+std::set<std::size_t>
+high_density_neighborhood(const float* coords,
+                          const std::size_t n_cols,
+                          const std::vector<FreeEnergy>& sorted_fe,
+                          const std::size_t i_frame,
+                          const std::size_t limit,
+                          const float max_dist,
+                          const int mpi_n_nodes,
+                          const int mpi_node_id);
 
 void
 main(boost::program_options::variables_map args);

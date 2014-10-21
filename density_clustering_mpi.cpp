@@ -1,5 +1,6 @@
 
 #include "density_clustering_mpi.hpp"
+#include "density_clustering_common.hpp"
 
 #include "tools.hpp"
 #include "logger.hpp"
@@ -11,8 +12,6 @@ namespace Density {
 namespace MPI {
 
   namespace {
-    const int MAIN_PROCESS = 0;
-
     /*
      * use no. of rows and no. of MPI nodes to calculate the optimal
      * indices for equal load balancing on all machines to
@@ -237,6 +236,54 @@ namespace MPI {
   }
 
 
+  std::set<std::size_t>
+  high_density_neighborhood(const float* coords,
+                            const std::size_t n_cols,
+                            const std::vector<FreeEnergy>& sorted_fe,
+                            const std::size_t i_frame,
+                            const std::size_t limit,
+                            const float max_dist,
+                            const int mpi_n_nodes,
+                            const int mpi_node_id) {
+    //TODO calculate i_from, i_to for MPI processes
+    
+    // buffer to hold information whether frame i is
+    // in neighborhood (-> assign 1) or not (-> keep 0)
+    std::vector<int> frame_in_nh(limit, 0);
+    std::set<std::size_t> nh;
+    std::size_t j,c;
+    const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
+    float d,dist2;
+    ASSUME_ALIGNED(coords);
+    #pragma omp parallel for default(none) private(j,c,d,dist2) \
+                             firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
+                             shared(coords,sorted_fe,frame_in_nh)
+    for (j=0; j < limit; ++j) {
+      if (i_frame != j) {
+        dist2 = 0.0f;
+        #pragma simd reduction(+:dist2)
+        for (c=0; c < n_cols; ++c) {
+          d = coords[i_frame_sorted+c] - coords[sorted_fe[j].first*n_cols+c];
+          dist2 += d*d;
+        }
+        if (dist2 < max_dist) {
+          frame_in_nh[j] = 1;
+        }
+      }
+    }
+    // reduce buffer data to real neighborhood structure
+    for (j=0; j < limit; ++j) {
+      if (frame_in_nh[j] > 0) {
+        nh.insert(j);
+      }
+    }
+    nh.insert(i_frame);
+
+    //TODO collect data from all slaves & broadcast back
+
+    return nh;
+  }
+
   void
   main(boost::program_options::variables_map args) {
     // initialize MPI
@@ -296,26 +343,25 @@ namespace MPI {
         Clustering::Density::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens);
       }
     }
-    // TODO use mpi for following code, too
-
-    // run the rest on a single node only
-    if (node_id == MAIN_PROCESS) {
-      //// clustering
-      if (args.count("output")) {
-        const std::string output_file = args["output"].as<std::string>();
-        std::vector<std::size_t> clustering;
-        if (args.count("input")) {
-          Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
-          clustering = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
-        } else {
-          Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
-          if (args.count("threshold") == 0) {
-            std::cerr << "error: need threshold value for initial clustering" << std::endl;
-            exit(EXIT_FAILURE);
-          }
-          float threshold = args["threshold"].as<float>();
-          clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
+    //// clustering
+    if (args.count("output")) {
+      const std::string output_file = args["output"].as<std::string>();
+      std::vector<std::size_t> clustering;
+      if (args.count("input")) {
+        Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
+        clustering = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
+      } else {
+        Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
+        if (args.count("threshold") == 0) {
+          std::cerr << "error: need threshold value for initial clustering" << std::endl;
+          exit(EXIT_FAILURE);
         }
+        float threshold = args["threshold"].as<float>();
+        clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, n_nodes, node_id);
+      }
+
+      //TODO run this stuff MPI-parallelized, too?
+      if (node_id == MAIN_PROCESS) {
         if ( ! args["only-initial"].as<bool>()) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
           clustering = Clustering::Density::assign_low_density_frames(clustering, nh_high_dens, free_energies);
