@@ -291,21 +291,43 @@ namespace MPI {
       for (int i=1; i < mpi_n_nodes; ++i) {
         // get number of elements in set for correct buffer size
         MPI_Status stat;
-        MPI_Probe(i, MPI_ANY_TAG, MPI_COMM_WOLRD, &stat);
-        // TODO check docs: int n_neighbors = stat.count;
+        MPI_Probe(i, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
+        int n_neighbors;
+        MPI_Get_count(&stat, MPI_INT, &n_neighbors);
         std::vector<unsigned int> buf(n_neighbors);
-        //TODO MPI_Recv(...); -> buf.data()
+        MPI_Recv(buf.data(), n_neighbors, MPI_UNSIGNED, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for (auto i_neighbor: buf) {
           nh.insert(i_neighbor);
         }
       }
       nh.insert(i_frame);
     } else {
-      //TODO send data
+      // send data
+      std::vector<unsigned int> buf(nh.size());
+      std::copy(nh.begin(), nh.end(), buf.begin());
+      MPI_Send(buf.data(), buf.size(), MPI_UNSIGNED, MAIN_PROCESS, MPI_ANY_TAG, MPI_COMM_WORLD);
     }
-
-    //TODO broadcast data to slaves
-
+    // broadcast data to slaves
+    unsigned int n_neighbors_total;
+    std::vector<unsigned int> buf;
+    if (mpi_node_id == MAIN_PROCESS) {
+      n_neighbors_total = nh.size();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Bcast(&n_neighbors_total, 1, MPI_UNSIGNED, MAIN_PROCESS, MPI_COMM_WORLD);
+    buf.resize(n_neighbors_total);
+    if (mpi_node_id == MAIN_PROCESS) {
+      // fill buffer for broadcast
+      std::copy(nh.begin(), nh.end(), buf.begin());
+    }
+    MPI_Bcast(buf.data(), n_neighbors_total, MPI_UNSIGNED, MAIN_PROCESS, MPI_COMM_WORLD);
+    if (mpi_node_id != MAIN_PROCESS) {
+      // buffer -> set for slaves after broadcast
+      nh.clear();
+      for (auto i_neighbor: buf) {
+        nh.insert(i_neighbor);
+      }
+    }
     return nh;
   }
 
