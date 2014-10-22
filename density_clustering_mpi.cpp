@@ -245,41 +245,66 @@ namespace MPI {
                             const float max_dist,
                             const int mpi_n_nodes,
                             const int mpi_node_id) {
-    //TODO calculate i_from, i_to for MPI processes
-    
-    // buffer to hold information whether frame i is
-    // in neighborhood (-> assign 1) or not (-> keep 0)
-    std::vector<int> frame_in_nh(limit, 0);
+    unsigned int rows_per_chunk = limit / mpi_n_nodes;
+    unsigned int i_row_from = mpi_node_id * rows_per_chunk;
+    unsigned int i_row_to = i_row_from + rows_per_chunk;
+    if (mpi_node_id == mpi_n_nodes-1) {
+      i_row_to = limit;
+    }
+    // compute local neighborhood parallel on several MPI nodes,
+    // with per-node shared memory parallelization via OpenMP threads.
     std::set<std::size_t> nh;
-    std::size_t j,c;
-    const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
-    float d,dist2;
-    ASSUME_ALIGNED(coords);
-    #pragma omp parallel for default(none) private(j,c,d,dist2) \
-                             firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
-                             shared(coords,sorted_fe,frame_in_nh)
-    for (j=0; j < limit; ++j) {
-      if (i_frame != j) {
-        dist2 = 0.0f;
-        #pragma simd reduction(+:dist2)
-        for (c=0; c < n_cols; ++c) {
-          d = coords[i_frame_sorted+c] - coords[sorted_fe[j].first*n_cols+c];
-          dist2 += d*d;
+    {
+      // buffer to hold information whether frame i is
+      // in neighborhood (-> assign 1) or not (-> keep 0)
+      std::vector<int> frame_in_nh(limit, 0);
+      std::size_t j,c;
+      const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
+      float d,dist2;
+      ASSUME_ALIGNED(coords);
+      #pragma omp parallel for default(none) private(j,c,d,dist2) \
+                               firstprivate(i_frame,i_frame_sorted,i_row_from,i_row_to,max_dist,n_cols) \
+                               shared(coords,sorted_fe,frame_in_nh)
+      for (j=i_row_from; j < i_row_to; ++j) {
+        if (i_frame != j) {
+          dist2 = 0.0f;
+          #pragma simd reduction(+:dist2)
+          for (c=0; c < n_cols; ++c) {
+            d = coords[i_frame_sorted+c] - coords[sorted_fe[j].first*n_cols+c];
+            dist2 += d*d;
+          }
+          if (dist2 < max_dist) {
+            frame_in_nh[j] = 1;
+          }
         }
-        if (dist2 < max_dist) {
-          frame_in_nh[j] = 1;
+      }
+      // reduce buffer data to real neighborhood structure
+      for (j=i_row_from; j < i_row_to; ++j) {
+        if (frame_in_nh[j] > 0) {
+          nh.insert(j);
         }
       }
     }
-    // reduce buffer data to real neighborhood structure
-    for (j=0; j < limit; ++j) {
-      if (frame_in_nh[j] > 0) {
-        nh.insert(j);
+    // collect data from all slaves in MAIN_PROCESS
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (mpi_node_id == MAIN_PROCESS) {
+      for (int i=1; i < mpi_n_nodes; ++i) {
+        // get number of elements in set for correct buffer size
+        MPI_Status stat;
+        MPI_Probe(i, MPI_ANY_TAG, MPI_COMM_WOLRD, &stat);
+        // TODO check docs: int n_neighbors = stat.count;
+        std::vector<unsigned int> buf(n_neighbors);
+        //TODO MPI_Recv(...); -> buf.data()
+        for (auto i_neighbor: buf) {
+          nh.insert(i_neighbor);
+        }
       }
+      nh.insert(i_frame);
+    } else {
+      //TODO send data
     }
-    nh.insert(i_frame);
 
-    //TODO collect data from all slaves & broadcast back
+    //TODO broadcast data to slaves
 
     return nh;
   }
