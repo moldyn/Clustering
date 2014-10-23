@@ -84,7 +84,17 @@ namespace Clustering {
             }
           }
         }
-        if (candidates.size() == 1) {
+        if (candidates.size() == 0) {
+          std::cerr << "error: state '" << i
+                                        << "' has self-transition probability of "
+                                        << transition_matrix(i,i)
+                                        << " at Qmin " 
+                                        << q_min
+                                        << " and does not find any transition candidates."
+                                        << " please have a look at your trajectory!"
+                                        << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (candidates.size() == 1) {
           future_state[i] = candidates[0];
         } else {
           // multiple candidates: choose the one with lowest Free Energy
@@ -229,6 +239,13 @@ namespace Clustering {
       for (iter=0; iter < MAX_ITER; ++iter) {
         // reset names in case of vanished states (due to lumping)
         microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
+        if (microstate_names.count(0)) {
+          std::cerr << "\nwarning:\n"
+                    << "  there is a state '0' in your trajectory.\n"
+                    << "  are you sure you generated a proper trajectory of microstates\n"
+                    << "  (e.g. by running a final, seeded density-clustering to fill up the FEL)?\n"
+                    << std::endl;
+        }
         logger(std::cout) << "iteration " << iter+1 << " for q_min " << Clustering::Tools::stringprintf("%0.2f", q_min) << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
