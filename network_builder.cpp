@@ -2,6 +2,8 @@
 #include "tools.hpp"
 #include "logger.hpp"
 
+//TODO include  html as byte-encoded string (use 'xxd' to generate it).
+
 #include <iostream>
 #include <fstream>
 #include <set>
@@ -102,6 +104,15 @@ save_traj_of_leaves(std::string fname,
     }
   }
 }
+
+void
+save_network_to_html(std::string fname,
+                     std::set<std::pair<std::size_t, std::size_t>> network,
+                     std::map<std::size_t, float> free_energies,
+                     std::map<std::size_t, std::size_t> pops) {
+  //TODO 
+}
+
 
 } // end local namespace
 
@@ -227,6 +238,8 @@ int main(int argc, char* argv[]) {
   // save the trajectory consisting of the 'leaf-states'.
   // all non-leaf states are kept as non-assignment state '0'.
   save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
+  // generate html-file with embedded javascript to visualize network
+  save_network_to_html("network_visualization.html", network, free_energies, pops);
   return 0;
 }
 
