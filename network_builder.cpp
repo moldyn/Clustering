@@ -9,6 +9,103 @@
 
 #include <boost/program_options.hpp>
 
+
+namespace {
+
+void
+save_network_links(std::string fname,
+                   std::set<std::pair<std::size_t, std::size_t>> network) {
+  Clustering::logger(std::cout) << "saving links" << std::endl;
+  std::ofstream ofs(fname);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    for (auto p: network) {
+      ofs << p.first << " " << p.second << "\n";
+    }
+  }
+}
+
+void
+save_node_info(std::string fname,
+               std::map<std::size_t, float> free_energies,
+               std::map<std::size_t, std::size_t> pops) {
+  Clustering::logger(std::cout) << "saving nodes" << std::endl;
+  std::ofstream ofs(fname);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    for (auto node_pop: pops) {
+      std::size_t key = node_pop.first;
+      ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
+    }
+  }
+}
+
+std::set<std::size_t>
+compute_and_save_leaves(std::string fname,
+                        std::set<std::pair<std::size_t, std::size_t>> network) {
+  Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
+  std::set<std::size_t> leaves;
+  std::ofstream ofs(fname);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    std::set<std::size_t> srcs;
+    for (auto from_to: network) {
+      std::size_t src = from_to.first;
+      std::size_t target = from_to.second;
+      srcs.insert(src);
+      if ( ! srcs.count(target)) {
+        leaves.insert(target);
+      }
+      if (leaves.count(src)) {
+        leaves.erase(src);
+      }
+    }
+    for (std::size_t leaf: leaves) {
+      ofs << leaf << "\n";
+    }
+  }
+  return leaves;
+}
+
+void
+save_traj_of_leaves(std::string fname,
+                    std::set<std::size_t> leaves,
+                    float d_min,
+                    float d_max,
+                    float d_step,
+                    std::string remapped_name,
+                    std::size_t n_rows) {
+  Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
+  std::ofstream ofs(fname);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    std::vector<std::size_t> traj(n_rows);
+    for (float d=d_min; d < d_max+d_step; d += d_step) {
+      std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
+                                          Clustering::Tools::stringprintf(remapped_name, d));
+      for (std::size_t i=0; i < n_rows; ++i) {
+        if (leaves.count(cl_now[i])) {
+          traj[i] = cl_now[i];
+        }
+      }
+    }
+    for (std::size_t i: traj) {
+      ofs << i << "\n";
+    }
+  }
+}
+
+} // end local namespace
+
+
 int main(int argc, char* argv[]) {
   using namespace Clustering::Tools;
   namespace b_po = boost::program_options;
@@ -64,6 +161,9 @@ int main(int argc, char* argv[]) {
   std::vector<std::size_t> cl_now;
   std::size_t max_id;
   std::size_t n_rows = cl_next.size();
+  // do remapping of states to give every state a unique id.
+  // this is nevessary, since every initially clustered trajectory
+  // at different thresholds uses the same ids starting with 0.
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << d << std::endl;
     cl_now = cl_next;
@@ -118,81 +218,15 @@ int main(int argc, char* argv[]) {
     }
     Clustering::logger(std::cout) << "  ... finished." << std::endl;
   }
-  // save network links
-  {
-    Clustering::logger(std::cout) << "saving links" << std::endl;
-    std::ofstream ofs("network_links.dat");
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file 'network_links.dat'" << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      for (auto p: network) {
-        ofs << p.first << " " << p.second << "\n";
-      }
-    }
-  }
-  // save node info
-  {
-    Clustering::logger(std::cout) << "saving nodes" << std::endl;
-    std::ofstream ofs("network_nodes.dat");
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file 'network_nodes.dat'" << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      for (auto node_pop: pops) {
-        std::size_t key = node_pop.first;
-        ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
-      }
-    }
-  }
-  // save network 'leafs', i.e. end nodes
-  std::set<std::size_t> leafs;
-  {
-    Clustering::logger(std::cout) << "saving leafs, i.e. tree end nodes" << std::endl;
-    std::ofstream ofs("network_leafs.dat");
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file 'network_leafs.dat'" << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      std::set<std::size_t> srcs;
-      for (auto from_to: network) {
-        std::size_t src = from_to.first;
-        std::size_t target = from_to.second;
-        srcs.insert(src);
-        if ( ! srcs.count(target)) {
-          leafs.insert(target);
-        }
-        if (leafs.count(src)) {
-          leafs.erase(src);
-        }
-      }
-      for (std::size_t leaf: leafs) {
-        ofs << leaf << "\n";
-      }
-    }
-  }
-  // save end-node traj
-  {
-    Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
-    std::ofstream ofs("network_end_node_traj.dat");
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file 'network_end_node_traj.dat' for writing." << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      std::vector<std::size_t> traj(n_rows);
-      for (float d=d_min; d < d_max+d_step; d += d_step) {
-        std::vector<std::size_t> cl_now = read_clustered_trajectory(stringprintf(remapped_name, d));
-        for (std::size_t i=0; i < n_rows; ++i) {
-          if (leafs.count(cl_now[i])) {
-            traj[i] = cl_now[i];
-          }
-        }
-      }
-      for (std::size_t i: traj) {
-        ofs << i << "\n";
-      }
-    }
-  }
+  // save links (i.e. edges) as two-column ascii in a child -> parent manner
+  save_network_links("network_links.dat", network);
+  // save id, population and free energy of nodes
+  save_node_info("network_nodes.dat", free_energies, pops);
+  // compute and directly save network end-nodes (i.e. leaves of the network-tree)
+  std::set<std::size_t> leaves = compute_and_save_leaves("network_leaves.dat", network);
+  // save the trajectory consisting of the 'leaf-states'.
+  // all non-leaf states are kept as non-assignment state '0'.
+  save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
   return 0;
 }
 
