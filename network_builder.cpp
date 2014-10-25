@@ -110,7 +110,13 @@ save_network_to_html(std::string fname,
                      std::set<std::pair<std::size_t, std::size_t>> network,
                      std::map<std::size_t, float> free_energies,
                      std::map<std::size_t, std::size_t> pops) {
-  //TODO 
+  auto height = [] (float fe) -> int {
+    return int(fe*10);
+  };
+
+
+
+  //TODO
 }
 
 
