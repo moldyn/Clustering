@@ -1,125 +1,266 @@
 
+#include "network_builder.hpp"
+
 #include "tools.hpp"
 #include "logger.hpp"
+#include "embedded_cytoscape.hpp"
 
 //TODO include  html as byte-encoded string (use 'xxd' to generate it).
 
-#include <iostream>
 #include <fstream>
 #include <set>
 #include <unordered_set>
 
 #include <boost/program_options.hpp>
+#include <omp.h>
 
 
 namespace {
 
-void
-save_network_links(std::string fname,
-                   std::set<std::pair<std::size_t, std::size_t>> network) {
-  Clustering::logger(std::cout) << "saving links" << std::endl;
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    for (auto p: network) {
-      ofs << p.first << " " << p.second << "\n";
+  // overload output operator for Node-serialization
+  // (producing string representation of node + edges to children)
+  std::ostream& operator<<(std::ostream& os, const Node& n) {
+    //TODO set node color based FE
+    
+    // print node itself
+    os << Clustering::Tools::stringprintf("{group:'nodes',data:{id:'n%d',position:{x:%d,y:%d}}},\n", n.id, n.pos_x, n.pos_y);
+    // print edges from node's children to node
+    for (auto& c: n.children) {
+      os << Clustering::Tools::stringprintf("{group:'edges',data:{id:'e%d_%d',source:'n%d',target:'n%d'}},\n", c.id, n.id, c.id, n.id);
     }
+    return os;
   }
-}
-
-void
-save_node_info(std::string fname,
-               std::map<std::size_t, float> free_energies,
-               std::map<std::size_t, std::size_t> pops) {
-  Clustering::logger(std::cout) << "saving nodes" << std::endl;
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    for (auto node_pop: pops) {
-      std::size_t key = node_pop.first;
-      ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
-    }
+  
+  Node::Node() {}
+  
+  Node::Node(std::size_t _id,
+             float _fe,
+             std::size_t _pop)
+    : id(_id)
+    , fe(_fe)
+    , pop(_pop) {
   }
-}
-
-std::set<std::size_t>
-compute_and_save_leaves(std::string fname,
-                        std::set<std::pair<std::size_t, std::size_t>> network) {
-  Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
-  std::set<std::size_t> leaves;
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    std::set<std::size_t> srcs;
-    for (auto from_to: network) {
-      std::size_t src = from_to.first;
-      std::size_t target = from_to.second;
-      srcs.insert(src);
-      if ( ! srcs.count(target)) {
-        leaves.insert(target);
-      }
-      if (leaves.count(src)) {
-        leaves.erase(src);
-      }
-    }
-    for (std::size_t leaf: leaves) {
-      ofs << leaf << "\n";
-    }
-  }
-  return leaves;
-}
-
-void
-save_traj_of_leaves(std::string fname,
-                    std::set<std::size_t> leaves,
-                    float d_min,
-                    float d_max,
-                    float d_step,
-                    std::string remapped_name,
-                    std::size_t n_rows) {
-  Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    std::vector<std::size_t> traj(n_rows);
-    for (float d=d_min; d < d_max+d_step; d += d_step) {
-      std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
-                                          Clustering::Tools::stringprintf(remapped_name, d));
-      for (std::size_t i=0; i < n_rows; ++i) {
-        if (leaves.count(cl_now[i])) {
-          traj[i] = cl_now[i];
+  
+  Node* Node::find_child(std::size_t search_id) {
+    if (id == search_id) {
+      return this;
+    } else {
+      for (Node& c: children) {
+        Node* cc = c.find_child(search_id);
+        if (cc) {
+          return cc;
         }
       }
     }
-    for (std::size_t i: traj) {
-      ofs << i << "\n";
+    return NULL;
+  }
+  
+  void Node::set_pos(int x, int y) {
+    this->pos_x = x;
+    this->pos_y = y;
+    std::vector<int> width_children;
+    int total_width = 0;
+    for (auto& c: children) {
+      width_children.push_back(c.subtree_width());
+      total_width += c.subtree_width();
+    }
+    // set pos for every child recursively,
+    // regarding proper segmentation of horizontal space.
+    for (auto& c: children) {
+      //TODO set y pos based on FE
+      c.set_pos(x - 0.5 * (total_width - c.subtree_width()), y - VERTICAL_SPACING);
     }
   }
-}
+    
+  int Node::subtree_width() {
+    // check for backtracked value
+    // and compute if not existing.
+    if ( ! this->_subtree_width) {
+      int self_width = 10 + 2*HORIZONTAL_SPACING; //TODO get from size
+      if (children.empty()) {
+        this->_subtree_width = self_width;
+      } else {
+        int sum = 0;
+        for (Node& c: children) {
+          sum += c.subtree_width();
+        }
+        if (sum > self_width) {
+          this->_subtree_width = sum;
+        } else {
+          this->_subtree_width = self_width;
+        }
+      }
+    }
+    return this->_subtree_width;
+  }
 
-void
-save_network_to_html(std::string fname,
-                     std::set<std::pair<std::size_t, std::size_t>> network,
-                     std::map<std::size_t, float> free_energies,
-                     std::map<std::size_t, std::size_t> pops) {
-  auto height = [] (float fe) -> int {
-    return int(fe*10);
-  };
+  void Node::print_node_and_subtree(std::ostream& os) {
+    os << (*this) << std::endl;
+    for (auto& c: children) {
+      c.print_node_and_subtree(os);
+    }
+  }
 
 
-
-  //TODO
-}
-
-
+  void
+  save_network_links(std::string fname,
+                     std::map<std::size_t, std::size_t> network) {
+    Clustering::logger(std::cout) << "saving links" << std::endl;
+    std::ofstream ofs(fname);
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      for (auto p: network) {
+        ofs << p.first << " " << p.second << "\n";
+      }
+    }
+  }
+  
+  void
+  save_node_info(std::string fname,
+                 std::map<std::size_t, float> free_energies,
+                 std::map<std::size_t, std::size_t> pops) {
+    Clustering::logger(std::cout) << "saving nodes" << std::endl;
+    std::ofstream ofs(fname);
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      for (auto node_pop: pops) {
+        std::size_t key = node_pop.first;
+        ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
+      }
+    }
+  }
+  
+  std::set<std::size_t>
+  compute_and_save_leaves(std::string fname,
+                          std::map<std::size_t, std::size_t> network) {
+    Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
+    std::set<std::size_t> leaves;
+    std::ofstream ofs(fname);
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      std::set<std::size_t> srcs;
+      for (auto from_to: network) {
+        std::size_t src = from_to.first;
+        std::size_t target = from_to.second;
+        srcs.insert(src);
+        if ( ! srcs.count(target)) {
+          leaves.insert(target);
+        }
+        if (leaves.count(src)) {
+          leaves.erase(src);
+        }
+      }
+      for (std::size_t leaf: leaves) {
+        ofs << leaf << "\n";
+      }
+    }
+    return leaves;
+  }
+  
+  void
+  save_traj_of_leaves(std::string fname,
+                      std::set<std::size_t> leaves,
+                      float d_min,
+                      float d_max,
+                      float d_step,
+                      std::string remapped_name,
+                      std::size_t n_rows) {
+    Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
+    std::ofstream ofs(fname);
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      std::vector<std::size_t> traj(n_rows);
+      for (float d=d_min; d < d_max+d_step; d += d_step) {
+        std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
+                                            Clustering::Tools::stringprintf(remapped_name, d));
+        for (std::size_t i=0; i < n_rows; ++i) {
+          if (leaves.count(cl_now[i])) {
+            traj[i] = cl_now[i];
+          }
+        }
+      }
+      for (std::size_t i: traj) {
+        ofs << i << "\n";
+      }
+    }
+  }
+  
+  void
+  save_network_to_html(std::string fname,
+                       std::map<std::size_t, std::size_t> network,
+                       std::map<std::size_t, float> free_energies,
+                       std::map<std::size_t, std::size_t> pops) {
+    // set (global) values for min/max of free energies and populations
+    FE_MAX = std::max_element(free_energies.begin(),
+                              free_energies.end(),
+                              [](std::pair<std::size_t, float> fe1,
+                                 std::pair<std::size_t, float> fe2) -> bool {
+                                return fe1.second < fe2.second;
+                              })->second;
+    FE_MIN = std::min_element(free_energies.begin(),
+                              free_energies.end(),
+                              [](std::pair<std::size_t, float> fe1,
+                                 std::pair<std::size_t, float> fe2) -> bool {
+                                return fe1.second < fe2.second;
+                              })->second;
+    POP_MAX = std::max_element(pops.begin(),
+                               pops.end(),
+                               [](std::pair<std::size_t, std::size_t> p1,
+                                  std::pair<std::size_t, std::size_t> p2) -> bool {
+                                 return p1.second < p2.second;
+                               })->second;
+    POP_MIN = std::min_element(pops.begin(),
+                               pops.end(),
+                               [](std::pair<std::size_t, std::size_t> p1,
+                                  std::pair<std::size_t, std::size_t> p2) -> bool {
+                                 return p1.second < p2.second;
+                               })->second;
+    // build trees from given network with respective 'root' on top and at highest FE.
+    // may be multiple trees because there may be multiple nodes that have max FE.
+    std::map<std::size_t, Node> trees;
+    for (auto from_to: network) {
+      std::size_t i_from = from_to.first;
+      std::size_t i_to = from_to.second;
+      if (free_energies[i_to] == FE_MAX) {
+        if ( ! trees.count(i_to)) {
+          trees[i_to] = {i_to, free_energies[i_to], pops[i_to]};
+        }
+        trees[i_to].children.push_back({i_from, free_energies[i_from], pops[i_from]});
+      } else {
+        for (auto& k_v: trees) {
+          Node* node_to;
+          node_to = k_v.second.find_child(i_to);
+          if (node_to) {
+            node_to->children.push_back({i_from, free_energies[i_from], pops[i_from]});
+            break;
+          }
+        }
+      }
+    }
+    int pos_x = 0;
+    // write header
+    std::ofstream ofs(fname);
+    if (ofs.fail()) {
+      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      ofs << Clustering::Network::viewer_header;
+      for (auto& id_tree: trees) {
+        id_tree.second.set_pos(pos_x, 0);
+        id_tree.second.print_node_and_subtree(ofs);
+        pos_x += id_tree.second.subtree_width() + HORIZONTAL_SPACING;
+      }
+      ofs << Clustering::Network::viewer_footer;
+    }
+  }
 } // end local namespace
 
 
@@ -160,6 +301,8 @@ int main(int argc, char* argv[]) {
     std::cout << desc << std::endl;
     return 1;
   }
+  // setup two threads parallel read/write
+  omp_set_num_threads(2);
   // setup general flags / options
   Clustering::verbose = args["verbose"].as<bool>();
 
@@ -170,7 +313,7 @@ int main(int argc, char* argv[]) {
   std::string remapped_name = "remapped_" + basename;
   std::size_t minpop = args["minpop"].as<std::size_t>();
 
-  std::set<std::pair<std::size_t, std::size_t>> network;
+  std::map<std::size_t, std::size_t> network;
   std::map<std::size_t, std::size_t> pops;
   std::map<std::size_t, float> free_energies;
 
@@ -178,22 +321,31 @@ int main(int argc, char* argv[]) {
   std::vector<std::size_t> cl_now;
   std::size_t max_id;
   std::size_t n_rows = cl_next.size();
-  // do remapping of states to give every state a unique id.
+  // re-map states to give every state a unique id.
   // this is nevessary, since every initially clustered trajectory
   // at different thresholds uses the same ids starting with 0.
   for (float d=d_min; d < d_max; d += d_step) {
-    Clustering::logger(std::cout) << "free energy level: " << d << std::endl;
+    Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
     cl_now = cl_next;
-    write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
-    max_id = *std::max_element(cl_now.begin(), cl_now.end());
-    cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
-    for (std::size_t i=0; i < n_rows; ++i) {
-      if (cl_next[i] != 0) {
-        cl_next[i] += max_id;
-        if (cl_now[i] != 0) {
-          network.insert({cl_next[i], cl_now[i]});
-          ++pops[cl_now[i]];
-          free_energies[cl_now[i]] = d;
+    #pragma omp parallel sections
+    {
+      #pragma omp section
+      {
+        write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
+      }
+      #pragma omp section
+      {
+        cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
+        max_id = *std::max_element(cl_now.begin(), cl_now.end());
+        for (std::size_t i=0; i < n_rows; ++i) {
+          if (cl_next[i] != 0) {
+            cl_next[i] += max_id;
+            if (cl_now[i] != 0) {
+              network[cl_next[i]] = cl_now[i];
+              ++pops[cl_now[i]];
+              free_energies[cl_now[i]] = d;
+            }
+          }
         }
       }
     }
