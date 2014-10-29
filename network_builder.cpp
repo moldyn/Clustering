@@ -21,7 +21,7 @@ namespace {
   // (producing string representation of node + edges to children)
   std::ostream& operator<<(std::ostream& os, const Node& n) {
     //TODO set node color based FE
-    
+            // -> use cytoscape .match function
     // print node itself
     os << Clustering::Tools::stringprintf("{group:'nodes',data:{id:'n%d',position:{x:%d,y:%d}}},\n", n.id, n.pos_x, n.pos_y);
     // print edges from node's children to node
@@ -229,7 +229,13 @@ namespace {
     for (auto from_to: network) {
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
+
+      std::cout << "FE from, to: " << free_energies[i_from] << ", " << free_energies[i_to] << std::endl;
+
       if (free_energies[i_to] == FE_MAX) {
+
+        std::cout << "new tree with root " << i_to << std::endl;
+
         if ( ! trees.count(i_to)) {
           trees[i_to] = {i_to, free_energies[i_to], pops[i_to]};
         }
