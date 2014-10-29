@@ -5,8 +5,6 @@
 #include "logger.hpp"
 #include "embedded_cytoscape.hpp"
 
-//TODO include  html as byte-encoded string (use 'xxd' to generate it).
-
 #include <fstream>
 #include <set>
 #include <unordered_set>
