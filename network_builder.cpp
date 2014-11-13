@@ -310,6 +310,13 @@ int main(int argc, char* argv[]) {
   // setup general flags / options
   Clustering::verbose = args["verbose"].as<bool>();
 
+
+//TODO there is an error in network generation!
+//     at least some links are not properly set!
+//     perhaps there is more...
+//     anything to do with OpenMP? : no (was tested)!
+
+
   float d_min = args["min"].as<float>();
   float d_max = args["max"].as<float>();
   float d_step = args["step"].as<float>();
@@ -331,13 +338,13 @@ int main(int argc, char* argv[]) {
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
     cl_now = cl_next;
-    #pragma omp parallel sections
+//    #pragma omp parallel sections
     {
-      #pragma omp section
+//      #pragma omp section
       {
         write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
       }
-      #pragma omp section
+//      #pragma omp section
       {
         cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
         max_id = *std::max_element(cl_now.begin(), cl_now.end());
