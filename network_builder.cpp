@@ -23,8 +23,9 @@ namespace {
     // print node itself
     os << Clustering::Tools::stringprintf("{group:'nodes',data:{id:'n%d',position:{x:%d,y:%d}}},\n", n.id, n.pos_x, n.pos_y);
     // print edges from node's children to node
-    for (auto& c: n.children) {
-      os << Clustering::Tools::stringprintf("{group:'edges',data:{id:'e%d_%d',source:'n%d',target:'n%d'}},\n", c.id, n.id, c.id, n.id);
+    for (auto& id_child: n.children) {
+      std::size_t cid = id_child.first;
+      os << Clustering::Tools::stringprintf("{group:'edges',data:{id:'e%d_%d',source:'n%d',target:'n%d'}},\n", cid, n.id, cid, n.id);
     }
     return os;
   }
@@ -39,12 +40,12 @@ namespace {
     , pop(_pop) {
   }
   
-  Node* Node::find_child(std::size_t search_id) {
-    if (id == search_id) {
+  Node* Node::find_parent_of(std::size_t search_id) {
+    if (this->children.count(search_id)) {
       return this;
     } else {
-      for (Node& c: children) {
-        Node* cc = c.find_child(search_id);
+      for (auto& id_child: children) {
+        Node* cc = id_child.second.find_parent_of(search_id);
         if (cc) {
           return cc;
         }
@@ -58,18 +59,18 @@ namespace {
     this->pos_y = y;
     std::vector<int> width_children;
     int total_width = 0;
-    for (auto& c: children) {
-      width_children.push_back(c.subtree_width());
-      total_width += c.subtree_width();
+    for (auto& id_child: children) {
+      width_children.push_back(id_child.second.subtree_width());
+      total_width += id_child.second.subtree_width();
     }
     // set pos for every child recursively,
     // regarding proper segmentation of horizontal space.
-    for (auto& c: children) {
+    for (auto& id_child: children) {
       //TODO set y pos based on FE
-      c.set_pos(x - 0.5 * (total_width - c.subtree_width()), y - VERTICAL_SPACING);
+      id_child.second.set_pos(x - 0.5 * (total_width - id_child.second.subtree_width()), y - VERTICAL_SPACING);
     }
   }
-    
+
   int Node::subtree_width() {
     // check for backtracked value
     // and compute if not existing.
@@ -79,8 +80,8 @@ namespace {
         this->_subtree_width = self_width;
       } else {
         int sum = 0;
-        for (Node& c: children) {
-          sum += c.subtree_width();
+        for (auto& id_child: children) {
+          sum += id_child.second.subtree_width();
         }
         if (sum > self_width) {
           this->_subtree_width = sum;
@@ -94,8 +95,8 @@ namespace {
 
   void Node::print_node_and_subtree(std::ostream& os) {
     os << (*this) << std::endl;
-    for (auto& c: children) {
-      c.print_node_and_subtree(os);
+    for (auto& id_child: children) {
+      id_child.second.print_node_and_subtree(os);
     }
   }
 
@@ -110,7 +111,7 @@ namespace {
       exit(EXIT_FAILURE);
     } else {
       for (auto p: network) {
-        ofs << p.first << " " << p.second << "\n";
+        ofs << p.second << " " << p.first << "\n";
       }
     }
   }
@@ -131,27 +132,26 @@ namespace {
       }
     }
   }
-  
+
   std::set<std::size_t>
   compute_and_save_leaves(std::string fname,
                           std::map<std::size_t, std::size_t> network) {
     Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
     std::set<std::size_t> leaves;
+    std::set<std::size_t> not_leaves;
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
       exit(EXIT_FAILURE);
     } else {
-      std::set<std::size_t> srcs;
       for (auto from_to: network) {
         std::size_t src = from_to.first;
         std::size_t target = from_to.second;
-        srcs.insert(src);
-        if ( ! srcs.count(target)) {
-          leaves.insert(target);
-        }
-        if (leaves.count(src)) {
+        not_leaves.insert(target);
+        if (not_leaves.count(src)) {
           leaves.erase(src);
+        } else {
+          leaves.insert(src);
         }
       }
       for (std::size_t leaf: leaves) {
@@ -160,7 +160,7 @@ namespace {
     }
     return leaves;
   }
-  
+
   void
   save_traj_of_leaves(std::string fname,
                       std::set<std::size_t> leaves,
@@ -223,31 +223,32 @@ namespace {
                                })->second;
     // build trees from given network with respective 'root' on top and at highest FE.
     // may be multiple trees because there may be multiple nodes that have max FE.
-    std::map<std::size_t, Node> trees;
+    Node fake_root;
+    //TODO: debug: links to/from existing are not found
     for (auto from_to: network) {
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
 
-      std::cout << "FE from, to: " << free_energies[i_from] << ", " << free_energies[i_to] << std::endl;
-
-      if (free_energies[i_to] == FE_MAX) {
-
-        std::cout << "new tree with root " << i_to << std::endl;
-
-        if ( ! trees.count(i_to)) {
-          trees[i_to] = {i_to, free_energies[i_to], pops[i_to]};
-        }
-        trees[i_to].children.push_back({i_from, free_energies[i_from], pops[i_from]});
-      } else {
-        for (auto& k_v: trees) {
-          Node* node_to;
-          node_to = k_v.second.find_child(i_to);
-          if (node_to) {
-            node_to->children.push_back({i_from, free_energies[i_from], pops[i_from]});
-            break;
-          }
-        }
+      Node* parent_to = fake_root.find_parent_of(i_to);
+      if ( ! parent_to) {
+        fake_root.children[i_to] = {i_to, free_energies[i_to], pops[i_to]};
+        parent_to = &fake_root;
       }
+      Node* parent_from = fake_root.find_parent_of(i_from);
+      if (parent_from) {
+        // move existing node to its right place in the tree
+        parent_to->children[i_to].children[i_from] = parent_from->children[i_from];
+        parent_from->children.erase(i_to);
+      } else {
+        // create child at proper place in tree
+        parent_to->children[i_to].children[i_from] = {i_from, free_energies[i_from], pops[i_from]};
+      }
+    }
+    // split children into map if there are
+    // in fact several trees under the fake root node
+    std::map<std::size_t, Node> trees;
+    for (auto id_child: fake_root.children) {
+      trees[id_child.first] = id_child.second;
     }
     int pos_x = 0;
     // write header
@@ -257,11 +258,13 @@ namespace {
       exit(EXIT_FAILURE);
     } else {
       ofs << Clustering::Network::viewer_header;
+      ofs << "elements: [";
       for (auto& id_tree: trees) {
         id_tree.second.set_pos(pos_x, 0);
         id_tree.second.print_node_and_subtree(ofs);
         pos_x += id_tree.second.subtree_width() + HORIZONTAL_SPACING;
       }
+      ofs << "]";
       ofs << Clustering::Network::viewer_footer;
     }
   }
@@ -309,6 +312,7 @@ int main(int argc, char* argv[]) {
   omp_set_num_threads(2);
   // setup general flags / options
   Clustering::verbose = args["verbose"].as<bool>();
+
   float d_min = args["min"].as<float>();
   float d_max = args["max"].as<float>();
   float d_step = args["step"].as<float>();
@@ -344,7 +348,7 @@ int main(int argc, char* argv[]) {
           if (cl_next[i] != 0) {
             cl_next[i] += max_id;
             if (cl_now[i] != 0) {
-              network[cl_next[i]] = cl_now[i];
+              network[cl_now[i]] = cl_next[i];
               ++pops[cl_now[i]];
               free_energies[cl_now[i]] = d;
             }
@@ -400,6 +404,7 @@ int main(int argc, char* argv[]) {
   // all non-leaf states are kept as non-assignment state '0'.
   save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
   // generate html-file with embedded javascript to visualize network
+  //TODO html-generation
   save_network_to_html("network_visualization.html", network, free_energies, pops);
   return 0;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <list>
+#include <map>
 #include <iostream>
 
 namespace {
@@ -28,14 +28,14 @@ namespace {
     std::size_t id;
     float fe;
     std::size_t pop;
-    std::list<Node> children;
+    std::map<std::size_t, Node> children;
     int pos_x = 0;
     int pos_y = 0;
     int _subtree_width = 0;
 
     Node();
     Node(std::size_t _id, float _fe, std::size_t _pop);
-    Node* find_child(std::size_t search_id);
+    Node* find_parent_of(std::size_t search_id);
     void set_pos(int x, int y);
     int subtree_width();
     void print_node_and_subtree(std::ostream& os);
