@@ -256,11 +256,13 @@ namespace {
       exit(EXIT_FAILURE);
     } else {
       ofs << Clustering::Network::viewer_header;
+      ofs << "elements: [";
       for (auto& id_tree: trees) {
         id_tree.second.set_pos(pos_x, 0);
         id_tree.second.print_node_and_subtree(ofs);
         pos_x += id_tree.second.subtree_width() + HORIZONTAL_SPACING;
       }
+      ofs << "]";
       ofs << Clustering::Network::viewer_footer;
     }
   }
@@ -401,7 +403,7 @@ int main(int argc, char* argv[]) {
   save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
   // generate html-file with embedded javascript to visualize network
   //TODO html-generation
-  //save_network_to_html("network_visualization.html", network, free_energies, pops);
+  save_network_to_html("network_visualization.html", network, free_energies, pops);
   return 0;
 }
 
