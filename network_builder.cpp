@@ -110,7 +110,7 @@ namespace {
       exit(EXIT_FAILURE);
     } else {
       for (auto p: network) {
-        ofs << p.first << " " << p.second << "\n";
+        ofs << p.second << " " << p.first << "\n";
       }
     }
   }
@@ -137,21 +137,20 @@ namespace {
                           std::map<std::size_t, std::size_t> network) {
     Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
     std::set<std::size_t> leaves;
+    std::set<std::size_t> not_leaves;
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
       exit(EXIT_FAILURE);
     } else {
-      std::set<std::size_t> srcs;
       for (auto from_to: network) {
         std::size_t src = from_to.first;
         std::size_t target = from_to.second;
-        srcs.insert(src);
-        if ( ! srcs.count(target)) {
-          leaves.insert(target);
-        }
-        if (leaves.count(src)) {
+        not_leaves.insert(target);
+        if (not_leaves.count(src)) {
           leaves.erase(src);
+        } else {
+          leaves.insert(src);
         }
       }
       for (std::size_t leaf: leaves) {
@@ -310,13 +309,6 @@ int main(int argc, char* argv[]) {
   // setup general flags / options
   Clustering::verbose = args["verbose"].as<bool>();
 
-
-//TODO there is an error in network generation!
-//     at least some links are not properly set!
-//     perhaps there is more...
-//     anything to do with OpenMP? : no (was tested)!
-
-
   float d_min = args["min"].as<float>();
   float d_max = args["max"].as<float>();
   float d_step = args["step"].as<float>();
@@ -338,13 +330,13 @@ int main(int argc, char* argv[]) {
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
     cl_now = cl_next;
-//    #pragma omp parallel sections
+    #pragma omp parallel sections
     {
-//      #pragma omp section
+      #pragma omp section
       {
         write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
       }
-//      #pragma omp section
+      #pragma omp section
       {
         cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
         max_id = *std::max_element(cl_now.begin(), cl_now.end());
@@ -352,7 +344,7 @@ int main(int argc, char* argv[]) {
           if (cl_next[i] != 0) {
             cl_next[i] += max_id;
             if (cl_now[i] != 0) {
-              network[cl_next[i]] = cl_now[i];
+              network[cl_now[i]] = cl_next[i];
               ++pops[cl_now[i]];
               free_energies[cl_now[i]] = d;
             }
@@ -408,7 +400,8 @@ int main(int argc, char* argv[]) {
   // all non-leaf states are kept as non-assignment state '0'.
   save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
   // generate html-file with embedded javascript to visualize network
-  save_network_to_html("network_visualization.html", network, free_energies, pops);
+  //TODO html-generation
+  //save_network_to_html("network_visualization.html", network, free_energies, pops);
   return 0;
 }
 
