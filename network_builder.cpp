@@ -69,7 +69,7 @@ namespace {
       c.set_pos(x - 0.5 * (total_width - c.subtree_width()), y - VERTICAL_SPACING);
     }
   }
-    
+
   int Node::subtree_width() {
     // check for backtracked value
     // and compute if not existing.
@@ -131,7 +131,7 @@ namespace {
       }
     }
   }
-  
+
   std::set<std::size_t>
   compute_and_save_leaves(std::string fname,
                           std::map<std::size_t, std::size_t> network) {
@@ -159,7 +159,7 @@ namespace {
     }
     return leaves;
   }
-  
+
   void
   save_traj_of_leaves(std::string fname,
                       std::set<std::size_t> leaves,
@@ -222,12 +222,22 @@ namespace {
                                })->second;
     // build trees from given network with respective 'root' on top and at highest FE.
     // may be multiple trees because there may be multiple nodes that have max FE.
-    std::map<std::size_t, Node> trees;
+    Node fake_root;
+
+    for (auto from_to: network) {
+      Node* child_to = fake_root.find_child(from_to.second);
+      
+
+    }
+
+
+//    std::map<std::size_t, Node> trees;
+
     for (auto from_to: network) {
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
 
-      std::cout << "FE from, to: " << free_energies[i_from] << ", " << free_energies[i_to] << std::endl;
+      std::cout << "from, to: " << i_from << ", " << i_to << std::endl;
 
       if (free_energies[i_to] == FE_MAX) {
 
