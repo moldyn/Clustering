@@ -18,8 +18,6 @@ namespace {
   // overload output operator for Node-serialization
   // (producing string representation of node + edges to children)
   std::ostream& operator<<(std::ostream& os, const Node& n) {
-    //TODO set node color based FE
-            // -> use cytoscape .match function
     // print node itself
     os << Clustering::Tools::stringprintf("{group:'nodes',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d'}},\n", n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop);
     // print edges from node's children to node
