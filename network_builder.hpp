@@ -8,8 +8,8 @@ namespace {
   //// use these values to construct
   //// the graphical network with cytoscape.js.
   //// in units of pixels.
-  int HORIZONTAL_SPACING = 2;
-  int VERTICAL_SPACING = 10;
+  int HORIZONTAL_SPACING = 10;
+  int VERTICAL_SPACING = 50;
   int NODE_SIZE_MIN = 5;
   int NODE_SIZE_MAX = 50;
   // the following values will be set by
@@ -38,6 +38,7 @@ namespace {
     Node* find_parent_of(std::size_t search_id);
     void set_pos(int x, int y);
     int subtree_width();
+    void print_subtree(std::ostream& os);
     void print_node_and_subtree(std::ostream& os);
   };
 

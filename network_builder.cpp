@@ -21,7 +21,7 @@ namespace {
     //TODO set node color based FE
             // -> use cytoscape .match function
     // print node itself
-    os << Clustering::Tools::stringprintf("{group:'nodes',data:{id:'n%d',position:{x:%d,y:%d}}},\n", n.id, n.pos_x, n.pos_y);
+    os << Clustering::Tools::stringprintf("{group:'nodes',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d'}},\n", n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop);
     // print edges from node's children to node
     for (auto& id_child: n.children) {
       std::size_t cid = id_child.first;
@@ -65,9 +65,11 @@ namespace {
     }
     // set pos for every child recursively,
     // regarding proper segmentation of horizontal space.
+    int cur_x = (x-0.5*total_width);
     for (auto& id_child: children) {
-      //TODO set y pos based on FE
-      id_child.second.set_pos(x - 0.5 * (total_width - id_child.second.subtree_width()), y - VERTICAL_SPACING);
+      int stw = id_child.second.subtree_width();
+      id_child.second.set_pos(cur_x + 0.5*stw, y + VERTICAL_SPACING);
+      cur_x += stw;
     }
   }
 
@@ -93,11 +95,15 @@ namespace {
     return this->_subtree_width;
   }
 
-  void Node::print_node_and_subtree(std::ostream& os) {
-    os << (*this) << std::endl;
+  void Node::print_subtree(std::ostream& os) {
     for (auto& id_child: children) {
       id_child.second.print_node_and_subtree(os);
     }
+  }
+
+  void Node::print_node_and_subtree(std::ostream& os) {
+    os << (*this) << std::endl;
+    this->print_subtree(os);
   }
 
 
@@ -224,7 +230,6 @@ namespace {
     // build trees from given network with respective 'root' on top and at highest FE.
     // may be multiple trees because there may be multiple nodes that have max FE.
     Node fake_root;
-    //TODO: debug: links to/from existing are not found
     for (auto from_to: network) {
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
@@ -238,32 +243,31 @@ namespace {
       if (parent_from) {
         // move existing node to its right place in the tree
         parent_to->children[i_to].children[i_from] = parent_from->children[i_from];
-        parent_from->children.erase(i_to);
+        parent_from->children.erase(i_from);
       } else {
         // create child at proper place in tree
         parent_to->children[i_to].children[i_from] = {i_from, free_energies[i_from], pops[i_from]};
       }
     }
-    // split children into map if there are
-    // in fact several trees under the fake root node
-    std::map<std::size_t, Node> trees;
-    for (auto id_child: fake_root.children) {
-      trees[id_child.first] = id_child.second;
-    }
-    int pos_x = 0;
     // write header
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
       exit(EXIT_FAILURE);
     } else {
-      ofs << Clustering::Network::viewer_header;
-      ofs << "elements: [";
-      for (auto& id_tree: trees) {
-        id_tree.second.set_pos(pos_x, 0);
-        id_tree.second.print_node_and_subtree(ofs);
-        pos_x += id_tree.second.subtree_width() + HORIZONTAL_SPACING;
-      }
+      ofs << Clustering::Network::viewer_header
+
+          << "style: cytoscape.stylesheet().selector('node').css({"
+          << Clustering::Tools::stringprintf("'width': 'mapData(pop, %d, %d, 5, 30)',", POP_MIN, POP_MAX)
+          << Clustering::Tools::stringprintf("'height': 'mapData(pop, %d, %d, 5, 30)',", POP_MIN, POP_MAX)
+          << Clustering::Tools::stringprintf("'background-color': 'mapData(fe, %f, %f, blue, red)'})", FE_MIN, FE_MAX)
+
+          << ".selector('edge').css({'opacity': '1.0', 'width': '5', 'target-arrow-shape': 'triangle'})"
+          << ".selector(':selected').css({'content': 'data(info)', 'font-size': 8})"
+
+          << ", elements: [\n";
+      fake_root.set_pos(0, 0);
+      fake_root.print_subtree(ofs);
       ofs << "]";
       ofs << Clustering::Network::viewer_footer;
     }
