@@ -200,6 +200,7 @@ namespace {
                        std::map<std::size_t, std::size_t> network,
                        std::map<std::size_t, float> free_energies,
                        std::map<std::size_t, std::size_t> pops) {
+    Clustering::logger(std::cout) << "computing network visualization" << std::endl;
     // set (global) values for min/max of free energies and populations
     FE_MAX = std::max_element(free_energies.begin(),
                               free_energies.end(),
@@ -228,7 +229,11 @@ namespace {
     // build trees from given network with respective 'root' on top and at highest FE.
     // may be multiple trees because there may be multiple nodes that have max FE.
     Node fake_root;
+    std::size_t network_size = network.size();
+    std::size_t i_frame = 0;
     for (auto from_to: network) {
+      std::cerr << ++i_frame << " / " << network_size << "\n";
+
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
 
