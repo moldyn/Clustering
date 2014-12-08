@@ -338,6 +338,9 @@ int main(int argc, char* argv[]) {
   // re-map states to give every state a unique id.
   // this is nevessary, since every initially clustered trajectory
   // at different thresholds uses the same ids starting with 0.
+  //
+  // TODO: there seems to be an error with possible rounding errors in 'd'
+  //       while comparing to 'd_max'
   for (float d=d_min; d < d_max; d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
     cl_now = cl_next;
