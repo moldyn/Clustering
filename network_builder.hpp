@@ -10,8 +10,8 @@ namespace {
   //// in units of pixels.
   int HORIZONTAL_SPACING = 10;
   int VERTICAL_SPACING = 50;
-  int NODE_SIZE_MIN = 5;
-  int NODE_SIZE_MAX = 50;
+//  int NODE_SIZE_MIN = 5;
+//  int NODE_SIZE_MAX = 50;
   // the following values will be set by
   // 'save_network_to_html'
   // and are stored here for convenience.

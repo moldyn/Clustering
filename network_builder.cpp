@@ -15,6 +15,10 @@
 
 namespace {
 
+  constexpr bool fuzzy_equal(float a, float b, float prec) {
+    return (a <= b + prec) && (a >= b - prec);
+  }
+
   // overload output operator for Node-serialization
   // (producing string representation of node + edges to children)
   std::ostream& operator<<(std::ostream& os, const Node& n) {
@@ -180,7 +184,8 @@ namespace {
       exit(EXIT_FAILURE);
     } else {
       std::vector<std::size_t> traj(n_rows);
-      for (float d=d_min; d < d_max+d_step; d += d_step) {
+      const float prec = d_step / 10.0f;
+      for (float d=d_min; ! fuzzy_equal(d, d_max+d_step, prec); d += d_step) {
         std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
                                             Clustering::Tools::stringprintf(remapped_name, d));
         for (std::size_t i=0; i < n_rows; ++i) {
@@ -338,10 +343,8 @@ int main(int argc, char* argv[]) {
   // re-map states to give every state a unique id.
   // this is nevessary, since every initially clustered trajectory
   // at different thresholds uses the same ids starting with 0.
-  //
-  // TODO: there seems to be an error with possible rounding errors in 'd'
-  //       while comparing to 'd_max'
-  for (float d=d_min; d < d_max; d += d_step) {
+  const float prec = d_step / 10.0f;
+  for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
     Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
     cl_now = cl_next;
     #pragma omp parallel sections
