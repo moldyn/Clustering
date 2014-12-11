@@ -13,6 +13,7 @@ namespace Clustering {
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const float radius) {
+/*
       std::vector<std::size_t> pops(n_rows, 1);
       const float rad2 = radius * radius;
       std::size_t i, j, k;
@@ -38,8 +39,59 @@ namespace Clustering {
           }
         }
       }
+*/
+      std::vector<float> radii = {radius};
+      std::map<float, std::vector<std::size_t>> pop_map = calculate_populations(coords, n_rows, n_cols, radii);
+      return pop_map[radius];
+    }
+
+    std::map<float, std::vector<std::size_t>>
+    calculate_populations(const float* coords,
+                          const std::size_t n_rows,
+                          const std::size_t n_cols,
+                          std::vector<float> radii) {
+      std::map<float, std::vector<std::size_t>> pops;
+      for (float rad: radii) {
+        pops[rad].resize(n_rows, 1);
+      }
+      std::sort(radii.begin(), radii.end(), std::greater<float>());
+      std::size_t n_radii = radii.size();
+      std::vector<float> rad2(n_radii);
+      for (std::size_t i=0; i < n_radii; ++i) {
+        rad2[i] = radii[i]*radii[i];
+      }
+      std::size_t i, j, k, l;
+      float dist, c;
+      ASSUME_ALIGNED(coords);
+      #pragma omp parallel for default(none) private(i,j,k,l,c,dist) \
+                               firstprivate(n_rows,n_cols,radii,rad2,n_radii) \
+                               shared(coords,pops) \
+                               schedule(dynamic,1024)
+      for (i=0; i < n_rows; ++i) {
+        for (j=i+1; j < n_rows; ++j) {
+          dist = 0.0f;
+          #pragma simd reduction(+:dist)
+          for (k=0; k < n_cols; ++k) {
+            c = coords[i*n_cols+k] - coords[j*n_cols+k];
+            dist += c*c;
+          }
+          for (l=0; l < n_radii; ++l) {
+            if (dist < rad2[l]) {
+              #pragma omp atomic
+              pops[radii[l]][i] += 1;
+              #pragma omp atomic
+              pops[radii[l]][j] += 1;
+            } else {
+              // if it's not in the bigger radius,
+              // it won't be in the smaller ones.
+              break;
+            }
+          }
+        }
+      }
       return pops;
     }
+
   
     std::vector<float>
     calculate_free_energies(const std::vector<std::size_t>& pops) {
@@ -255,21 +307,31 @@ namespace Clustering {
         Clustering::logger(std::cout) << "re-using free energy data." << std::endl;
         free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
       } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
-        Clustering::logger(std::cout) << "calculating populations" << std::endl;
-        std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
-        if (args.count("population")) {
-          std::ofstream ofs(args["population"].as<std::string>());
-          for (std::size_t p: pops) {
-            ofs << p << "\n";
+        if (args.count("radii")) {
+          // compute populations & free energies for different radii in one go
+          if (args.count("output")) {
+            std::cerr << "error: clustering cannot be done with several radii (-R is set)." << std::endl;
+            exit(EXIT_FAILURE);
           }
-        }
-        Clustering::logger(std::cout) << "calculating free energies" << std::endl;
-        free_energies = calculate_free_energies(pops);
-        if (args.count("free-energy")) {
-          std::ofstream ofs(args["free-energy"].as<std::string>());
-          ofs << std::scientific;
-          for (float f: free_energies) {
-            ofs << f << "\n";
+          std::vector<float> radii = args["radii"].as<std::vector<float>>();
+          std::map<float, std::vector<std::size_t>> pops = calculate_populations(coords, n_rows, n_cols, radii);
+          for (auto radius_pops: pops) {
+            std::string basename_pop = args["population"].as<std::string>() + "_%f";
+            std::string basename_fe = args["free-energy"].as<std::string>() + "_%f";
+            write_pops(Clustering::Tools::stringprintf(basename_pop, radius_pops.first), radius_pops.second);
+            write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first), calculate_free_energies(radius_pops.second));
+          }
+        } else {
+          // compute populations & free energies for clustering and/or saving
+          Clustering::logger(std::cout) << "calculating populations" << std::endl;
+          std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
+          if (args.count("population")) {
+            write_pops(args["population"].as<std::string>(), pops);
+          }
+          Clustering::logger(std::cout) << "calculating free energies" << std::endl;
+          free_energies = calculate_free_energies(pops);
+          if (args.count("free-energy")) {
+            write_fes(args["free-energy"].as<std::string>(), free_energies);
           }
         }
       }

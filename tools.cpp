@@ -6,6 +6,26 @@
 namespace Clustering {
 namespace Tools {
 
+void
+write_fes(std::string fname, std::vector<float> fes) {
+  std::ofstream ofs(fname);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << fname << "'" << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    ofs << std::scientific;
+    for (float f: fes) {
+      ofs << f << "\n";
+    }
+  }
+}
+
+void
+write_pops(std::string fname, std::vector<std::size_t> pops) {
+  // technically the same ...
+  write_clustered_trajectory(fname, pops);
+}
+
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename) {
   std::vector<std::size_t> traj;

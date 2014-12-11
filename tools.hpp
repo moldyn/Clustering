@@ -24,6 +24,15 @@
 
 namespace Clustering {
 namespace Tools {
+
+//TODO doc
+void
+write_pops(std::string fname, std::vector<std::size_t> pops);
+
+//TODO doc
+void
+write_fes(std::string fname, std::vector<float> fes);
+
 //TODO doc
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename);

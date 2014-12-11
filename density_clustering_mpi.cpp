@@ -60,6 +60,9 @@ namespace MPI {
                         const float radius,
                         const int mpi_n_nodes,
                         const int mpi_node_id) {
+
+// TODO: make same changes to MPI code
+
     std::vector<std::size_t> load_balanced_indices = triangular_load_balance(n_rows, mpi_n_nodes);
     unsigned int i_row_from = load_balanced_indices[mpi_node_id];
     unsigned int i_row_to;

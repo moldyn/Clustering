@@ -63,8 +63,10 @@ int main(int argc, char* argv[]) {
     ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
     ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
-    ("population,p", b_po::value<std::string>(), "output (optional): population per frame.")
-    ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame.")
+    ("radii,R", b_po::value<std::vector<float>>()->multitoken(), "parameter: list of radii for population/free energy calculations "
+                                                                 "(i.e. compute populations/free energies for several radii in one go).")
+    ("population,p", b_po::value<std::string>(), "output (optional): population per frame (if -R is set: this defines only the basename).")
+    ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame (if -R is set: this defines only the basename).")
     ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")

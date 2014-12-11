@@ -23,6 +23,14 @@ namespace Clustering {
                           const float radius);
   
     //TODO doc
+    std::map<float, std::vector<std::size_t>>
+    calculate_populations(const float* coords,
+                          const std::size_t n_rows,
+                          const std::size_t n_cols,
+                          const std::vector<float> radii);
+
+
+    //TODO doc
     std::vector<float>
     calculate_free_energies(const std::vector<std::size_t>& pops);
   
