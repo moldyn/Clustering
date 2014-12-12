@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
   desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
-    ("radius,r", b_po::value<float>()->required(), "parameter (required): hypersphere radius.")
+    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius.")
     // optional
     ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")

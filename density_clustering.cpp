@@ -294,7 +294,6 @@ namespace Clustering {
     main(boost::program_options::variables_map args) {
       using namespace Clustering::Tools;
       const std::string input_file = args["file"].as<std::string>();
-      const float radius = args["radius"].as<float>();
       // setup coords
       float* coords;
       std::size_t n_rows;
@@ -322,6 +321,10 @@ namespace Clustering {
             write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first), calculate_free_energies(radius_pops.second));
           }
         } else {
+          if ( ! args.count("radius")) {
+            std::cerr << "error: radius (-r) is required!" << std::endl;
+          }
+          const float radius = args["radius"].as<float>();
           // compute populations & free energies for clustering and/or saving
           Clustering::logger(std::cout) << "calculating populations" << std::endl;
           std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
