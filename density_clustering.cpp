@@ -13,33 +13,6 @@ namespace Clustering {
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const float radius) {
-/*
-      std::vector<std::size_t> pops(n_rows, 1);
-      const float rad2 = radius * radius;
-      std::size_t i, j, k;
-      float dist, c;
-      ASSUME_ALIGNED(coords);
-      #pragma omp parallel for default(none) private(i,j,k,c,dist) \
-                               firstprivate(n_rows,n_cols,rad2) \
-                               shared(coords,pops) \
-                               schedule(dynamic,1024)
-      for (i=0; i < n_rows; ++i) {
-        for (j=i+1; j < n_rows; ++j) {
-          dist = 0.0f;
-          #pragma simd reduction(+:dist)
-          for (k=0; k < n_cols; ++k) {
-            c = coords[i*n_cols+k] - coords[j*n_cols+k];
-            dist += c*c;
-          }
-          if (dist < rad2) {
-            #pragma omp atomic
-            pops[i] += 1;
-            #pragma omp atomic
-            pops[j] += 1;
-          }
-        }
-      }
-*/
       std::vector<float> radii = {radius};
       std::map<float, std::vector<std::size_t>> pop_map = calculate_populations(coords, n_rows, n_cols, radii);
       return pop_map[radius];

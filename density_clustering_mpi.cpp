@@ -60,9 +60,19 @@ namespace MPI {
                         const float radius,
                         const int mpi_n_nodes,
                         const int mpi_node_id) {
+    std::vector<float> radii = {radius};
+    std::map<float, std::vector<std::size_t>> pop_map = calculate_populations(coords, n_rows, n_cols, radii, mpi_n_nodes, mpi_node_id);
+    return pop_map[radius];
+  }
 
-// TODO: make same changes to MPI code
 
+  std::map<float, std::vector<std::size_t>>
+  calculate_populations(const float* coords,
+                        const std::size_t n_rows,
+                        const std::size_t n_cols,
+                        std::vector<float> radii,
+                        const int mpi_n_nodes,
+                        const int mpi_node_id) {
     std::vector<std::size_t> load_balanced_indices = triangular_load_balance(n_rows, mpi_n_nodes);
     unsigned int i_row_from = load_balanced_indices[mpi_node_id];
     unsigned int i_row_to;
@@ -72,15 +82,23 @@ namespace MPI {
     } else {
       i_row_to = load_balanced_indices[mpi_node_id+1];
     }
-    std::vector<unsigned int> pops(n_rows, 0);
+    std::map<float, std::vector<std::size_t>> pops;
+    for (float rad: radii) {
+      pops[rad].resize(n_rows, 1);
+    }
+    std::sort(radii.begin(), radii.end(), std::greater<float>());
+    std::size_t n_radii = radii.size();
+    std::vector<float> rad2(n_radii);
+    for (std::size_t i=0; i < n_radii; ++i) {
+      rad2[i] = radii[i]*radii[i];
+    }
     // per-node parallel computation of pops using shared memory
     {
-      const float rad2 = radius * radius;
-      std::size_t i, j, k;
+      std::size_t i, j, k, l;
       float dist, c;
       ASSUME_ALIGNED(coords);
-      #pragma omp parallel for default(none) private(i,j,k,c,dist) \
-                               firstprivate(i_row_from,i_row_to,n_rows,n_cols,rad2) \
+      #pragma omp parallel for default(none) private(i,j,k,l,c,dist) \
+                               firstprivate(i_row_from,i_row_to,n_rows,n_cols,rad2,radii,n_radii) \
                                shared(coords,pops) \
                                schedule(dynamic,1024)
       for (i=i_row_from; i < i_row_to; ++i) {
@@ -91,15 +109,30 @@ namespace MPI {
             c = coords[i*n_cols+k] - coords[j*n_cols+k];
             dist += c*c;
           }
-          if (dist < rad2) {
-            #pragma omp atomic
-            pops[i] += 1;
-            #pragma omp atomic
-            pops[j] += 1;
+          for (l=0; l < n_radii; ++l) {
+            if (dist < rad2[l]) {
+              #pragma omp atomic
+              pops[radii[l]][i] += 1;
+              #pragma omp atomic
+              pops[radii[l]][j] += 1;
+            } else {
+              // if it's not in the bigger radius,
+              // it won't be in the smaller ones.
+              break;
+            }
           }
         }
       }
     }
+
+//TODO finish
+
+    for (auto& rad_pops: pops) {
+        
+
+    }
+
+/*
     // accumulate pops in main process and send result to slaves
     MPI_Barrier(MPI_COMM_WORLD);
     if (mpi_node_id == MAIN_PROCESS) {
@@ -125,6 +158,7 @@ namespace MPI {
       pops_result[i] = (std::size_t) pops[i] + 1;
     }
     return pops_result;
+*/
   }
 
 

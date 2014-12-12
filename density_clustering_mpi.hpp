@@ -13,11 +13,21 @@ namespace MPI {
 
 const int MAIN_PROCESS = 0;
 
+//TODO doc
+
 std::vector<std::size_t>
 calculate_populations(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const float radius,
+                      const int mpi_n_nodes,
+                      const int mpi_node_id);
+
+std::map<float, std::vector<std::size_t>>
+calculate_populations(const float* coords,
+                      const std::size_t n_rows,
+                      const std::size_t n_cols,
+                      std::vector<float> radii,
                       const int mpi_n_nodes,
                       const int mpi_node_id);
 
