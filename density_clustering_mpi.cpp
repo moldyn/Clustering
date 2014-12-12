@@ -82,7 +82,7 @@ namespace MPI {
     } else {
       i_row_to = load_balanced_indices[mpi_node_id+1];
     }
-    std::map<float, std::vector<std::size_t>> pops;
+    std::map<float, std::vector<unsigned int>> pops;
     for (float rad: radii) {
       pops[rad].resize(n_rows, 1);
     }
@@ -124,41 +124,34 @@ namespace MPI {
         }
       }
     }
-
-//TODO finish
-
+    std::map<float, std::vector<std::size_t>> pops_results;
     for (auto& rad_pops: pops) {
-        
-
-    }
-
-/*
-    // accumulate pops in main process and send result to slaves
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mpi_node_id == MAIN_PROCESS) {
-      // collect slave results
-      for (int slave_id=1; slave_id < mpi_n_nodes; ++slave_id) {
-        std::vector<unsigned int> pops_buf(n_rows);
-        MPI_Recv(pops_buf.data(), n_rows, MPI_UNSIGNED, slave_id, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (std::size_t i=0; i < n_rows; ++i) {
-          pops[i] += pops_buf[i];
+      // accumulate pops in main process and send result to slaves
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (mpi_node_id == MAIN_PROCESS) {
+        // collect slave results
+        for (int slave_id=1; slave_id < mpi_n_nodes; ++slave_id) {
+          std::vector<unsigned int> pops_buf(n_rows);
+          MPI_Recv(pops_buf.data(), n_rows, MPI_UNSIGNED, slave_id, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          for (std::size_t i=0; i < n_rows; ++i) {
+            rad_pops.second[i] += pops_buf[i];
+          }
         }
+      } else {
+        // send pops from slaves
+        MPI_Send(rad_pops.second.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, 0, MPI_COMM_WORLD);
       }
-    } else {
-      // send pops from slaves
-      MPI_Send(pops.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, 0, MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
+      // broadcast accumulated pops to slaves
+      MPI_Bcast(rad_pops.second.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
+      // cast unsigned int to size_t and add 1 for own structure
+      pops_results[rad_pops.first].resize(n_rows);
+      for (std::size_t i=0; i < n_rows; ++i) {
+        pops_results[rad_pops.first][i] = (std::size_t) rad_pops.second[i] + 1;
+      }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    // broadcast accumulated pops to slaves
-    MPI_Bcast(pops.data(), n_rows, MPI_UNSIGNED, MAIN_PROCESS, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    // cast unsigned int to size_t and add 1 for own structure
-    std::vector<std::size_t> pops_result(n_rows);
-    for (std::size_t i=0; i < n_rows; ++i) {
-      pops_result[i] = (std::size_t) pops[i] + 1;
-    }
-    return pops_result;
-*/
+    return pops_results;
   }
 
 
