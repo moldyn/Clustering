@@ -363,6 +363,8 @@ namespace MPI {
 
   void
   main(boost::program_options::variables_map args) {
+    //TODO multiple radii
+
     // initialize MPI
     MPI_Init(NULL, NULL);
     int n_nodes;
