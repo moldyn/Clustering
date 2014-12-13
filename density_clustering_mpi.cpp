@@ -363,8 +363,6 @@ namespace MPI {
 
   void
   main(boost::program_options::variables_map args) {
-    //TODO multiple radii
-
     // initialize MPI
     MPI_Init(NULL, NULL);
     int n_nodes;
@@ -373,7 +371,6 @@ namespace MPI {
     MPI_Comm_rank(MPI_COMM_WORLD, &node_id);
     // read basic inputs
     const std::string input_file = args["file"].as<std::string>();
-    const float radius = args["radius"].as<float>();
     // setup coords
     float* coords;
     std::size_t n_rows;
@@ -390,19 +387,43 @@ namespace MPI {
       }
       free_energies = Clustering::Tools::read_free_energies(args["free-energy-input"].as<std::string>());
     } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
-      if (node_id == MAIN_PROCESS) {
-        Clustering::logger(std::cout) << "calculating populations" << std::endl;
-      }
-      std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius, n_nodes, node_id);
-      if (node_id == MAIN_PROCESS && args.count("population")) {
-        Clustering::Tools::write_single_column<std::size_t>(args["population"].as<std::string>(), pops);
-      }
-      if (node_id == MAIN_PROCESS) {
-        Clustering::logger(std::cout) << "calculating free energies" << std::endl;
-      }
-      free_energies = Clustering::Density::calculate_free_energies(pops);
-      if (node_id == MAIN_PROCESS && args.count("free-energy")) {
-        Clustering::Tools::write_single_column<float>(args["free-energy"].as<std::string>(), free_energies, true);
+      if (args.count("radii")) {
+        // compute populations & free energies for different radii in one go
+        if (args.count("output")) {
+          if (node_id == MAIN_PROCESS) {
+            std::cerr << "error: clustering cannot be done with several radii (-R is set)." << std::endl;
+          }
+          exit(EXIT_FAILURE);
+        }
+        std::vector<float> radii = args["radii"].as<std::vector<float>>();
+        std::map<float, std::vector<std::size_t>> pops = calculate_populations(coords, n_rows, n_cols, radii, n_nodes, node_id);
+        if (node_id == MAIN_PROCESS) {
+          for (auto radius_pops: pops) {
+            std::string basename_pop = args["population"].as<std::string>() + "_%f";
+            std::string basename_fe = args["free-energy"].as<std::string>() + "_%f";
+            Clustering::Tools::write_pops(Clustering::Tools::stringprintf(basename_pop, radius_pops.first), radius_pops.second);
+            Clustering::Tools::write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first), calculate_free_energies(radius_pops.second));
+          }
+        }
+      } else {
+        if ( ! args.count("radius")) {
+          std::cerr << "error: radius (-r) is required!" << std::endl;
+        }
+        const float radius = args["radius"].as<float>();
+        if (node_id == MAIN_PROCESS) {
+          Clustering::logger(std::cout) << "calculating populations" << std::endl;
+        }
+        std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius, n_nodes, node_id);
+        if (node_id == MAIN_PROCESS && args.count("population")) {
+          Clustering::Tools::write_single_column<std::size_t>(args["population"].as<std::string>(), pops);
+        }
+        if (node_id == MAIN_PROCESS) {
+          Clustering::logger(std::cout) << "calculating free energies" << std::endl;
+        }
+        free_energies = Clustering::Density::calculate_free_energies(pops);
+        if (node_id == MAIN_PROCESS && args.count("free-energy")) {
+          Clustering::Tools::write_single_column<float>(args["free-energy"].as<std::string>(), free_energies, true);
+        }
       }
     }
     //// nearest neighbors
