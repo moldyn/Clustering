@@ -357,6 +357,7 @@ int main(int argc, char* argv[]) {
       {
         cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
         max_id = *std::max_element(cl_now.begin(), cl_now.end());
+        //TODO bugfix: correct pop count!
         for (std::size_t i=0; i < n_rows; ++i) {
           if (cl_next[i] != 0) {
             cl_next[i] += max_id;
