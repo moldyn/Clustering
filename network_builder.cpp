@@ -22,8 +22,15 @@ namespace {
   // overload output operator for Node-serialization
   // (producing string representation of node + edges to children)
   std::ostream& operator<<(std::ostream& os, const Node& n) {
+    float log_pop;
+    if (n.pop <= 0) {
+      log_pop = log(1);
+    } else {
+      log_pop = log(n.pop);
+    }
     // print node itself
-    os << Clustering::Tools::stringprintf("{group:'nodes',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d'}},\n", n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop);
+    os << Clustering::Tools::stringprintf("{group:'nodes',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d',logpop:%0.2f}},\n",
+                                          n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop, log_pop);
     // print edges from node's children to node
     for (auto& id_child: n.children) {
       std::size_t cid = id_child.first;
@@ -263,15 +270,26 @@ namespace {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
       exit(EXIT_FAILURE);
     } else {
+      float LOG_POP_MIN, LOG_POP_MAX;
+      if (POP_MIN <= 0) {
+        LOG_POP_MIN = 0.0f;
+      } else {
+        LOG_POP_MIN = log(POP_MIN);
+      }
+      if (POP_MAX <= 0) {
+        LOG_POP_MAX = 0.0f;
+      } else {
+        LOG_POP_MAX = log(POP_MAX);
+      }
       ofs << Clustering::Network::viewer_header
 
           << "style: cytoscape.stylesheet().selector('node').css({"
-          << Clustering::Tools::stringprintf("'width': 'mapData(pop, %d, %d, 5, 30)',", POP_MIN, POP_MAX)
-          << Clustering::Tools::stringprintf("'height': 'mapData(pop, %d, %d, 5, 30)',", POP_MIN, POP_MAX)
+          << Clustering::Tools::stringprintf("'width': 'mapData(logpop, %0.2f, %0.2f, 5, 30)',", LOG_POP_MIN, LOG_POP_MAX)
+          << Clustering::Tools::stringprintf("'height': 'mapData(logpop, %0.2f, %0.2f, 5, 30)',", LOG_POP_MIN, LOG_POP_MAX)
           << Clustering::Tools::stringprintf("'background-color': 'mapData(fe, %f, %f, blue, red)'})", FE_MIN, FE_MAX)
 
           << ".selector('edge').css({'opacity': '1.0', 'width': '5', 'target-arrow-shape': 'triangle'})"
-          << ".selector(':selected').css({'content': 'data(info)', 'font-size': 8})"
+          << ".selector(':selected').css({'content': 'data(info)', 'font-size': 24, 'color': '#00ff00'})"
 
           << ", elements: [\n";
       fake_root.set_pos(0, 0);
