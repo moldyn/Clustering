@@ -7,9 +7,9 @@
 namespace DC_OpenCL {
 
 void
-setup(const float* coords, const std::size_t n_rows, const std::size_t n_cols);
+setup();
 
 std::vector<std::size_t>
-calculate_populations(const float radius);
+calculate_populations(const float* coords, const float radius);
 
 } // end namespace DC_OpenCL

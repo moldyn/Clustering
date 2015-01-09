@@ -291,7 +291,7 @@ namespace Clustering {
     main(boost::program_options::variables_map args) {
       std::string basename = args["basename"].as<std::string>();
       // load initial trajectory
-      std::map<std::size_t, std::size_t> transitions;
+      std::map<std::size_t, std::pair<std::size_t, float>> transitions;
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
       Clustering::logger(std::cout) << "loading microstates" << std::endl;
@@ -319,7 +319,10 @@ namespace Clustering {
         Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
-        transitions.insert(sinks.begin(), sinks.end());
+        for (auto from_to: sinks) {
+          transitions[from_to.first] = {from_to.second, q_min};
+        }
+        //transitions.insert(sinks.begin(), sinks.end());
         // write microstate populations to file
         std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
         Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), pops);
@@ -329,7 +332,13 @@ namespace Clustering {
           max_qmin[id] = q_min;
         }
       }
-      Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_transitions.dat", transitions);
+      //Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_transitions.dat", transitions);
+      {
+        std::ofstream ofs(basename + "_transitions.dat");
+        for (auto trans: transitions) {
+          ofs << trans.first << " " << trans.second.first << " " << trans.second.second << "\n";
+        }
+      }
       Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
       Clustering::Tools::write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
     }
