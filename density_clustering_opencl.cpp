@@ -15,6 +15,9 @@ namespace OpenCL {
                         const std::size_t n_cols,
                         std::vector<float> radii) {
     
+    // TODO split up work into smaller chunks and run
+    //      these separately with individual kernels.
+
     unsigned int uint_n_rows = (unsigned int) n_rows;
     unsigned int uint_n_cols = (unsigned int) n_cols;
 
@@ -44,6 +47,7 @@ namespace OpenCL {
       }
       // has device enough memory for full data set?
       if (n_bytes_per_row * n_rows + (sizeof(unsigned int)*n_rows) < n_bytes_global_mem) {
+        // TODO how about constant memory for coords?
         std::string kernel_src =
             "__kernel void\n"
             "pops(const unsigned int n_rows,\n"
