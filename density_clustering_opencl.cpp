@@ -14,6 +14,9 @@ namespace OpenCL {
                         const std::size_t n_rows,
                         const std::size_t n_cols,
                         std::vector<float> radii) {
+    
+    unsigned int uint_n_rows = (unsigned int) n_rows;
+    unsigned int uint_n_cols = (unsigned int) n_cols;
 
     try {
 
@@ -40,32 +43,32 @@ namespace OpenCL {
         n_bytes_global_mem = d.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>();
       }
       // has device enough memory for full data set?
-      if (n_bytes_per_row * n_rows + (sizeof(int)*n_rows) < n_bytes_global_mem) {
+      if (n_bytes_per_row * n_rows + (sizeof(unsigned int)*n_rows) < n_bytes_global_mem) {
         std::string kernel_src =
-            "__kernel void"
-            "pops(const int n_rows,"
-            "     const int n_cols,"
-            "     __constant float* coords"
-            "     const float rad2,"
-            "     __global unsigned int* pops) {"
-            "  float row_i[20];"
-            "  int k,j;"
-            "  unsigned int pop_i = 0;"
-            "  float dist2, tmp_d;"
-            "  int i = get_global_id(0);"
-            "  for (k=0; k < n_cols; ++k) {"
-            "    row_i[k] = coords[i*n_cols+k];"
-            "  }"
-            "  for (j=0; j < n_rows, ++j) {"
-            "    dist2 = 0.0f;"
-            "    for (k=0; k < n_cols; ++k) {"
-            "      tmp_d = row_i[k] - coords[j*n_cols+k];"
-            "      dist2 += tmp_d * tmp_d;"
-            "    }"
-            "    pop_i += (unsigned int) (dist2 <= rad2);"
-            "  }"
-            "  pops[i] = pop_i;"
-            "}"
+            "__kernel void\n"
+            "pops(const unsigned int n_rows,\n"
+            "     const unsigned int n_cols,\n"
+            "     __global const float* coords,\n"
+            "     const float rad2,\n"
+            "     __global unsigned int* pops) {\n"
+            "  float row_i[20];\n"
+            "  int k,j;\n"
+            "  unsigned int pop_i = 0;\n"
+            "  float dist2, tmp_d;\n"
+            "  int i = get_global_id(0);\n"
+            "  for (k=0; k < n_cols; ++k) {\n"
+            "    row_i[k] = coords[i*n_cols+k];\n"
+            "  }\n"
+            "  for (j=0; j < n_rows; ++j) {\n"
+            "    dist2 = 0.0f;\n"
+            "    for (k=0; k < n_cols; ++k) {\n"
+            "      tmp_d = row_i[k] - coords[j*n_cols+k];\n"
+            "      dist2 += tmp_d * tmp_d;\n"
+            "    }\n"
+            "    pop_i += (unsigned int) (dist2 <= rad2);\n"
+            "  }\n"
+            "  pops[i] = pop_i;\n"
+            "}\n"
         ;
         cl::Program::Sources src(1, {kernel_src.c_str(), kernel_src.length()+1});
         cl::Program prog = cl::Program(context, src);
@@ -81,11 +84,16 @@ namespace OpenCL {
         cl::Buffer buf_pops = cl::Buffer(context, CL_MEM_WRITE_ONLY, n_rows*sizeof(unsigned int));
         queues[0].enqueueWriteBuffer(buf_coords, CL_TRUE, 0, n_rows*n_cols*sizeof(float), coords);
         // set kernel args
-        kernel.setArg(0, n_rows);
-        kernel.setArg(1, n_cols);
-        kernel.setArg(2, buf_coords);
-        kernel.setArg(3, radii[0]*radii[0]);
-        kernel.setArg(4, buf_pops);
+        float rad2 = radii[0]*radii[0];
+        err = kernel.setArg(0, sizeof(unsigned int), &uint_n_rows);
+        err |= kernel.setArg(1, sizeof(unsigned int), &uint_n_cols);
+        err |= kernel.setArg(2, buf_coords);
+        err |= kernel.setArg(3, sizeof(float), &rad2);
+        err |= kernel.setArg(4, buf_pops);
+        if (err != CL_SUCCESS) {
+          std::cerr << "error while setting kernel arguments" << std::endl;
+          exit(EXIT_FAILURE);
+        }
         // run kernel
         // TODO play with workgroup sizes
         cl::NDRange global(n_rows);
