@@ -29,8 +29,8 @@ namespace {
       log_pop = log(n.pop);
     }
     // print node itself
-    os << Clustering::Tools::stringprintf("{group:'nodes',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d',logpop:%0.2f}},\n",
-                                          n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop, log_pop);
+    os << Clustering::Tools::stringprintf("{group:'nodes',id:'n%d',position:{x:%d,y:%d},data:{id:'n%d',pop:%d,fe:%f,info:'%d: fe=%0.2f, pop=%d',logpop:%0.2f}},\n",
+                                          n.id, n.pos_x, n.pos_y, n.id, n.pop, n.fe, n.id, n.fe, n.pop, log_pop);
     // print edges from node's children to node
     for (auto& id_child: n.children) {
       std::size_t cid = id_child.first;
