@@ -4,6 +4,10 @@
 
 #include <iostream>
 #include <fstream>
+#include <algorithm>
+#include <list>
+#include <map>
+#include <vector>
 
 #include <boost/program_options.hpp>
 #include <omp.h>
@@ -37,6 +41,8 @@ int main(int argc, char* argv[]) {
         "format:\n\n"
         "  TIMESTEP STATE_1 STATE_2 STATE_3 ...\n\n"
         "with columns given in order as their alpha-numerically ordered state names")
+    ("cores,c", b_po::value<std::string>(),
+        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
@@ -60,7 +66,8 @@ int main(int argc, char* argv[]) {
   // load states
   std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
   std::set<std::size_t> state_names(states.begin(), states.end());
-  if (args.count("output") || args.count("distribution")) {
+  std::size_t n_frames = states.size();
+  if (args.count("output") || args.count("distribution") || args.count("cores")) {
     // load window size information
     std::map<std::size_t, std::size_t> coring_windows;
     {
@@ -85,17 +92,61 @@ int main(int argc, char* argv[]) {
         }
       }
     }
-    // TODO core trajectory
-    std::vector<std::size_t> cored_traj(states);
-    for (std::size_t i=0; i < cored_traj.size(); ++i) {
-      //TODO
+    // core trajectory
+    std::vector<std::size_t> cored_traj(n_frames);
+    std::size_t current_core = states[0];
+    std::vector<long> cores(n_frames);
+    for (std::size_t i=0; i < states.size(); ++i) {
+      std::size_t w = coring_windows[states[i]];
+      bool is_in_core = true;
+      for (std::size_t j=i+1; j < i+w; ++j) {
+        if (states[j] != states[i]) {
+          is_in_core = false;
+          break;
+        }
+      }
+      if (is_in_core) {
+        current_core = states[i];
+        cores[i] = current_core;
+      } else {
+        cores[i] = -1;
+      }
+      cored_traj[i] = current_core;
     }
-  
-    // TODO write cored trajectory to file
-  
-    // TODO compute/save escape time distributions
+    // write cored trajectory to file
+    if (args.count("output")) {
+      Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(), cored_traj);
+    }
+    // write core information to file
+    if (args.count("cores")) {
+      Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(), cores, false);
+    }
+    // compute/save escape time distributions
+    if (args.count("distributions")) {
+      std::map<std::size_t, std::list<std::size_t>> etd;
+      std::size_t current_state = cored_traj[0];
+      long n_counts = 0;
+      for (std::size_t state: cored_traj) {
+        if (state == current_state) {
+          ++n_counts;
+        } else {
+          etd[current_state].push_back(n_counts);
+          current_state = state;
+          n_counts = 1;
+        }
+      }
+      etd[current_state].push_back(n_counts);
+      // sort all ETDs from high to low
+      for (auto& dist: etd) {
+        dist.second.sort(std::greater<std::size_t>());
+      }
+
+      //TODO write to file
+
+
+    }
   } else {
-    std::cerr << "\nnothing to do! please define '--output', '--distribution' or both!\n\n";
+    std::cerr << "\n" << "nothing to do! please define '--output', '--distribution' or both!" << "\n\n";
     std::cerr << desc << std::endl;
   }
   return EXIT_SUCCESS;
