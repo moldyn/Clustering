@@ -134,6 +134,15 @@ write_single_column(std::string filename, std::vector<NUM> dat, bool with_scient
   }
 }
 
+template <typename NUM>
+NUM
+string_to_num(const std::string &s) {
+  std::stringstream ss(s);
+  NUM buf;
+  ss >> buf;
+  return buf;
+}
+
 } // end namespace Tools
 } // end namespace Clustering
 

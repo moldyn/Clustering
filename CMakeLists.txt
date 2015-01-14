@@ -94,13 +94,17 @@ configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp density_clustering_common.cpp mpp.cpp tools.cpp logger.cpp)
-set(CLUSTERING_BINARIES network_builder state_filter)
+set(CLUSTERING_BINARIES network_builder state_filter coring)
 
 add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)
 target_link_libraries(network_builder ${Boost_LIBRARIES})
 
 add_executable(state_filter state_filter.cpp)
 target_link_libraries(state_filter ${Boost_LIBRARIES})
+
+add_executable(coring coring.cpp tools.cpp logger.cpp)
+target_link_libraries(coring ${Boost_LIBRARIES})
+
 
 if(DC_USE_MPI)
   include_directories("${MPI_CXX_INCLUDE_PATH}")

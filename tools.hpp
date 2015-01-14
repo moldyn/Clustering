@@ -75,7 +75,12 @@ template <typename NUM>
 void
 free_coords(NUM* coords);
 
-std::string stringprintf(const std::string& str, ...);
+std::string
+stringprintf(const std::string& str, ...);
+
+template <typename NUM>
+NUM
+string_to_num(const std::string &s);
 
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
