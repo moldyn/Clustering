@@ -1,16 +1,33 @@
 
+#include "coring.hpp"
+
 #include "logger.hpp"
 #include "tools.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include <list>
-#include <map>
 #include <vector>
 
 #include <boost/program_options.hpp>
 #include <omp.h>
+
+EtdMap
+compute_etd(std::list<std::size_t> streaks) {
+  EtdMap etd;
+  streaks.sort(std::greater<std::size_t>());
+  for (std::size_t> s: streaks) {
+    if (etd.count(s)) {
+      ++etd[s];
+    } else {
+      etd[s] = 1;
+    }
+  }
+
+  //TODO
+
+  return etd;
+}
 
 int main(int argc, char* argv[]) {
   using namespace Clustering::Tools;
@@ -123,27 +140,25 @@ int main(int argc, char* argv[]) {
     }
     // compute/save escape time distributions
     if (args.count("distributions")) {
-      std::map<std::size_t, std::list<std::size_t>> etd;
+      std::map<std::size_t, std::list<std::size_t>> streaks;
       std::size_t current_state = cored_traj[0];
       long n_counts = 0;
       for (std::size_t state: cored_traj) {
         if (state == current_state) {
           ++n_counts;
         } else {
-          etd[current_state].push_back(n_counts);
+          streaks[current_state].push_back(n_counts);
           current_state = state;
           n_counts = 1;
         }
       }
-      etd[current_state].push_back(n_counts);
-      // sort all ETDs from high to low
-      for (auto& dist: etd) {
-        dist.second.sort(std::greater<std::size_t>());
+      streaks[current_state].push_back(n_counts);
+
+      std::map<std::size_t, EtdMap> etds;
+      for (std::size_t state: state_names) {
+        etds[state] = compute_etd(streaks[state]);
       }
-
       //TODO write to file
-
-
     }
   } else {
     std::cerr << "\n" << "nothing to do! please define '--output', '--distribution' or both!" << "\n\n";
