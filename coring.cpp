@@ -12,21 +12,24 @@
 #include <boost/program_options.hpp>
 #include <omp.h>
 
-EtdMap
-compute_etd(std::list<std::size_t> streaks) {
-  EtdMap etd;
-  streaks.sort(std::greater<std::size_t>());
-  for (std::size_t> s: streaks) {
-    if (etd.count(s)) {
-      ++etd[s];
-    } else {
-      etd[s] = 1;
+WTDMap
+compute_wtd(std::list<std::size_t> streaks) {
+  WTDMap wtd;
+  if (streaks.size() > 0) {
+    streaks.sort(std::greater<std::size_t>());
+    std::size_t max_streak = streaks.front();
+    for (std::size_t i=0; i <= max_streak; ++i) {
+      float n_steps = 0.0f;
+      for (auto s: streaks) {
+        if (i > s) {
+          break;
+        }
+        n_steps += 1.0f;
+      }
+      wtd[i] = n_steps / ((float) streaks.size());
     }
   }
-
-  //TODO
-
-  return etd;
+  return wtd;
 }
 
 int main(int argc, char* argv[]) {
@@ -39,9 +42,11 @@ int main(int argc, char* argv[]) {
     "\n"
     "options"));
   desc.add_options()
-    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("help,h", b_po::bool_switch()->default_value(false),
+        "show this help.")
     // optional
-    ("states,s", b_po::value<std::string>()->required(), "(required): file with state information (i.e. clustered trajectory")
+    ("states,s", b_po::value<std::string>()->required(),
+        "(required): file with state information (i.e. clustered trajectory")
     ("windows,w", b_po::value<std::string>()->required(), 
         "(required): file with window sizes."
         "format is space-separated lines of\n\n"
@@ -52,16 +57,15 @@ int main(int argc, char* argv[]) {
         "3 40\n"
         "4 60\n\n"
         "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states")
-    ("output,o", b_po::value<std::string>(), "(optional): cored trajectory")
+    ("output,o", b_po::value<std::string>(),
+        "(optional): cored trajectory")
     ("distribution,d", b_po::value<std::string>(),
-        "(optional): write escape time distributions to file. "
-        "format:\n\n"
-        "  TIMESTEP STATE_1 STATE_2 STATE_3 ...\n\n"
-        "with columns given in order as their alpha-numerically ordered state names")
+        "(optional): write waiting time distributions to file.")
     ("cores,c", b_po::value<std::string>(),
         "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
     // defaults
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+        "verbose mode: print runtime information to STDOUT.")
   ;
   // parse cmd arguments
   try {
@@ -139,7 +143,7 @@ int main(int argc, char* argv[]) {
       Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(), cores, false);
     }
     // compute/save escape time distributions
-    if (args.count("distributions")) {
+    if (args.count("distribution")) {
       std::map<std::size_t, std::list<std::size_t>> streaks;
       std::size_t current_state = cored_traj[0];
       long n_counts = 0;
@@ -154,11 +158,15 @@ int main(int argc, char* argv[]) {
       }
       streaks[current_state].push_back(n_counts);
 
-      std::map<std::size_t, EtdMap> etds;
+      std::map<std::size_t, WTDMap> etds;
       for (std::size_t state: state_names) {
-        etds[state] = compute_etd(streaks[state]);
+        etds[state] = compute_wtd(streaks[state]);
       }
-      //TODO write to file
+      // write WTDs to file
+      for (auto state_etd: etds) {
+        std::string fname = Clustering::Tools::stringprintf(args["distribution"].as<std::string>() + "_%d", state_etd.first);
+        Clustering::Tools::write_map<std::size_t, float>(fname, state_etd.second);
+      }
     }
   } else {
     std::cerr << "\n" << "nothing to do! please define '--output', '--distribution' or both!" << "\n\n";
