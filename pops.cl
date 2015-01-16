@@ -1,26 +1,62 @@
 
+/*
+
+i_block (begin of block)
+coords
+pops
+
+global work size: full length + fake length to be divisible by 64
+  -> reference
+  -> ref-line to private memory
+  -> index in resulting vector (pops)
+local work size:  64
+  -> block to compute against
+  -> read block into local mem in parallel by workgroup
+
+ */
+
 __kernel void
-pops(const unsigned int n_rows,
+pops(const unsigned int i_block,
+     const unsigned int n_rows,
      const unsigned int n_cols,
      __global const float* coords,
      const float rad2,
-     __global unsigned int* pops) {
-  float row_i[20];
-  int k,j;
-  unsigned int pop_i = 0;
-  float dist2, tmp_d;
-  int i = get_global_id(0);
-  for (k=0; k < n_cols; ++k) {
-    row_i[k] = coords[i*n_cols+k];
-  }
-  for (j=0; j < n_rows; ++j) {
-    dist2 = 0.0f;
+     __global unsigned int* pops
+     __local float* tmp_block) {
+
+  float row_i[32];
+  unsigned int i_global = get_global_id(0);
+  unsigned int i_local = get_local_id(0);
+  unsigned int n_local = get_local_size(0);
+  unsigned int j,k;
+  unsigned int tmp_pops = 0;
+  float dist2, tmp;
+  if (i_global < n_rows) {
+    // copy row i_global to local memory for fast retrieval
     for (k=0; k < n_cols; ++k) {
-      tmp_d = row_i[k] - coords[j*n_cols+k];
-      dist2 += tmp_d * tmp_d;
+      row_i[k] = coords[i_global*n_cols+k];
     }
-    pop_i += (unsigned int) (dist2 <= rad2);
+    // copy block with reference coords to local memory for fast retrieval
+    for (k=0; k < n_cols; ++k) {
+      tmp_block[i_local*n_cols+k] = coords[(i_block+i_local)*n_cols+k];
+    }
+    // sync workgroup
+    barrier(CLK_LOCAL_MEM_FENCE);
+    // compute squared distances of i to reference structures
+    // in block and compare them to rad2
+    for (j=0; j < n_local; ++j) {
+      dist2 = 0.0f;
+      for (k=0; k < n_cols; ++k) {
+        tmp = row_i[k] - tmp_block[j*n_cols+k];
+        dist2 += tmp * tmp;
+      }
+      if (dist2 <= rad2) {
+        ++tmp_pops;
+      }
+    }
+    pops[i_global] += tmp_pops;
+  } else {
+    return;
   }
-  pops[i] = pop_i;
 }
 

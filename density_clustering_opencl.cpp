@@ -59,6 +59,9 @@ namespace OpenCL {
       }
 
       // TODO load kernel src as include
+      std::string kernel_src =
+        #include "kernel/pops.h"
+      ;
 
       cl::Program::Sources src(1, {kernel_src.c_str(), kernel_src.length()+1});
       cl::Program prog = cl::Program(context, src);

@@ -53,13 +53,6 @@ else()
   message(SEND_ERROR "currently no other compiler than the GCC is supported. sorry.")
 endif()
 
-# Intel compiler setup
-#elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-#  message("using Intel compiler")
-#  set (CMAKE_CXX_FLAGS "-std=c++11 -openmp -xAVX -vec-report=1 -O3")
-#  set (DC_MEM_ALIGNMENT 32)
-#endif()
-
 if (DC_USE_OPENCL)
   if (DC_USE_MPI)
     message(SEND_ERROR "sorry, MPI and OpenCL are at the moment mutually exclusive. might change with a newer release.")
@@ -70,10 +63,12 @@ if (DC_USE_OPENCL)
   find_package(OpenCL REQUIRED)
   if(OPENCL_HAS_CPP_BINDINGS)
   	message( "using OpenCL for GPGPU computing")
-    # TODO generate kernel headers with python
-
-
-
+    # generate kernel headers with python
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/kernel)
+    execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/generate_header.py
+                                      ${CMAKE_SOURCE_DIR}/pops.cl
+                                      ${CMAKE_BINARY_DIR}/kernel/pops.h)
+    include_directories(${CMAKE_BINARY_DIR})
   else(OPENCL_HAS_CPP_BINDINGS)
   	message(SEND_ERROR "No OpenCL CPP bindings found" )
   endif(OPENCL_HAS_CPP_BINDINGS)
@@ -90,12 +85,13 @@ if(DC_USE_MPI)
   endif()
 endif()
 
+configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
+include_directories(${CMAKE_BINARY_DIR}/generated/)
+
 
 find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
-configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
-include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp density_clustering_common.cpp mpp.cpp tools.cpp logger.cpp)
 set(CLUSTERING_BINARIES network_builder state_filter coring)
