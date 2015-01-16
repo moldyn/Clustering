@@ -70,6 +70,10 @@ if (DC_USE_OPENCL)
   find_package(OpenCL REQUIRED)
   if(OPENCL_HAS_CPP_BINDINGS)
   	message( "using OpenCL for GPGPU computing")
+    # TODO generate kernel headers with python
+
+
+
   else(OPENCL_HAS_CPP_BINDINGS)
   	message(SEND_ERROR "No OpenCL CPP bindings found" )
   endif(OPENCL_HAS_CPP_BINDINGS)
