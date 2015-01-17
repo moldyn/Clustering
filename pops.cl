@@ -18,19 +18,20 @@ local work size:  64
  */
 
 __kernel void
-pops(const unsigned int i_block,
-     const unsigned int n_rows,
-     const unsigned int n_cols,
-     __global const float* coords,
-     const float rad2,
-     __global unsigned int* pops
-     __local float* tmp_block) {
+pops(  const unsigned int i_block_ref
+     , const unsigned int i_block
+     , const unsigned int n_rows
+     , const unsigned int n_cols
+     , __global const float * coords
+     , const float rad2
+     , __global unsigned int * pops
+     , __local float * tmp_block) {
 
   float row_i[32];
-  unsigned int i_global = get_global_id(0);
+  unsigned int i_global = i_block + get_global_id(0);
   unsigned int i_local = get_local_id(0);
-  unsigned int i_block_global = i_block + i_local;
-  unsigned int n_local = min(get_local_size(0), (n_cols - i_block));
+  unsigned int i_block_global = i_block_ref + i_local;
+  unsigned int n_local = min(get_local_size(0), (n_cols - i_block_ref));
   unsigned int j,k;
   unsigned int tmp_pops = 0;
   float dist2, tmp;
@@ -51,7 +52,8 @@ pops(const unsigned int i_block,
       dist2 = 0.0f;
       for (k=0; k < n_cols; ++k) {
         tmp = row_i[k] - tmp_block[j*n_cols+k];
-        dist2 += tmp * tmp;
+        //dist2 += tmp * tmp;
+        dist2 = fma(tmp, tmp, dist2);
       }
       if (dist2 <= rad2) {
         ++tmp_pops;
