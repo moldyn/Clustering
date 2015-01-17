@@ -1,6 +1,8 @@
 
 /*
 
+TODO proper doc explaining memory/computation model
+
 i_block (begin of block)
 coords
 pops
@@ -27,7 +29,8 @@ pops(const unsigned int i_block,
   float row_i[32];
   unsigned int i_global = get_global_id(0);
   unsigned int i_local = get_local_id(0);
-  unsigned int n_local = get_local_size(0);
+  unsigned int i_block_global = i_block + i_local;
+  unsigned int n_local = min(get_local_size(0), (n_cols - i_block));
   unsigned int j,k;
   unsigned int tmp_pops = 0;
   float dist2, tmp;
@@ -36,9 +39,9 @@ pops(const unsigned int i_block,
     for (k=0; k < n_cols; ++k) {
       row_i[k] = coords[i_global*n_cols+k];
     }
-    // copy block with reference coords to local memory for fast retrieval
+    // copy block of reference coords to local memory for fast retrieval
     for (k=0; k < n_cols; ++k) {
-      tmp_block[i_local*n_cols+k] = coords[(i_block+i_local)*n_cols+k];
+      tmp_block[i_local*n_cols+k] = coords[i_block_global*n_cols+k];
     }
     // sync workgroup
     barrier(CLK_LOCAL_MEM_FENCE);
