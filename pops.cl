@@ -40,7 +40,7 @@ pops(const unsigned int i_block,
       row_i[k] = coords[i_global*n_cols+k];
     }
     // copy block of reference coords to local memory for fast retrieval
-    for (k=0; k < n_cols; ++k) {
+    for (k=0; (k < n_cols) && (i_local < n_local); ++k) {
       tmp_block[i_local*n_cols+k] = coords[i_block_global*n_cols+k];
     }
     // sync workgroup
