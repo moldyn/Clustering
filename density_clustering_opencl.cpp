@@ -30,6 +30,7 @@ namespace OpenCL {
       for (cl::Device dev: devices) {
         queues.push_back(cl::CommandQueue(context, dev));
       }
+      std::size_t n_queues = queues.size();
       // compute needed/avail mem sizes
       std::size_t n_bytes_per_row;
       std::size_t n_bytes_global_mem;
@@ -43,11 +44,13 @@ namespace OpenCL {
                   << "       please check for updates." << std::endl;
         exit(EXIT_FAILURE);
       }
-      // TODO use multiple devices
       // create buffers and copy data to device(s)
       cl::Buffer buf_coords = cl::Buffer(context, CL_MEM_READ_ONLY, n_rows*n_cols*sizeof(float));
+      //TODO initialize pops to zero (use init kernel)
       cl::Buffer buf_pops = cl::Buffer(context, CL_MEM_WRITE_ONLY, n_rows*sizeof(unsigned int));
-      queues[0].enqueueWriteBuffer(buf_coords, CL_TRUE, 0, n_rows*n_cols*sizeof(float), coords);
+      for (int iq=0; iq < n_queues; ++iq) {
+        queues[iq].enqueueWriteBuffer(buf_coords, CL_TRUE, 0, n_rows*n_cols*sizeof(float), coords);
+      }
       // load kernel source
       std::string kernel_src =
         #include "kernel/pops.h"
@@ -65,7 +68,7 @@ namespace OpenCL {
       float rad2 = radii[0]*radii[0];
       // TODO play with workgroup sizes
       const unsigned int GLOBAL_SIZE = 1024;
-      const unsigned int WORKGROUP_SIZE = 256;
+      const unsigned int WORKGROUP_SIZE = 128;
       err  = kernel.setArg(2, sizeof(unsigned int), &uint_n_rows);
       err |= kernel.setArg(3, sizeof(unsigned int), &uint_n_cols);
       err |= kernel.setArg(4, buf_coords);
@@ -88,24 +91,19 @@ namespace OpenCL {
       cl::NDRange local(WORKGROUP_SIZE);
       // run pops kernel repeatedly, until the full range has been sampled
       for (unsigned int i_block_ref=0; i_block_ref < range_length; i_block_ref += WORKGROUP_SIZE) {
-
-//TODO multiple devices
-//TODO proper event management
-
-        for (unsigned int i_block=0; i_block < range_length; i_block += GLOBAL_SIZE) {
-          err  = kernel.setArg(0, sizeof(unsigned int), &i_block);
-          err |= kernel.setArg(1, sizeof(unsigned int), &i_block_ref);
-          if (err != CL_SUCCESS) {
-            std::cerr << "error setting 'i_block' and 'i_block_ref' kernel parameter for pops-kernel" << std::endl;
-            exit(EXIT_FAILURE);
+        kernel.setArg(1, sizeof(unsigned int), &i_block_ref);
+        for (unsigned int i_block=0; i_block < range_length; i_block += n_queues*GLOBAL_SIZE) {
+          std::vector<cl::Event> events(n_queues);
+          for (unsigned int iq=0; iq < n_queues; ++iq) {
+            unsigned int q_block = i_block + iq*GLOBAL_SIZE;
+            kernel.setArg(0, sizeof(unsigned int), &q_block);
+            queues[iq].enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &events[iq]);
           }
-          cl::Event event;
-          queues[0].enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
-          event.wait();
+          cl::Event::waitForEvents(events);
         }
-
       }
       // retrieve results
+      // TODO from all devices!
       std::vector<unsigned int> result(n_rows);
       queues[0].enqueueReadBuffer(buf_pops, CL_TRUE, 0, n_rows*sizeof(unsigned int), result.data());
       std::vector<std::size_t> pops;

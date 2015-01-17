@@ -18,6 +18,15 @@ local work size:  64
  */
 
 __kernel void
+init_pops(   const unsigned int n_rows
+           , __global const unsigned int * pops) {
+  unsigned int i;
+  for (i=0; i < n_rows; ++i) {
+    pops[i] = 0;
+  }
+}
+
+__kernel void
 pops(  const unsigned int i_block_ref
      , const unsigned int i_block
      , const unsigned int n_rows
