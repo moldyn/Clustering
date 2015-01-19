@@ -457,7 +457,7 @@ namespace MPI {
           exit(EXIT_FAILURE);
         }
         float threshold = args["threshold"].as<float>();
-        clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, n_nodes, node_id);
+        clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, {}, n_cols, n_nodes, node_id);
       }
       if (node_id == MAIN_PROCESS) {
         if ( ! args["only-initial"].as<bool>()) {

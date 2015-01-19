@@ -16,6 +16,12 @@ cp clustering.cpp\
    density_clustering_mpi.hpp\
    density_clustering_common.hpp\
    density_clustering_common.cpp\
+   FindOpenCL.cmake\
+   cl.hpp\
+   density_clustering_opencl.hpp\
+   density_clustering_opencl.cpp\
+   pops.cl\
+   generate_header.py\
    logger.cpp\
    logger.hpp\
    mpp.cpp\
@@ -28,6 +34,8 @@ cp clustering.cpp\
    tools.cpp\
    tools.hpp\
    tools.hxx\
+   coring.cpp\
+   coring.hpp\
    embedded_cytoscape.hpp\
    $v_dir/
 

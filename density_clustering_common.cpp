@@ -10,12 +10,13 @@ namespace Clustering {
 namespace Density {
 
   std::vector<std::size_t>
-  initial_density_clustering(const std::vector<float>& free_energy,
-                             const Neighborhood& nh,
-                             const float free_energy_threshold,
-                             const float* coords,
-                             const std::size_t n_rows,
-                             const std::size_t n_cols
+  initial_density_clustering(const std::vector<float>& free_energy
+                           , const Neighborhood& nh
+                           , const float free_energy_threshold
+                           , const float* coords
+                           , const std::size_t n_rows
+                           , const std::size_t n_cols
+                           , const std::vector<std::size_t> initial_clusters
 #ifdef DC_USE_MPI
                            , const int mpi_n_nodes
                            , const int mpi_node_id
@@ -24,7 +25,12 @@ namespace Density {
 #ifdef DC_USE_MPI
     using namespace Clustering::Density::MPI;
 #endif
-    std::vector<std::size_t> clustering(n_rows);
+    std::vector<std::size_t> clustering;
+    if (initial_clusters.size() == n_rows) {
+      clustering = initial_clusters;
+    } else {
+      clustering = std::vector<std::size_t>(n_rows);
+    }
     // sort lowest to highest (low free energy = high density)
     std::vector<FreeEnergy> fe_sorted = sorted_free_energies(free_energy);
     // find last frame below free energy threshold
@@ -121,8 +127,8 @@ namespace Density {
             }
           }
         }
-      }
-    }
+      } // end for
+    } // end while
     // normalize names
     std::set<std::size_t> final_names;
     for (std::size_t i=0; i < first_frame_above_threshold; ++i) {

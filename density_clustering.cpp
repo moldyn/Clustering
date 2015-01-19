@@ -340,6 +340,9 @@ namespace Clustering {
         }
       }
       //// clustering
+      //
+      // TODO add screening feature
+      //
       if (args.count("output")) {
         const std::string output_file = args["output"].as<std::string>();
         std::vector<std::size_t> clustering;
@@ -353,7 +356,7 @@ namespace Clustering {
             exit(EXIT_FAILURE);
           }
           float threshold = args["threshold"].as<float>();
-          clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols);
+          clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, {});
         }
         if ( ! args["only-initial"].as<bool>()) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
