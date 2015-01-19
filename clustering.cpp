@@ -61,6 +61,9 @@ int main(int argc, char* argv[]) {
     ("radius,r", b_po::value<float>(), "parameter: hypersphere radius.")
     // optional
     ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
+    ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(), "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
+                                                                               "for threshold-screening, --output denotes the basename only. output files will have the"
+                                                                               " current threshold limit appended to the given filename.")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
     ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
     ("radii,R", b_po::value<std::vector<float>>()->multitoken(), "parameter: list of radii for population/free energy calculations "

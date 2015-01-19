@@ -340,15 +340,32 @@ namespace Clustering {
         }
       }
       //// clustering
-      //
-      // TODO add screening feature
-      //
       if (args.count("output")) {
         const std::string output_file = args["output"].as<std::string>();
         std::vector<std::size_t> clustering;
         if (args.count("input")) {
           Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
           clustering = read_clustered_trajectory(args["input"].as<std::string>());
+        } else if (args.count("threshold-screening")) {
+          std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
+          if (threshold_params.size() != 3) {
+            std::cerr << "error: option -T expects exactly three floating point arguments: FROM STEP TO." << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          Clustering::logger(std::cout) << "running free energy landscape screening" << std::endl;
+          float t_from = threshold_params[0];
+          float t_step = threshold_params[1];
+          float t_to = threshold_params[2];
+          std::vector<std::size_t> clustering(n_rows);
+          // upper limit extended to a 10th of the stepsize to
+          // circumvent rounding errors when comparing on equality
+          float t_to_low = t_to - t_step/10.0f;
+          float t_to_high = t_to + t_step/10.0f;
+          for (float t=t_from; ! (t_to_low < t && t < t_to_high); t += t_step) {
+            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
+            write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
+                              , clustering);
+          }
         } else {
           Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
           if (args.count("threshold") == 0) {
