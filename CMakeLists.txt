@@ -1,6 +1,13 @@
 cmake_minimum_required (VERSION 2.8)
 project (clustering) 
 
+# do we want static libraries?
+# When STATIC_LINKING is TRUE, than cmake looks for libraries ending
+# with .a. This is for linux only!
+IF(STATIC_LINKING)
+    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ENDIF(STATIC_LINKING)
+
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")
@@ -123,5 +130,18 @@ else()
   set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering)
 endif()
 
+
+# set -static, when STATIC_LINKING is TRUE and set LINK_SEARCH_END_STATIC
+# to remove the additional -bdynamic from the linker line.
+if(STATIC_LINKING)
+    set(CMAKE_EXE_LINKER_FLAGS "-static")
+    set_target_properties(clustering PROPERTIES LINK_SEARCH_END_STATIC 1)
+    set_target_properties(network_builder PROPERTIES LINK_SEARCH_END_STATIC 1)
+    set_target_properties(state_filter PROPERTIES LINK_SEARCH_END_STATIC 1)
+    set_target_properties(coring PROPERTIES LINK_SEARCH_END_STATIC 1)
+endif(STATIC_LINKING)
+
+
 install(TARGETS ${CLUSTERING_BINARIES} RUNTIME DESTINATION .)
+
 
