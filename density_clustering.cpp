@@ -292,6 +292,10 @@ namespace Clustering {
             std::cerr << "error: clustering cannot be done with several radii (-R is set)." << std::endl;
             exit(EXIT_FAILURE);
           }
+          if ( ! (args.count("population") || args.count("free-energy"))) {
+            std::cerr << "error: no output defined for populations or free energies. why did you define -R ?" << std::endl;
+            exit(EXIT_FAILURE);
+          }
           std::vector<float> radii = args["radii"].as<std::vector<float>>();
 #ifdef DC_USE_OPENCL
           std::map<float, std::vector<std::size_t>> pops = Clustering::Density::OpenCL::calculate_populations(coords, n_rows, n_cols, radii);
@@ -299,10 +303,14 @@ namespace Clustering {
           std::map<float, std::vector<std::size_t>> pops = calculate_populations(coords, n_rows, n_cols, radii);
 #endif
           for (auto radius_pops: pops) {
-            std::string basename_pop = args["population"].as<std::string>() + "_%f";
-            std::string basename_fe = args["free-energy"].as<std::string>() + "_%f";
-            write_pops(Clustering::Tools::stringprintf(basename_pop, radius_pops.first), radius_pops.second);
-            write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first), calculate_free_energies(radius_pops.second));
+            if (args.count("population")) {
+              std::string basename_pop = args["population"].as<std::string>() + "_%f";
+              write_pops(Clustering::Tools::stringprintf(basename_pop, radius_pops.first), radius_pops.second);
+            }
+            if (args.count("free-energy")) {
+              std::string basename_fe = args["free-energy"].as<std::string>() + "_%f";
+              write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first), calculate_free_energies(radius_pops.second));
+            }
           }
         } else {
           if ( ! args.count("radius")) {
