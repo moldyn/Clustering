@@ -367,8 +367,8 @@ namespace Clustering {
           std::vector<std::size_t> clustering(n_rows);
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
-          float t_to_low = t_to - t_step/10.0f;
-          float t_to_high = t_to + t_step/10.0f;
+          float t_to_low = t_to - t_step/10.0f + t_step;
+          float t_to_high = t_to + t_step/10.0f + t_step;
           for (float t=t_from; ! (t_to_low < t && t < t_to_high); t += t_step) {
             clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
@@ -383,7 +383,7 @@ namespace Clustering {
           float threshold = args["threshold"].as<float>();
           clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, {});
         }
-        if ( ! args["only-initial"].as<bool>()) {
+        if ( ! args["only-initial"].as<bool>() && ( ! args.count("threshold-screening"))) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
           clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
         }
