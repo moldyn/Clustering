@@ -34,9 +34,11 @@ int main(int argc, char* argv[]) {
     "  clustering density -h\n"
   ;
   enum {DENSITY, MPP, NETWORK, FILTER} mode;
+
   if (argc <= 2) {
     std::cerr << general_help;
     return EXIT_FAILURE;
+
   } else {
     std::string str_mode(argv[1]);
     if (str_mode.compare("density") == 0) {
@@ -54,7 +56,6 @@ int main(int argc, char* argv[]) {
     }
   }
   b_po::variables_map args;
-  b_po::positional_options_description pos_opts;
   // density options
   b_po::options_description desc_dens (std::string(argv[1]).append(
     "\n\n"
@@ -134,6 +135,7 @@ int main(int argc, char* argv[]) {
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
+  // filter options
   b_po::options_description desc_filter (std::string(argv[1]).append(
     "\n\n"
     "filter phase space (e.g. dihedral angles) for given state."
@@ -150,11 +152,12 @@ int main(int argc, char* argv[]) {
     ("selected-state", b_po::value<std::size_t>()->required(),
           "(required): state id fo r selected state.")
   ;
+  b_po::positional_options_description pos_opts;
   // parse cmd arguments           
   b_po::options_description desc;  
   switch(mode){                    
     case DENSITY:                  
-      desc.add(desc_dens);         
+      desc.add(desc_dens);
       break;                       
     case MPP:                      
       desc.add(desc_mpp);
@@ -164,7 +167,6 @@ int main(int argc, char* argv[]) {
       break;
     case FILTER:
       desc.add(desc_filter);
-      // TODO check positional argument
       pos_opts.add("selected-state", 1);
       break;
     default:
@@ -172,11 +174,8 @@ int main(int argc, char* argv[]) {
       return EXIT_FAILURE;
   }
   try {
-    if (mode == FILTER) {
-      b_po::store(b_po::command_line_parser(argc, argv).options(desc).positional(pos_opts).run(), args);
-    } else {
-      b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
-    }
+    // if argc <= 2, program has already exited (see several lines above)
+    b_po::store(b_po::command_line_parser(argc-2, &argv[2]).options(desc_filter).positional(pos_opts).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
     if ( ! args["help"].as<bool>()) {

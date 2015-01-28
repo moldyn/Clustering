@@ -8,6 +8,7 @@
 namespace Clustering {
 namespace Filter {
 
+  //TODO remove body and use state_select implementation instead
   void
   main(boost::program_options::variables_map args) {
     // filter data
