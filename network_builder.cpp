@@ -14,6 +14,42 @@
 
 
 namespace {
+  //// use these values to construct
+  //// the graphical network with cytoscape.js.
+  //// in units of pixels.
+  int HORIZONTAL_SPACING = 10;
+  int VERTICAL_SPACING = 50;
+//  int NODE_SIZE_MIN = 5;
+//  int NODE_SIZE_MAX = 50;
+  // the following values will be set by
+  // 'save_network_to_html'
+  // and are stored here for convenience.
+  // needed by 'Node'-instances for
+  // construction of graphical network,
+  // i.e. to determine node sizes and colors.
+  std::size_t POP_MIN = 0;
+  std::size_t POP_MAX = 0;
+  float       FE_MIN = 0.0f;
+  float       FE_MAX = 0.0f;
+  ////////
+
+  struct Node {
+    std::size_t id;
+    float fe;
+    std::size_t pop;
+    std::map<std::size_t, Node> children;
+    int pos_x = 0;
+    int pos_y = 0;
+    int _subtree_width = 0;
+
+    Node();
+    Node(std::size_t _id, float _fe, std::size_t _pop);
+    Node* find_parent_of(std::size_t search_id);
+    void set_pos(int x, int y);
+    int subtree_width();
+    void print_subtree(std::ostream& os);
+    void print_node_and_subtree(std::ostream& os);
+  };
 
   constexpr bool fuzzy_equal(float a, float b, float prec) {
     return (a <= b + prec) && (a >= b - prec);
@@ -301,143 +337,113 @@ namespace {
 } // end local namespace
 
 
-int main(int argc, char* argv[]) {
-  using namespace Clustering::Tools;
-  namespace b_po = boost::program_options;
-  b_po::variables_map args;
-  b_po::options_description desc (std::string(argv[0]).append(
-    "\n\n"
-    "build network information from density based clustering."
-    "\n"
-    "options"));
-  desc.add_options()
-    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.1f"),
-          "(optional): basename of input files (default: clust.\%0.1f).")
-    ("min", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
-    ("max", b_po::value<float>()->default_value(8.0f, "8.0"), "(optional): maximum free energy (default: 8.0).")
-    ("step", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
-    ("minpop,p", b_po::value<std::size_t>()->default_value(1),
-          "(optional): minimum population of node to be considered for network (default: 1).")
-    // defaults
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
-  ;
-  // parse cmd arguments
-  try {
-    b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
-    b_po::notify(args);
-  } catch (b_po::error& e) {
-    if ( ! args["help"].as<bool>()) {
-      std::cout << "\n" << e.what() << "\n\n" << std::endl;
-    }
-    std::cout << desc << std::endl;
-    return 2;
-  }
-  if (args["help"].as<bool>()) {
-    std::cout << desc << std::endl;
-    return 1;
-  }
-  // setup two threads parallel read/write
-  omp_set_num_threads(2);
-  // setup general flags / options
-  Clustering::verbose = args["verbose"].as<bool>();
+namespace Clustering {
+namespace NetworkBuilder {
 
-  float d_min = args["min"].as<float>();
-  float d_max = args["max"].as<float>();
-  float d_step = args["step"].as<float>();
-  std::string basename = args["basename"].as<std::string>();
-  std::string remapped_name = "remapped_" + basename;
-  std::size_t minpop = args["minpop"].as<std::size_t>();
+  void
+  main(boost::program_options::variables_map args) {
+    using namespace Clustering::Tools;
+    // setup two threads parallel read/write
+    omp_set_num_threads(2);
+    // setup general flags / options
+    Clustering::verbose = args["verbose"].as<bool>();
 
-  std::map<std::size_t, std::size_t> network;
-  std::map<std::size_t, std::size_t> pops;
-  std::map<std::size_t, float> free_energies;
+    float d_min = args["min"].as<float>();
+    float d_max = args["max"].as<float>();
+    float d_step = args["step"].as<float>();
+    std::string basename = args["basename"].as<std::string>();
+    std::string remapped_name = "remapped_" + basename;
+    std::size_t minpop = args["minpop"].as<std::size_t>();
 
-  std::vector<std::size_t> cl_next = read_clustered_trajectory(stringprintf(basename, d_min));
-  std::vector<std::size_t> cl_now;
-  std::size_t max_id;
-  std::size_t n_rows = cl_next.size();
-  // re-map states to give every state a unique id.
-  // this is nevessary, since every initially clustered trajectory
-  // at different thresholds uses the same ids starting with 0.
-  const float prec = d_step / 10.0f;
-  for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
-    Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
-    cl_now = cl_next;
-    #pragma omp parallel sections
-    {
-      #pragma omp section
+    std::map<std::size_t, std::size_t> network;
+    std::map<std::size_t, std::size_t> pops;
+    std::map<std::size_t, float> free_energies;
+
+    std::vector<std::size_t> cl_next = read_clustered_trajectory(stringprintf(basename, d_min));
+    std::vector<std::size_t> cl_now;
+    std::size_t max_id;
+    std::size_t n_rows = cl_next.size();
+    // re-map states to give every state a unique id.
+    // this is nevessary, since every initially clustered trajectory
+    // at different thresholds uses the same ids starting with 0.
+    const float prec = d_step / 10.0f;
+    for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
+      Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
+      cl_now = cl_next;
+      #pragma omp parallel sections
       {
-        write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
-      }
-      #pragma omp section
-      {
-        cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
-        max_id = *std::max_element(cl_now.begin(), cl_now.end());
-        //TODO bugfix: correct pop count!
-        for (std::size_t i=0; i < n_rows; ++i) {
-          if (cl_next[i] != 0) {
-            cl_next[i] += max_id;
-            if (cl_now[i] != 0) {
-              network[cl_now[i]] = cl_next[i];
-              ++pops[cl_now[i]];
-              free_energies[cl_now[i]] = d;
+        #pragma omp section
+        {
+          write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
+        }
+        #pragma omp section
+        {
+          cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
+          max_id = *std::max_element(cl_now.begin(), cl_now.end());
+          //TODO bugfix: correct pop count!
+          for (std::size_t i=0; i < n_rows; ++i) {
+            if (cl_next[i] != 0) {
+              cl_next[i] += max_id;
+              if (cl_now[i] != 0) {
+                network[cl_now[i]] = cl_next[i];
+                ++pops[cl_now[i]];
+                free_energies[cl_now[i]] = d;
+              }
             }
           }
         }
       }
     }
-  }
-  // handle last trajectory
-  Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
-  cl_now = cl_next;
-  write_clustered_trajectory(stringprintf(remapped_name, d_max), cl_now);
-  for (std::size_t i=0; i < n_rows; ++i) {
-    if (cl_now[i] != 0) {
-      ++pops[cl_now[i]];
-      free_energies[cl_now[i]] = d_max;
-    }
-  }
-  // if minpop given: delete nodes and edges not fulfilling min. population criterium
-  if (minpop > 1) {
-    Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
-    std::unordered_set<std::size_t> removals;
-    auto pop_it = pops.begin();
-    Clustering::logger(std::cout) << "  ... search nodes to remove" << std::endl;
-    while (pop_it != pops.end()) {
-      if (pop_it->second < minpop) {
-        removals.insert(pop_it->first);
-        pops.erase(pop_it++); // as above
-      } else {
-        ++pop_it;
+    // handle last trajectory
+    Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
+    cl_now = cl_next;
+    write_clustered_trajectory(stringprintf(remapped_name, d_max), cl_now);
+    for (std::size_t i=0; i < n_rows; ++i) {
+      if (cl_now[i] != 0) {
+        ++pops[cl_now[i]];
+        free_energies[cl_now[i]] = d_max;
       }
     }
-    Clustering::logger(std::cout) << "  ... search edges to remove" << std::endl;
-    auto net_it = network.begin();
-    while (net_it != network.end()) {
-      std::size_t a = net_it->first;
-      std::size_t b = net_it->second;
-      if (removals.count(a) > 0 || removals.count(b) > 0) {
-        network.erase(net_it++);
-      } else {
-        ++net_it;
+    // if minpop given: delete nodes and edges not fulfilling min. population criterium
+    if (minpop > 1) {
+      Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
+      std::unordered_set<std::size_t> removals;
+      auto pop_it = pops.begin();
+      Clustering::logger(std::cout) << "  ... search nodes to remove" << std::endl;
+      while (pop_it != pops.end()) {
+        if (pop_it->second < minpop) {
+          removals.insert(pop_it->first);
+          pops.erase(pop_it++); // as above
+        } else {
+          ++pop_it;
+        }
       }
+      Clustering::logger(std::cout) << "  ... search edges to remove" << std::endl;
+      auto net_it = network.begin();
+      while (net_it != network.end()) {
+        std::size_t a = net_it->first;
+        std::size_t b = net_it->second;
+        if (removals.count(a) > 0 || removals.count(b) > 0) {
+          network.erase(net_it++);
+        } else {
+          ++net_it;
+        }
+      }
+      Clustering::logger(std::cout) << "  ... finished." << std::endl;
     }
-    Clustering::logger(std::cout) << "  ... finished." << std::endl;
+    // save links (i.e. edges) as two-column ascii in a child -> parent manner
+    save_network_links("network_links.dat", network);
+    // save id, population and free energy of nodes
+    save_node_info("network_nodes.dat", free_energies, pops);
+    // compute and directly save network end-nodes (i.e. leaves of the network-tree)
+    std::set<std::size_t> leaves = compute_and_save_leaves("network_leaves.dat", network);
+    // save the trajectory consisting of the 'leaf-states'.
+    // all non-leaf states are kept as non-assignment state '0'.
+    save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
+    // generate html-file with embedded javascript to visualize network
+    //TODO html-generation
+    save_network_to_html("network_visualization.html", network, free_energies, pops);
   }
-  // save links (i.e. edges) as two-column ascii in a child -> parent manner
-  save_network_links("network_links.dat", network);
-  // save id, population and free energy of nodes
-  save_node_info("network_nodes.dat", free_energies, pops);
-  // compute and directly save network end-nodes (i.e. leaves of the network-tree)
-  std::set<std::size_t> leaves = compute_and_save_leaves("network_leaves.dat", network);
-  // save the trajectory consisting of the 'leaf-states'.
-  // all non-leaf states are kept as non-assignment state '0'.
-  save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
-  // generate html-file with embedded javascript to visualize network
-  //TODO html-generation
-  save_network_to_html("network_visualization.html", network, free_energies, pops);
-  return 0;
-}
+} // end namespace NetworkBuilder
+} // end namespace Clustering
 

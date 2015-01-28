@@ -95,15 +95,15 @@ int main(int argc, char* argv[]) {
   if (args.count("output") || args.count("distribution") || args.count("cores")) {
     // load concatenation limits to treat concatenated trajectories correctly
     // when performing dynamical corrections
-    std::vector<std::size_t> concat_limits;
-    if (args.count("concat-limits")) {
-      concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
-    } else if (args.count("concat-nframes")) {
-      std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
-      for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
-        concat_limits.push_back(i);
-      }
-    }
+//    std::vector<std::size_t> concat_limits;
+//    if (args.count("concat-limits")) {
+//      concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+//    } else if (args.count("concat-nframes")) {
+//      std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+//      for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
+//        concat_limits.push_back(i);
+//      }
+//    }
 
 //TODO use concat limits
 

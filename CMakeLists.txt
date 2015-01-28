@@ -100,14 +100,22 @@ find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
 
-set(CLUSTERING_SRCS clustering.cpp density_clustering.cpp density_clustering_common.cpp mpp.cpp tools.cpp logger.cpp)
-set(CLUSTERING_BINARIES network_builder state_filter coring)
+set(CLUSTERING_SRCS clustering.cpp
+                    density_clustering.cpp
+                    density_clustering_common.cpp
+                    mpp.cpp
+                    network_builder.cpp
+                    state_filter.cpp
+                    tools.cpp
+                    logger.cpp)
+#set(CLUSTERING_BINARIES network_builder state_filter coring)
+set(CLUSTERING_BINARIES coring)
 
-add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)
-target_link_libraries(network_builder ${Boost_LIBRARIES})
+#add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)
+#target_link_libraries(network_builder ${Boost_LIBRARIES})
 
-add_executable(state_filter state_filter.cpp)
-target_link_libraries(state_filter ${Boost_LIBRARIES})
+#add_executable(state_filter state_filter.cpp)
+#target_link_libraries(state_filter ${Boost_LIBRARIES})
 
 add_executable(coring coring.cpp tools.cpp logger.cpp)
 target_link_libraries(coring ${Boost_LIBRARIES})
@@ -136,8 +144,8 @@ endif()
 if(STATIC_LINKING)
     set(CMAKE_EXE_LINKER_FLAGS "-static")
     set_target_properties(clustering PROPERTIES LINK_SEARCH_END_STATIC 1)
-    set_target_properties(network_builder PROPERTIES LINK_SEARCH_END_STATIC 1)
-    set_target_properties(state_filter PROPERTIES LINK_SEARCH_END_STATIC 1)
+#    set_target_properties(network_builder PROPERTIES LINK_SEARCH_END_STATIC 1)
+#    set_target_properties(state_filter PROPERTIES LINK_SEARCH_END_STATIC 1)
     set_target_properties(coring PROPERTIES LINK_SEARCH_END_STATIC 1)
 endif(STATIC_LINKING)
 
