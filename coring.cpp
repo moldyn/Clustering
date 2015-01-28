@@ -63,6 +63,10 @@ int main(int argc, char* argv[]) {
         "(optional): write waiting time distributions to file.")
     ("cores,c", b_po::value<std::string>(),
         "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+    ("concat-nframes", b_po::value<std::size_t>(),
+      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
@@ -89,6 +93,21 @@ int main(int argc, char* argv[]) {
   std::set<std::size_t> state_names(states.begin(), states.end());
   std::size_t n_frames = states.size();
   if (args.count("output") || args.count("distribution") || args.count("cores")) {
+    // load concatenation limits to treat concatenated trajectories correctly
+    // when performing dynamical corrections
+    std::vector<std::size_t> concat_limits;
+    if (args.count("concat-limits")) {
+      concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+    } else if (args.count("concat-nframes")) {
+      std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+      for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
+        concat_limits.push_back(i);
+      }
+    }
+
+//TODO use concat limits
+
+
     // load window size information
     std::map<std::size_t, std::size_t> coring_windows;
     {
