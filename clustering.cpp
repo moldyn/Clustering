@@ -1,14 +1,15 @@
 
 #include "config.hpp"
-
+// sub-modules
 #include "density_clustering.hpp"
 #ifdef DC_USE_MPI
   #include "density_clustering_mpi.hpp"
 #endif
-
 #include "mpp.hpp"
 #include "network_builder.hpp"
 #include "state_filter.hpp"
+#include "coring.hpp"
+// toolset
 #include "logger.hpp"
 #include "tools.hpp"
 
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
     "  network: build network from density clustering results\n"
     "  mpp:     run MPP (Most Probable Path) clustering\n"
     "           (based on density-results)\n"
+    "  coring:  boundary corrections for clustering results.\n"
     "  filter:  filter phase space (e.g. dihedrals) for given state\n"
     "\n"
     "usage:\n"
@@ -33,7 +35,8 @@ int main(int argc, char* argv[]) {
     "for a list of available options per mode, run with '-h' option, e.g.\n"
     "  clustering density -h\n"
   ;
-  enum {DENSITY, MPP, NETWORK, FILTER} mode;
+
+  enum {DENSITY, MPP, NETWORK, FILTER, CORING} mode;
 
   if (argc <= 2) {
     std::cerr << general_help;
@@ -49,6 +52,8 @@ int main(int argc, char* argv[]) {
       mode = NETWORK;
     } else if (str_mode.compare("filter") == 0) {
       mode = FILTER;
+    } else if (str_mode.compare("coring") == 0) {
+      mode = CORING;
     } else {
       std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
       std::cerr << general_help;
@@ -56,6 +61,7 @@ int main(int argc, char* argv[]) {
     }
   }
   b_po::variables_map args;
+  b_po::positional_options_description pos_opts;
   // density options
   b_po::options_description desc_dens (std::string(argv[1]).append(
     "\n\n"
@@ -152,7 +158,42 @@ int main(int argc, char* argv[]) {
     ("selected-state", b_po::value<std::size_t>()->required(),
           "(required): state id fo r selected state.")
   ;
-  b_po::positional_options_description pos_opts;
+  // coring options
+  b_po::options_description desc_coring (std::string(argv[1]).append(
+    "\n\n"
+    "compute boundary corrections for clustering results."
+    "\n"
+    "options"));
+  desc_coring.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false),
+        "show this help.")
+    // optional
+    ("states,s", b_po::value<std::string>()->required(),
+        "(required): file with state information (i.e. clustered trajectory")
+    ("windows,w", b_po::value<std::string>()->required(), 
+        "(required): file with window sizes."
+        "format is space-separated lines of\n\n"
+        "STATE_ID WINDOW_SIZE\n\n"
+        "use * as STATE_ID to match all (other) states.\n"
+        "e.g.:\n\n"
+        "* 20\n"
+        "3 40\n"
+        "4 60\n\n"
+        "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states")
+    ("output,o", b_po::value<std::string>(),
+        "(optional): cored trajectory")
+    ("distribution,d", b_po::value<std::string>(),
+        "(optional): write waiting time distributions to file.")
+    ("cores,c", b_po::value<std::string>(),
+        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+    ("concat-nframes", b_po::value<std::size_t>(),
+      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+    // defaults
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+        "verbose mode: print runtime information to STDOUT.")
+  ;
   // parse cmd arguments           
   b_po::options_description desc;  
   switch(mode){                    
@@ -168,6 +209,9 @@ int main(int argc, char* argv[]) {
     case FILTER:
       desc.add(desc_filter);
       pos_opts.add("selected-state", 1);
+      break;
+    case CORING:
+      desc.add(desc_coring);
       break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;
@@ -200,7 +244,7 @@ int main(int argc, char* argv[]) {
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
-  // run clustering subroutines
+  // run selected subroutine
   switch(mode) {
     case DENSITY:
       #ifdef DC_USE_MPI
@@ -217,6 +261,9 @@ int main(int argc, char* argv[]) {
       break;
     case FILTER:
       Clustering::Filter::main(args);
+      break;
+    case CORING:
+      Clustering::Coring::main(args);
       break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;
