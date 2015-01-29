@@ -44,19 +44,17 @@ namespace Coring {
     if (args.count("output") || args.count("distribution") || args.count("cores")) {
       // load concatenation limits to treat concatenated trajectories correctly
       // when performing dynamical corrections
-  //    std::vector<std::size_t> concat_limits;
-  //    if (args.count("concat-limits")) {
-  //      concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
-  //    } else if (args.count("concat-nframes")) {
-  //      std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
-  //      for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
-  //        concat_limits.push_back(i);
-  //      }
-  //    }
-
-  //TODO use concat limits
-
-
+      std::vector<std::size_t> concat_limits;
+      if (args.count("concat-limits")) {
+        concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+      } else if (args.count("concat-nframes")) {
+        std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+        for (std::size_t i=n_frames_per_subtraj; i < n_frames; i += n_frames_per_subtraj) {
+          concat_limits.push_back(i);
+        }
+      } else {
+        concat_limits = {n_frames};
+      }
       // load window size information
       std::map<std::size_t, std::size_t> coring_windows;
       {
@@ -85,22 +83,28 @@ namespace Coring {
       std::vector<std::size_t> cored_traj(n_frames);
       std::size_t current_core = states[0];
       std::vector<long> cores(n_frames);
-      for (std::size_t i=0; i < states.size(); ++i) {
-        std::size_t w = coring_windows[states[i]];
-        bool is_in_core = true;
-        for (std::size_t j=i+1; j < i+w; ++j) {
-          if (states[j] != states[i]) {
-            is_in_core = false;
-            break;
+      // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
+      std::size_t last_limit = 0;
+      for (std::size_t next_limit: concat_limits) {
+        for (std::size_t i=last_limit; i < next_limit; ++i) {
+          // coring window
+          std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
+          bool is_in_core = true;
+          for (std::size_t j=i+1; j < w; ++j) {
+            if (states[j] != states[i]) {
+              is_in_core = false;
+              break;
+            }
           }
+          if (is_in_core) {
+            current_core = states[i];
+            cores[i] = current_core;
+          } else {
+            cores[i] = -1;
+          }
+          cored_traj[i] = current_core;
         }
-        if (is_in_core) {
-          current_core = states[i];
-          cores[i] = current_core;
-        } else {
-          cores[i] = -1;
-        }
-        cored_traj[i] = current_core;
+        last_limit = next_limit;
       }
       // write cored trajectory to file
       if (args.count("output")) {
