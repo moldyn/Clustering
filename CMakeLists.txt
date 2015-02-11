@@ -2,11 +2,10 @@ cmake_minimum_required (VERSION 2.8)
 project (clustering) 
 
 # do we want static libraries?
-# When STATIC_LINKING is TRUE, than cmake looks for libraries ending
-# with .a. This is for linux only!
-IF(STATIC_LINKING)
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF(STATIC_LINKING)
+# When DC_STATIC_LINKING is set, cmake looks for libraries called *.a.
+if(DC_STATIC_LINKING)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif(DC_STATIC_LINKING)
 
 # Gnu compiler setup
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
