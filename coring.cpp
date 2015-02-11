@@ -49,7 +49,7 @@ namespace Coring {
         concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
       } else if (args.count("concat-nframes")) {
         std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
-        for (std::size_t i=n_frames_per_subtraj; i < n_frames; i += n_frames_per_subtraj) {
+        for (std::size_t i=n_frames_per_subtraj; i <= n_frames; i += n_frames_per_subtraj) {
           concat_limits.push_back(i);
         }
       } else {
