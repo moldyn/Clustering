@@ -246,7 +246,7 @@ namespace Clustering {
                     << "  (e.g. by running a final, seeded density-clustering to fill up the FEL)?\n"
                     << std::endl;
         }
-        logger(std::cout) << "iteration " << iter+1 << " for q_min " << Clustering::Tools::stringprintf("%0.2f", q_min) << std::endl;
+        logger(std::cout) << "iteration " << iter+1 << " for q_min " << Clustering::Tools::stringprintf("%0.3f", q_min) << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
@@ -316,7 +316,7 @@ namespace Clustering {
         auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
         // write trajectory at current Qmin level to file
         traj = std::get<0>(traj_sinks);
-        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.2f.dat", basename.c_str(), q_min), traj);
+        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.3f.dat", basename.c_str(), q_min), traj);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
         for (auto from_to: sinks) {
@@ -325,7 +325,7 @@ namespace Clustering {
         //transitions.insert(sinks.begin(), sinks.end());
         // write microstate populations to file
         std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
-        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.2f.dat", basename.c_str(), q_min), pops);
+        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.3f.dat", basename.c_str(), q_min), pops);
         // collect max. pops + max. q_min per microstate
         for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
           max_pop[id] = pops[id];
