@@ -108,6 +108,7 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
+    ("nearest-neighbor-input,B", b_po::value<std::string>()->required(), "input (required): nearest neighbors.")
     ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
@@ -144,20 +145,40 @@ int main(int argc, char* argv[]) {
   // filter options
   b_po::options_description desc_filter (std::string(argv[1]).append(
     "\n\n"
-    "filter phase space (e.g. dihedral angles) for given state."
+    "filter phase space (e.g. dihedral angles, cartesian coords, etc.) for given state."
     "\n"
     "options"));
   desc_filter.add_options()
-    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    // optional
+    ("help,h", b_po::bool_switch()->default_value(false),
+          "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
           "(required): file with state information (i.e. clustered trajectory).")
-    ("phase-space,p", b_po::value<std::string>()->required(),
-          "(required): file with phase space data.")
-    ("output,o", b_po::value<std::string>(), "(optional): filtered data. will write to STDOUT if not given.")
-    ("selected-state", b_po::value<std::size_t>()->required(),
-          "(required): state id fo r selected state.")
+    ("coords,c", b_po::value<std::string>(),
+          "file with coordinates (either plain ASCII or GROMACS' xtc).")
+    ("output,o", b_po::value<std::string>(),
+          "filtered data.")
+    ("state,S", b_po::value<std::size_t>(),
+          "state id of selected state.")
+            
+    ("list", b_po::bool_switch()->default_value(false),
+          "list states and their populations")
   ;
+//  b_po::options_description desc_filter (std::string(argv[1]).append(
+//    "\n\n"
+//    "filter phase space (e.g. dihedral angles) for given state."
+//    "\n"
+//    "options"));
+//  desc_filter.add_options()
+//    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+//    // optional
+//    ("states,s", b_po::value<std::string>()->required(),
+//          "(required): file with state information (i.e. clustered trajectory).")
+//    ("phase-space,p", b_po::value<std::string>()->required(),
+//          "(required): file with phase space data.")
+//    ("output,o", b_po::value<std::string>(), "(optional): filtered data. will write to STDOUT if not given.")
+//    ("selected-state", b_po::value<std::size_t>()->required(),
+//          "(required): state id fo r selected state.")
+//  ;
   // coring options
   b_po::options_description desc_coring (std::string(argv[1]).append(
     "\n\n"

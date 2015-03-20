@@ -289,6 +289,11 @@ namespace Clustering {
 
     void
     main(boost::program_options::variables_map args) {
+
+      //TODO: load and use NN info
+
+
+
       std::string basename = args["basename"].as<std::string>();
       // load initial trajectory
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;

@@ -1,50 +1,66 @@
 
-#include "state_filter.hpp"
-#include "tools.hpp"
+#include "coords_file/coords_file.hpp"
+
+#include <boost/program_options.hpp>
 
 #include <iostream>
-#include <fstream>
+#include <string>
+#include <queue>
+
+#include "state_filter.hpp"
+
+namespace {
+  int io_error(std::string fname) {
+    std::cerr << "error: cannot open file " << fname << "." << std::endl;
+    return EXIT_FAILURE;
+  }
+} // end local namespace
+
 
 namespace Clustering {
 namespace Filter {
-
-  //TODO remove body and use state_select implementation instead
   void
   main(boost::program_options::variables_map args) {
-    // filter data
+    // load states
     std::string fname_states = args["states"].as<std::string>();
-    std::string fname_coords = args["phase-space"].as<std::string>();
-    std::size_t selected_state = args["selected-state"].as<std::size_t>();
-    std::ifstream ifs_states(fname_states);
-    std::ofstream ofs;
-    if (args.count("output")) {
-      std::string fname_out = args["output"].as<std::string>();
-      ofs.open(fname_out);
-      if (ofs.fail()) {
-        std::cerr << "error: cannot open file '" << fname_out << "' for writing." << std::endl;
-        exit(EXIT_FAILURE);
+    std::vector<std::size_t> states;
+    {
+      std::ifstream ifs(fname_states);
+      if (ifs.fail()) {
+        exit(io_error(fname_states));
+      } else {
+        while (ifs.good()) {
+          std::size_t buf;
+          ifs >> buf;
+          if (ifs.good()) {
+            states.push_back(buf);
+          }
+        }
       }
     }
-    auto out = [&ofs]() -> std::ostream& {
-      return ofs.is_open() ? ofs : std::cout;
-    };
-    if (ifs_states.fail()) {
-      std::cerr << "error: cannot open file '" << fname_states << "' for reading." << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    std::ifstream ifs_coords(fname_coords);
-    if (ifs_coords.fail()) {
-      std::cerr << "error: cannot open file '" << fname_coords << "' for reading." << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    while (ifs_states.good() && ifs_coords.good()) {
-      std::size_t buf_state;
-      std::string buf_coords;
-      ifs_states >> buf_state;
-      std::getline(ifs_coords, buf_coords);
-      if (ifs_states.good() && ifs_coords.good()) {
-        if (buf_state == selected_state) {
-          out() << buf_coords << "\n";
+    if (args["list"].as<bool>()) {
+      std::priority_queue<std::pair<std::size_t, std::size_t>> pops;
+      // list states with pops
+      std::set<std::size_t> state_ids(states.begin(), states.end());
+      for (std::size_t id: state_ids) {
+        std::size_t pop = std::count(states.begin(), states.end(), id);
+        pops.push({pop, id});
+      }
+      while ( ! pops.empty()) {
+        auto pop_id = pops.top(); // get top element
+        pops.pop(); // remove top element
+        std::cout << pop_id.second << " " << pop_id.first << "\n";
+      }
+    } else {
+      // filter data
+      std::size_t selected_state = args["state"].as<std::size_t>();
+      CoordsFile::FilePointer coords_in = CoordsFile::open(args["coords"].as<std::string>(), "r");
+      CoordsFile::FilePointer coords_out = CoordsFile::open(args["output"].as<std::string>(), "w");
+      for (std::size_t s: states) {
+        if (s == selected_state) {
+          coords_out->write(coords_in->next());
+        } else {
+          coords_in->next();
         }
       }
     }

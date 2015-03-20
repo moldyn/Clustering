@@ -98,6 +98,7 @@ include_directories(${CMAKE_BINARY_DIR}/generated/)
 find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
+add_subdirectory(coords_file)
 
 set(CLUSTERING_SRCS clustering.cpp
                     density_clustering.cpp
@@ -108,35 +109,23 @@ set(CLUSTERING_SRCS clustering.cpp
                     coring.cpp
                     tools.cpp
                     logger.cpp)
-#set(CLUSTERING_BINARIES network_builder state_filter coring)
-
-#add_executable(network_builder network_builder.cpp tools.cpp logger.cpp)
-#target_link_libraries(network_builder ${Boost_LIBRARIES})
-
-#add_executable(state_filter state_filter.cpp)
-#target_link_libraries(state_filter ${Boost_LIBRARIES})
-
-#add_executable(coring coring.cpp tools.cpp logger.cpp)
-#target_link_libraries(coring ${Boost_LIBRARIES})
-
 
 if(DC_USE_MPI)
   include_directories("${MPI_CXX_INCLUDE_PATH}")
   add_executable(clustering_mpi ${CLUSTERING_SRCS} density_clustering_mpi.cpp)
-  target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES})
+  target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES} coords_file)
   set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_mpi)
 elseif(DC_USE_OPENCL)
   include_directories(${OPENCL_INCLUDE_DIRS})
   include_directories(${CMAKE_SOURCE_DIR})
   add_executable(clustering_gpu ${CLUSTERING_SRCS} density_clustering_opencl.cpp)
-  target_link_libraries(clustering_gpu ${Boost_LIBRARIES})
+  target_link_libraries(clustering_gpu ${Boost_LIBRARIES} coords_file)
   set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_gpu)
 else()
   add_executable(clustering ${CLUSTERING_SRCS})
-  target_link_libraries(clustering ${Boost_LIBRARIES})
+  target_link_libraries(clustering ${Boost_LIBRARIES} coords_file)
   set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering)
 endif()
-
 
 # set -static, when STATIC_LINKING is TRUE and set LINK_SEARCH_END_STATIC
 # to remove the additional -bdynamic from the linker line.
