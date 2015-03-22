@@ -8,12 +8,14 @@
 
 #include <boost/program_options.hpp>
 
+#include "tools.hpp"
+
 namespace Clustering {
   namespace Density {
     using FreeEnergy = std::pair<std::size_t, float>;
     using SizePair = std::pair<std::size_t, std::size_t>;
     using Neighbor = std::pair<std::size_t, float>;
-    using Neighborhood = std::map<std::size_t, std::pair<std::size_t, float>>;
+    using Neighborhood = Clustering::Tools::Neighborhood;
   
     //TODO doc
     std::vector<std::size_t>
@@ -64,17 +66,6 @@ namespace Clustering {
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
-
-
-    //TODO doc
-    std::pair<Neighborhood, Neighborhood>
-    read_neighborhood(const std::string fname);
-
-    //TODO doc
-    void
-    write_neighborhood(const std::string fname,
-                       const Neighborhood& nh,
-                       const Neighborhood& nh_high_dens);
 
     // TODO doc
     void

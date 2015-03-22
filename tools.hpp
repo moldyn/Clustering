@@ -25,6 +25,8 @@
 namespace Clustering {
 namespace Tools {
 
+using Neighborhood = std::map<std::size_t, std::pair<std::size_t, float>>;
+
 //TODO doc
 void
 write_pops(std::string fname, std::vector<std::size_t> pops);
@@ -57,6 +59,16 @@ write_map(std::string filename, std::map<KEY, VAL> mapping);
 
 std::vector<float>
 read_free_energies(std::string filename);
+
+//TODO doc
+std::pair<Neighborhood, Neighborhood>
+read_neighborhood(const std::string fname);
+
+//TODO doc
+void
+write_neighborhood(const std::string fname,
+                   const Neighborhood& nh,
+                   const Neighborhood& nh_high_dens);
 
 //TODO doc
 std::map<std::size_t, std::size_t>

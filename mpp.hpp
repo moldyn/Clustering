@@ -9,9 +9,12 @@
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 #include <boost/numeric/ublas/io.hpp>
 
+#include "tools.hpp"
+
 namespace Clustering {
   namespace MPP {
     using SparseMatrixF = boost::numeric::ublas::mapped_matrix<float>;
+    using Neighborhood = Clustering::Tools::Neighborhood;
 
     // count transitions from one to the other cluster with certain lag
     // and return as count matrix (row/col := from/to)
@@ -52,7 +55,8 @@ namespace Clustering {
                SparseMatrixF transition_matrix,
                std::set<std::size_t> cluster_names,
                float q_min,
-               std::vector<float> free_energy);
+               std::vector<float> free_energy,
+               Neighborhood nh_high_dens);
 
     // lump states based on path sinks and return new trajectory.
     // new microstates will have IDs of sinks.
@@ -66,7 +70,8 @@ namespace Clustering {
                                    std::vector<std::size_t> concat_limits,
                                    float q_min,
                                    std::size_t lagtime,
-                                   std::vector<float> free_energy);
+                                   std::vector<float> free_energy,
+                                   Neighborhood nearest_neighbors);
 
     /*
      * run MPP clustering

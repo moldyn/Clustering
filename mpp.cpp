@@ -162,7 +162,9 @@ namespace Clustering {
                SparseMatrixF transition_matrix,
                std::set<std::size_t> cluster_names,
                float q_min,
-               std::vector<float> free_energy) {
+               std::vector<float> free_energy,
+               Neighborhood nh_high_dens) {
+      //TODO use neighborhood info for high density in this function
       std::map<std::size_t, std::size_t> pops = microstate_populations(clusters, cluster_names);
       std::map<std::size_t, float> min_free_energy = microstate_min_free_energy(clusters, free_energy);
       std::map<std::size_t, std::size_t> sinks;
@@ -224,13 +226,14 @@ namespace Clustering {
     }
 
     // run clustering for given Q_min value
+    // returns: {new traj, lumping info}
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
                                    std::vector<std::size_t> concat_limits,
                                    float q_min,
                                    std::size_t lagtime,
-                                   std::vector<float> free_energy) {
-      //std::set<std::size_t> microstate_names(initial_trajectory.begin(), initial_trajectory.end());
+                                   std::vector<float> free_energy,
+                                   Neighborhood nh_high_dens) {
       std::set<std::size_t> microstate_names;
       std::vector<std::size_t> traj = initial_trajectory;
       std::map<std::size_t, std::size_t> lumping;
@@ -263,7 +266,13 @@ namespace Clustering {
         std::map<std::size_t, std::vector<std::size_t>> mpp = most_probable_path(future_state, microstate_names);
         // compute sinks (i.e. states with lowest Free Energy per path)
         logger(std::cout) << "  calculating path sinks" << std::endl;
-        std::map<std::size_t, std::size_t> sinks = path_sinks(traj, mpp, trans_prob, microstate_names, q_min, free_energy);
+        std::map<std::size_t, std::size_t> sinks = path_sinks(traj
+                                                            , mpp
+                                                            , trans_prob
+                                                            , microstate_names
+                                                            , q_min
+                                                            , free_energy
+                                                            , nh_high_dens);
         // lump trajectory into sinks
         std::vector<std::size_t> traj_old = traj;
         logger(std::cout) << "  lumping trajectory" << std::endl;
@@ -289,11 +298,6 @@ namespace Clustering {
 
     void
     main(boost::program_options::variables_map args) {
-
-      //TODO: load and use NN info
-
-
-
       std::string basename = args["basename"].as<std::string>();
       // load initial trajectory
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;
@@ -302,7 +306,10 @@ namespace Clustering {
       Clustering::logger(std::cout) << "loading microstates" << std::endl;
       std::vector<std::size_t> traj = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
       Clustering::logger(std::cout) << "loading free energies" << std::endl;
-      std::vector<float> free_energy = Clustering::Tools::read_free_energies(args["input"].as<std::string>());
+      std::vector<float> free_energy = Clustering::Tools::read_free_energies(args["free-energy-input"].as<std::string>());
+      // nearest neighbors with higher density (= lower free energy)
+      Clustering::Tools::Neighborhood nh_high_dens = std::get<1>(
+        Clustering::Tools::read_neighborhood(args["nearest-neighbor-input"].as<std::string>()));
       float q_min_from = args["qmin-from"].as<float>();
       float q_min_to = args["qmin-to"].as<float>();
       float q_min_step = args["qmin-step"].as<float>();
@@ -318,10 +325,13 @@ namespace Clustering {
         }
       }
       for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
+        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy, nh_high_dens);
         // write trajectory at current Qmin level to file
         traj = std::get<0>(traj_sinks);
-        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.3f.dat", basename.c_str(), q_min), traj);
+        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.3f.dat"
+                                                                             , basename.c_str()
+                                                                             , q_min)
+                                             , traj);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
         for (auto from_to: sinks) {
@@ -330,14 +340,17 @@ namespace Clustering {
         //transitions.insert(sinks.begin(), sinks.end());
         // write microstate populations to file
         std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
-        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.3f.dat", basename.c_str(), q_min), pops);
+        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.3f.dat"
+                                                                                             , basename.c_str()
+                                                                                             , q_min)
+                                                             , pops);
         // collect max. pops + max. q_min per microstate
         for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
           max_pop[id] = pops[id];
           max_qmin[id] = q_min;
         }
       }
-      //Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_transitions.dat", transitions);
+      // write transitions to file
       {
         std::ofstream ofs(basename + "_transitions.dat");
         for (auto trans: transitions) {
