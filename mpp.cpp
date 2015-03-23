@@ -62,6 +62,8 @@ namespace Clustering {
                              std::set<std::size_t> cluster_names,
                              float q_min,
                              std::map<std::size_t, float> min_free_energy) {
+      //TODO: count transitions -> heuristic for neighbor vs. dynamic
+      
       std::map<std::size_t, std::size_t> future_state;
       for (std::size_t i: cluster_names) {
         std::vector<std::size_t> candidates;
@@ -177,9 +179,14 @@ namespace Clustering {
           }
         }
         if (metastable_states.size() == 0) {
+          //TODO: use neighboring info
+
           // no stable state: use all in path as candidates
           metastable_states = mpp[i];
         }
+
+        //TODO: do not use state population, but lowest FE
+
         // helper function: compare states by their population
         auto pop_compare = [&](std::size_t i, std::size_t j) -> bool {
           return pops[i] < pops[j];
@@ -187,10 +194,7 @@ namespace Clustering {
         // find sink candidate state by population
         auto candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
         std::size_t max_pop = pops[*candidate];
-        //std::set<std::size_t> sink_candidates = {*candidate};
         std::set<std::size_t> sink_candidates;
-        //metastable_states.erase(candidate);
-        //while (sink_candidates.count(*candidate) == 1) {
         while (candidate != metastable_states.end() && pops[*candidate] == max_pop) {
           // there may be several states with same (max.) population,
           // collect them all into one set
