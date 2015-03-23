@@ -179,22 +179,26 @@ namespace Clustering {
           }
         }
         if (metastable_states.size() == 0) {
-          //TODO: use neighboring info
-
           // no stable state: use all in path as candidates
           metastable_states = mpp[i];
         }
-
-        //TODO: do not use state population, but lowest FE
-
         // helper function: compare states by their population
         auto pop_compare = [&](std::size_t i, std::size_t j) -> bool {
           return pops[i] < pops[j];
         };
+        // helper function: compare states by their min. Free Energy
+        auto fe_compare = [&](std::size_t i, std::size_t j) -> bool {
+          return min_free_energy[i] < min_free_energy[j];
+        };
         // find sink candidate state by population
-        auto candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
+//        auto candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
+        auto candidate = std::min_element(metastable_states.begin(), metastable_states.end(), fe_compare);
         std::size_t max_pop = pops[*candidate];
         std::set<std::size_t> sink_candidates;
+
+//TODO: candidates by FE
+
+
         while (candidate != metastable_states.end() && pops[*candidate] == max_pop) {
           // there may be several states with same (max.) population,
           // collect them all into one set
@@ -202,17 +206,20 @@ namespace Clustering {
           metastable_states.erase(candidate);
           candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
         }
-        // helper function: compare states by their min. Free Energy
-        auto min_fe_compare = [&](std::size_t i, std::size_t j) -> bool {
-          return min_free_energy[i] < min_free_energy[j];
-        };
-        // select sink either as the one with highest population ...
+//        // select sink either as the one with highest population ...
+//        if (sink_candidates.size() == 1) {
+//          sinks[i] = (*sink_candidates.begin());
+//        } else {
+//          // or as the one with lowest Free Energy, if several microstates
+//          // have the same high population
+//          sinks[i] = (*std::min_element(sink_candidates.begin(), sink_candidates.end(), min_fe_compare));
+//        }
+//      // select sink by lowest Free Energy
         if (sink_candidates.size() == 1) {
           sinks[i] = (*sink_candidates.begin());
         } else {
-          // or as the one with lowest Free Energy, if several microstates
-          // have the same high population
-          sinks[i] = (*std::min_element(sink_candidates.begin(), sink_candidates.end(), min_fe_compare));
+          // or highest population, if equal
+          sinks[i] = (*std::max_element(sink_candidates.begin(), sink_candidates.end(), pop_compare));
         }
       }
       return sinks;
@@ -253,7 +260,11 @@ namespace Clustering {
                     << "  (e.g. by running a final, seeded density-clustering to fill up the FEL)?\n"
                     << std::endl;
         }
-        logger(std::cout) << "iteration " << iter+1 << " for q_min " << Clustering::Tools::stringprintf("%0.3f", q_min) << std::endl;
+        logger(std::cout) << "iteration "
+                          << iter+1
+                          << " for q_min "
+                          << Clustering::Tools::stringprintf("%0.3f", q_min)
+                          << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob = row_normalized_transition_probabilities(
