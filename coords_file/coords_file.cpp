@@ -136,7 +136,8 @@ XtcHandler::eof() {
 
 FilePointer
 open(std::string fname, std::string mode) {
-  if (fname.compare(fname.size()-4, 4, ".xtc") == 0) {
+  if ((fname.size() > 4)
+   && (fname.compare(fname.size()-4, 4, ".xtc") == 0)) {
     return FilePointer(new XtcHandler(fname, mode));
   } else {
     return FilePointer(new AsciiHandler(fname, mode));

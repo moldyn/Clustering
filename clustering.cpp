@@ -229,7 +229,6 @@ int main(int argc, char* argv[]) {
       break;
     case FILTER:
       desc.add(desc_filter);
-      pos_opts.add("selected-state", 1);
       break;
     case CORING:
       desc.add(desc_coring);
@@ -239,11 +238,7 @@ int main(int argc, char* argv[]) {
       return EXIT_FAILURE;
   }
   try {
-    // if argc <= 2, program has already exited (see several lines above)
-    //b_po::store(b_po::command_line_parser(argc, argv).options(desc).positional(pos_opts).run(), args);
-    //TODO: state_filter handling
     b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
-    //b_po::store(b_po::command_line_parser(argc, argv).options(desc_filter).positional(pos_opts).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
     if ( ! args["help"].as<bool>()) {
