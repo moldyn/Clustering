@@ -196,7 +196,7 @@ namespace Clustering {
         std::size_t max_pop = pops[*candidate];
         std::set<std::size_t> sink_candidates;
 
-//TODO: candidates by FE
+//TODO: candidates by FE (i.e. compare min FE instead of max pop)
 
 
         while (candidate != metastable_states.end() && pops[*candidate] == max_pop) {
