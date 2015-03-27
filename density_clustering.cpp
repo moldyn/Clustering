@@ -8,6 +8,7 @@
 #endif
 
 #include <algorithm>
+#include <list>
 
 namespace Clustering {
   namespace Density {
@@ -40,15 +41,66 @@ namespace Clustering {
       for (std::size_t i=0; i < n_radii; ++i) {
         rad2[i] = radii[i]*radii[i];
       }
-      std::size_t i, j, k, l;
-      float dist, c;
+
       ASSUME_ALIGNED(coords);
+
+      std::size_t i, j, k, l;
+      // find min/max values for first and second dimension
+      float min_x1=coords[0*n_cols+0];
+      float max_x1=coords[0*n_cols+0];
+      float min_x2=coords[0*n_cols+1];
+      float max_x2=coords[0*n_cols+1];
+      float x1, x2;
+      #pragma omp parallel for default(none) private(i,x1,x2)\
+                               firstprivate(n_rows,n_cols)\
+                               shared(coords)\
+                               reduction(min:min_x1,min_x2)\
+                               reduction(max:max_x1,max_x2)
+      for (i=1; i < n_rows; ++i) {
+        x1 = coords[i*n_cols+0];
+        x2 = coords[i*n_cols+1];
+        if (x1 < min_x1) {
+          min_x1 = x1;
+        } else if (x1 > max_x1) {
+          max_x1 = x1;
+        }
+        if (x2 < min_x2) {
+          min_x2 = x2;
+        } else if (x2 > max_x2) {
+          max_x2 = x2;
+        }
+      }
+      // build 2D grid with boxes for efficient nearest neighbor search
+      float max_rad = radii[0];
+      unsigned int n_boxes_1 = abs(max_x1 - min_x1) / max_rad;
+      unsigned int n_boxes_2 = abs(max_x2 - min_x2) / max_rad;
+      std::vector<std::pair<unsigned int, unsigned int>> assigned_box(n_rows);
+      std::vector<std::vector<std::list<std::size_t>>> box(n_boxes_1, std::vector<std::list<std::size_t>>(n_boxes_2));
+      for (i=0; i < n_rows; ++i) {
+        unsigned int i_box_1 = (coords[i*n_cols] - min_x1) / max_rad;
+        unsigned int i_box_2 = (coords[i*n_cols+1] - min_x2) / max_rad;
+        assigned_box[i] = {i_box_1, i_box_2};
+        box[i_box_1][i_box_2].push_back(i);
+      }
+
+
+
+
+      float dist, c;
       #pragma omp parallel for default(none) private(i,j,k,l,c,dist) \
                                firstprivate(n_rows,n_cols,radii,rad2,n_radii) \
                                shared(coords,pops) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        for (j=i+1; j < n_rows; ++j) {
+        // check only surrounding boxes for neighbors
+        //TODO
+        
+
+
+//        for (j=i+1; j < n_rows; ++j) {
+
+
+
           dist = 0.0f;
           #pragma simd reduction(+:dist)
           for (k=0; k < n_cols; ++k) {
