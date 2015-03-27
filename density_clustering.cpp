@@ -41,7 +41,6 @@ namespace Clustering {
       for (std::size_t i=0; i < n_radii; ++i) {
         rad2[i] = radii[i]*radii[i];
       }
-
       ASSUME_ALIGNED(coords);
 
       std::size_t i, j, k, l;
