@@ -42,7 +42,7 @@ namespace Clustering {
         rad2[i] = radii[i]*radii[i];
       }
       ASSUME_ALIGNED(coords);
-      std::size_t i, j, k, l;
+      std::size_t i, j, k, l, ib;
       const int BOX_DIM_1 = 0;
       const int BOX_DIM_2 = 1;
       // find min/max values for first and second dimension
@@ -72,7 +72,7 @@ namespace Clustering {
       int n_boxes_2 = fabs(max_x2 - min_x2) / max_rad + 1;
       Clustering::logger(std::cout) << " box grid: " << n_boxes_1 << " x " << n_boxes_2 << std::endl;
       std::vector<std::pair<int, int>> assigned_box(n_rows);
-      std::vector<std::vector<std::list<std::size_t>>> box(n_boxes_1, std::vector<std::list<std::size_t>>(n_boxes_2));
+      std::vector<std::vector<std::vector<std::size_t>>> box(n_boxes_1, std::vector<std::vector<std::size_t>>(n_boxes_2));
       int i_box_1;
       int i_box_2;
       for (i=0; i < n_rows; ++i) {
@@ -84,10 +84,9 @@ namespace Clustering {
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
       int i1, i2;
-      std::list<std::size_t>::iterator box_it;
-      #pragma omp parallel for default(none) private(i,i_box_1,i_box_2,i1,i2,box_it,dist,j,k,l,c) \
-                               firstprivate(assigned_box,n_rows,n_cols,n_radii,radii,rad2,n_boxes_1,n_boxes_2,box) \
-                               shared(coords,pops) \
+      #pragma omp parallel for default(none) private(i,i_box_1,i_box_2,i1,i2,ib,dist,j,k,l,c) \
+                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,n_boxes_1,n_boxes_2) \
+                               shared(coords,pops,box,assigned_box) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
         i_box_1 = assigned_box[i].first;
@@ -100,8 +99,8 @@ namespace Clustering {
              && i_box_2+i2 >= 0
              && i_box_2+i2 < n_boxes_2) {
               // loop over frames inside surrounding box
-              for (box_it=box[i_box_1+i1][i_box_2+i2].begin(); box_it != box[i_box_1+i1][i_box_2+i2].end(); box_it++) {
-                j = *box_it;
+              for (ib=0; ib < box[i_box_1+i1][i_box_2+i2].size(); ++ib) {
+                j = box[i_box_1+i1][i_box_2+i2][ib];
                 if (i < j) {
                   dist = 0.0f;
                   #pragma simd reduction(+:dist)
