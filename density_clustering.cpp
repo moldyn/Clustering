@@ -75,47 +75,53 @@ namespace Clustering {
       unsigned int n_boxes_2 = abs(max_x2 - min_x2) / max_rad;
       std::vector<std::pair<unsigned int, unsigned int>> assigned_box(n_rows);
       std::vector<std::vector<std::list<std::size_t>>> box(n_boxes_1, std::vector<std::list<std::size_t>>(n_boxes_2));
+      unsigned int i_box_1;
+      unsigned int i_box_2;
       for (i=0; i < n_rows; ++i) {
-        unsigned int i_box_1 = (coords[i*n_cols] - min_x1) / max_rad;
-        unsigned int i_box_2 = (coords[i*n_cols+1] - min_x2) / max_rad;
+        i_box_1 = (coords[i*n_cols] - min_x1) / max_rad;
+        i_box_2 = (coords[i*n_cols+1] - min_x2) / max_rad;
         assigned_box[i] = {i_box_1, i_box_2};
         box[i_box_1][i_box_2].push_back(i);
       }
-
-
-
-
       float dist, c;
-      #pragma omp parallel for default(none) private(i,j,k,l,c,dist) \
-                               firstprivate(n_rows,n_cols,radii,rad2,n_radii) \
+      int i1, i2;
+      std::list<std::size_t>::iterator box_it;
+      #pragma omp parallel for default(none) private(i,i_box_1,i_box_2,i1,i2,box_it,dist,j,k,l,c) \
+                               firstprivate(assigned_box,n_rows,n_cols,n_radii,radii,rad2,n_boxes_1,n_boxes_2,box) \
                                shared(coords,pops) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        // check only surrounding boxes for neighbors
-        //TODO
-        
-
-
-//        for (j=i+1; j < n_rows; ++j) {
-
-
-
-          dist = 0.0f;
-          #pragma simd reduction(+:dist)
-          for (k=0; k < n_cols; ++k) {
-            c = coords[i*n_cols+k] - coords[j*n_cols+k];
-            dist += c*c;
-          }
-          for (l=0; l < n_radii; ++l) {
-            if (dist < rad2[l]) {
-              #pragma omp atomic
-              pops[radii[l]][i] += 1;
-              #pragma omp atomic
-              pops[radii[l]][j] += 1;
-            } else {
-              // if it's not in the bigger radius,
-              // it won't be in the smaller ones.
-              break;
+        i_box_1 = assigned_box[i].first;
+        i_box_2 = assigned_box[i].second;
+        // loop over surrounding boxes to find neighbor candidates
+        for (i1=-1; i1 <= 1; ++i1) {
+          for (i2=-1; i2 <= 1; ++i2) {
+            if (i_box_1+i1 > 0
+             && i_box_1+i1 < n_boxes_1
+             && i_box_2+i2 > 0
+             && i_box_2+i2 < n_boxes_2) {
+              // loop over frames inside surrounding box
+              for (box_it=box[i_box_1+i1][i_box_2+i2].begin(); box_it != box[i_box_1+i1][i_box_2+i2].end(); box_it++) {
+                j = *box_it;
+                dist = 0.0f;
+                #pragma simd reduction(+:dist)
+                for (k=0; k < n_cols; ++k) {
+                  c = coords[i*n_cols+k] - coords[j*n_cols+k];
+                  dist += c*c;
+                }
+                for (l=0; l < n_radii; ++l) {
+                  if (dist < rad2[l]) {
+                    #pragma omp atomic
+                    pops[radii[l]][i] += 1;
+                    #pragma omp atomic
+                    pops[radii[l]][j] += 1;
+                  } else {
+                    // if it's not in the bigger radius,
+                    // it won't be in the smaller ones.
+                    break;
+                  }
+                }
+              }
             }
           }
         }
