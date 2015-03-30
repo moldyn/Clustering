@@ -42,22 +42,19 @@ namespace Clustering {
         rad2[i] = radii[i]*radii[i];
       }
       ASSUME_ALIGNED(coords);
-
       std::size_t i, j, k, l;
+      const int BOX_DIM_1 = 0;
+      const int BOX_DIM_2 = 1;
       // find min/max values for first and second dimension
-      float min_x1=coords[0*n_cols+0];
-      float max_x1=coords[0*n_cols+0];
-      float min_x2=coords[0*n_cols+1];
-      float max_x2=coords[0*n_cols+1];
+      float min_x1=coords[0*n_cols+BOX_DIM_1];
+      float max_x1=coords[0*n_cols+BOX_DIM_1];
+      float min_x2=coords[0*n_cols+BOX_DIM_2];
+      float max_x2=coords[0*n_cols+BOX_DIM_2];
       float x1, x2;
-      #pragma omp parallel for default(none) private(i,x1,x2)\
-                               firstprivate(n_rows,n_cols)\
-                               shared(coords)\
-                               reduction(min:min_x1,min_x2)\
-                               reduction(max:max_x1,max_x2)
+      Clustering::logger(std::cout) << "setting up boxes for fast NN search" << std::endl;
       for (i=1; i < n_rows; ++i) {
-        x1 = coords[i*n_cols+0];
-        x2 = coords[i*n_cols+1];
+        x1 = coords[i*n_cols+BOX_DIM_1];
+        x2 = coords[i*n_cols+BOX_DIM_2];
         if (x1 < min_x1) {
           min_x1 = x1;
         } else if (x1 > max_x1) {
@@ -71,18 +68,20 @@ namespace Clustering {
       }
       // build 2D grid with boxes for efficient nearest neighbor search
       float max_rad = radii[0];
-      unsigned int n_boxes_1 = abs(max_x1 - min_x1) / max_rad;
-      unsigned int n_boxes_2 = abs(max_x2 - min_x2) / max_rad;
-      std::vector<std::pair<unsigned int, unsigned int>> assigned_box(n_rows);
+      int n_boxes_1 = fabs(max_x1 - min_x1) / max_rad + 1;
+      int n_boxes_2 = fabs(max_x2 - min_x2) / max_rad + 1;
+      Clustering::logger(std::cout) << " box grid: " << n_boxes_1 << " x " << n_boxes_2 << std::endl;
+      std::vector<std::pair<int, int>> assigned_box(n_rows);
       std::vector<std::vector<std::list<std::size_t>>> box(n_boxes_1, std::vector<std::list<std::size_t>>(n_boxes_2));
-      unsigned int i_box_1;
-      unsigned int i_box_2;
+      int i_box_1;
+      int i_box_2;
       for (i=0; i < n_rows; ++i) {
-        i_box_1 = (coords[i*n_cols] - min_x1) / max_rad;
-        i_box_2 = (coords[i*n_cols+1] - min_x2) / max_rad;
+        i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / max_rad;
+        i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / max_rad;
         assigned_box[i] = {i_box_1, i_box_2};
         box[i_box_1][i_box_2].push_back(i);
       }
+      Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
       int i1, i2;
       std::list<std::size_t>::iterator box_it;
@@ -96,29 +95,31 @@ namespace Clustering {
         // loop over surrounding boxes to find neighbor candidates
         for (i1=-1; i1 <= 1; ++i1) {
           for (i2=-1; i2 <= 1; ++i2) {
-            if (i_box_1+i1 > 0
+            if (i_box_1+i1 >= 0
              && i_box_1+i1 < n_boxes_1
-             && i_box_2+i2 > 0
+             && i_box_2+i2 >= 0
              && i_box_2+i2 < n_boxes_2) {
               // loop over frames inside surrounding box
               for (box_it=box[i_box_1+i1][i_box_2+i2].begin(); box_it != box[i_box_1+i1][i_box_2+i2].end(); box_it++) {
                 j = *box_it;
-                dist = 0.0f;
-                #pragma simd reduction(+:dist)
-                for (k=0; k < n_cols; ++k) {
-                  c = coords[i*n_cols+k] - coords[j*n_cols+k];
-                  dist += c*c;
-                }
-                for (l=0; l < n_radii; ++l) {
-                  if (dist < rad2[l]) {
-                    #pragma omp atomic
-                    pops[radii[l]][i] += 1;
-                    #pragma omp atomic
-                    pops[radii[l]][j] += 1;
-                  } else {
-                    // if it's not in the bigger radius,
-                    // it won't be in the smaller ones.
-                    break;
+                if (i < j) {
+                  dist = 0.0f;
+                  #pragma simd reduction(+:dist)
+                  for (k=0; k < n_cols; ++k) {
+                    c = coords[i*n_cols+k] - coords[j*n_cols+k];
+                    dist += c*c;
+                  }
+                  for (l=0; l < n_radii; ++l) {
+                    if (dist < rad2[l]) {
+                      #pragma omp atomic
+                      pops[radii[l]][i] += 1;
+                      #pragma omp atomic
+                      pops[radii[l]][j] += 1;
+                    } else {
+                      // if it's not in the bigger radius,
+                      // it won't be in the smaller ones.
+                      break;
+                    }
                   }
                 }
               }
