@@ -17,6 +17,22 @@ namespace Clustering {
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
+    struct BoxGrid {
+      std::vector<int> n_boxes;
+      std::vector<std::tuple<int, int>> assigned_box;
+      std::map<std::tuple<int, int>, std::vector<int>> boxes;
+    };
+
+    BoxGrid
+    compute_box_grid(const float* coords,
+                     const std::size_t n_rows,
+                     const std::size_t n_cols,
+                     const float radius);
+
+    bool
+    is_valid_box(const std::tuple<int, int> box
+               , const BoxGrid& grid);
+
     //TODO doc
     std::vector<std::size_t>
     calculate_populations(const float* coords,
@@ -30,7 +46,6 @@ namespace Clustering {
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const std::vector<float> radii);
-
 
     //TODO doc
     std::vector<float>

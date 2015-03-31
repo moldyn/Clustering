@@ -12,6 +12,64 @@
 
 namespace Clustering {
   namespace Density {
+
+    BoxGrid
+    compute_box_grid(const float* coords,
+                     const std::size_t n_rows,
+                     const std::size_t n_cols,
+                     const float radius) {
+      // use first and second coordinates, since these usually
+      // correspond to first and second PCs, having highest variance.
+      const int BOX_DIM_1 = 0;
+      const int BOX_DIM_2 = 1;
+      BoxGrid grid;
+      ASSUME_ALIGNED(coords);
+      // find min/max values for first and second dimension
+      float min_x1=coords[0*n_cols+BOX_DIM_1];
+      float max_x1=coords[0*n_cols+BOX_DIM_1];
+      float min_x2=coords[0*n_cols+BOX_DIM_2];
+      float max_x2=coords[0*n_cols+BOX_DIM_2];
+      float x1, x2;
+      Clustering::logger(std::cout) << "setting up boxes for fast NN search" << std::endl;
+      for (std::size_t i=1; i < n_rows; ++i) {
+        x1 = coords[i*n_cols+BOX_DIM_1];
+        x2 = coords[i*n_cols+BOX_DIM_2];
+        if (x1 < min_x1) {
+          min_x1 = x1;
+        } else if (x1 > max_x1) {
+          max_x1 = x1;
+        }
+        if (x2 < min_x2) {
+          min_x2 = x2;
+        } else if (x2 > max_x2) {
+          max_x2 = x2;
+        }
+      }
+      // build 2D grid with boxes for efficient nearest neighbor search
+      grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
+      grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
+      grid.assigned_box.resize(n_rows);
+      int i_box_1;
+      int i_box_2;
+      for (std::size_t i=0; i < n_rows; ++i) {
+        i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / radius;
+        i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
+        grid.assigned_box[i] = std::make_tuple(i_box_1, i_box_2);
+        grid.boxes[grid.assigned_box[i]].push_back(i);
+      }
+      return grid;
+    }
+
+    bool
+    is_valid_box(const std::tuple<int, int> box, const BoxGrid& grid) {
+      int i1 = std::get<0>(box);
+      int i2 = std::get<1>(box);
+      return (i1 >= 0
+           && i1 < grid.n_boxes[0]
+           && i2 >= 0
+           && i2 < grid.n_boxes[1]);
+    }
+
     std::vector<std::size_t>
     calculate_populations(const float* coords,
                           const std::size_t n_rows,
@@ -43,64 +101,30 @@ namespace Clustering {
       }
       ASSUME_ALIGNED(coords);
       std::size_t i, j, k, l, ib;
-      const int BOX_DIM_1 = 0;
-      const int BOX_DIM_2 = 1;
-      // find min/max values for first and second dimension
-      float min_x1=coords[0*n_cols+BOX_DIM_1];
-      float max_x1=coords[0*n_cols+BOX_DIM_1];
-      float min_x2=coords[0*n_cols+BOX_DIM_2];
-      float max_x2=coords[0*n_cols+BOX_DIM_2];
-      float x1, x2;
-      Clustering::logger(std::cout) << "setting up boxes for fast NN search" << std::endl;
-      for (i=1; i < n_rows; ++i) {
-        x1 = coords[i*n_cols+BOX_DIM_1];
-        x2 = coords[i*n_cols+BOX_DIM_2];
-        if (x1 < min_x1) {
-          min_x1 = x1;
-        } else if (x1 > max_x1) {
-          max_x1 = x1;
-        }
-        if (x2 < min_x2) {
-          min_x2 = x2;
-        } else if (x2 > max_x2) {
-          max_x2 = x2;
-        }
-      }
-      // build 2D grid with boxes for efficient nearest neighbor search
-      float max_rad = radii[0];
-      int n_boxes_1 = fabs(max_x1 - min_x1) / max_rad + 1;
-      int n_boxes_2 = fabs(max_x2 - min_x2) / max_rad + 1;
-      Clustering::logger(std::cout) << " box grid: " << n_boxes_1 << " x " << n_boxes_2 << std::endl;
-      std::vector<std::pair<int, int>> assigned_box(n_rows);
-      std::vector<std::vector<std::vector<std::size_t>>> box(n_boxes_1, std::vector<std::vector<std::size_t>>(n_boxes_2));
-      int i_box_1;
-      int i_box_2;
-      for (i=0; i < n_rows; ++i) {
-        i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / max_rad;
-        i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / max_rad;
-        assigned_box[i] = {i_box_1, i_box_2};
-        box[i_box_1][i_box_2].push_back(i);
-      }
+      BoxGrid grid = compute_box_grid(coords, n_rows, n_cols, radii[0]);
+      Clustering::logger(std::cout) << " box grid: "
+                                    << grid.n_boxes[0]
+                                    << " x "
+                                    << grid.n_boxes[1]
+                                    << std::endl;
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
       int i1, i2;
-      #pragma omp parallel for default(none) private(i,i_box_1,i_box_2,i1,i2,ib,dist,j,k,l,c) \
-                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,n_boxes_1,n_boxes_2) \
-                               shared(coords,pops,box,assigned_box) \
+      std::tuple<int, int> box;
+      #pragma omp parallel for default(none) private(i,box,i1,i2,ib,dist,j,k,l,c) \
+                               firstprivate(n_rows,n_cols,n_radii,radii,rad2) \
+                               shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        i_box_1 = assigned_box[i].first;
-        i_box_2 = assigned_box[i].second;
         // loop over surrounding boxes to find neighbor candidates
         for (i1=-1; i1 <= 1; ++i1) {
           for (i2=-1; i2 <= 1; ++i2) {
-            if (i_box_1+i1 >= 0
-             && i_box_1+i1 < n_boxes_1
-             && i_box_2+i2 >= 0
-             && i_box_2+i2 < n_boxes_2) {
+            box = std::make_tuple(std::get<0>(grid.assigned_box[i])+i1
+                                , std::get<1>(grid.assigned_box[i])+i2);
+            if (is_valid_box(box, grid)) {
               // loop over frames inside surrounding box
-              for (ib=0; ib < box[i_box_1+i1][i_box_2+i2].size(); ++ib) {
-                j = box[i_box_1+i1][i_box_2+i2][ib];
+              for (ib=0; ib < grid.boxes[box].size(); ++ib) {
+                j = grid.boxes[box][ib];
                 if (i < j) {
                   dist = 0.0f;
                   #pragma simd reduction(+:dist)
@@ -161,6 +185,9 @@ namespace Clustering {
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy) {
+
+      //TODO compute boxed grid
+
       Neighborhood nh;
       Neighborhood nh_high_dens;
       // initialize neighborhood
@@ -182,6 +209,10 @@ namespace Clustering {
         mindist_high_dens = std::numeric_limits<float>::max();
         min_j = n_rows+1;
         min_j_high_dens = n_rows+1;
+
+        //TODO use boxed grid.
+        //     if no neighbor in grid, fall back to j \in [0, n_rows]
+
         for (j=0; j < n_rows; ++j) {
           if (i != j) {
             dist = 0.0f;
