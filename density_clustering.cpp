@@ -12,6 +12,67 @@
 
 namespace Clustering {
   namespace Density {
+    BoxIterator::BoxIterator()
+      : BoxIterator(NULL, 0) {
+    }
+
+    BoxIterator::BoxIterator(const BoxGrid* grid, Box center)
+      : _grid(grid)
+      , _center(center)
+      , _pos1(-1)
+      , _pos2(-1)
+      , _finished(false) {
+      this->_update_position();
+    }
+
+    BoxIterator::BoxIterator(const BoxGrid* grid, std::size_t center_index)
+      : BoxIterator(grid, grid->assigned_box[center_index]) {
+    }
+
+    void
+    BoxIterator::_update_position() {
+      _current_position = std::make_tuple(std::get<0>(_center)+_pos1, std::get<1>(_center)+_pos2);
+    }
+
+    BoxIterator&
+    BoxIterator::operator++() {
+      if (_pos1 < 1 || _pos2 < 1) {
+        if (_pos1 == 1) {
+          _pos2++;
+        } else if (_pos2 == 1) {
+          _pos1++;
+          _pos2 = -1;
+        } else {
+          _pos1++;
+        }
+      } else {
+        _finished = true;
+      }
+      this->_update_position();
+      return *this;
+    }
+
+    bool
+    BoxIterator::operator==(const BoxIterator& rhs) {
+      return (rhs._pos1 == _pos1
+           && rhs._pos2 == _pos2
+           && rhs._center == _center);
+    }
+
+    bool
+    BoxIterator::operator!=(const BoxIterator& rhs) {
+      return !(*this == rhs);
+    }
+
+    Box&
+    BoxIterator::operator*() {
+      return _current_position;
+    }
+
+    bool
+    BoxIterator::finished() {
+      return _finished;
+    }
 
     BoxGrid
     compute_box_grid(const float* coords,
@@ -61,7 +122,7 @@ namespace Clustering {
     }
 
     bool
-    is_valid_box(const std::tuple<int, int> box, const BoxGrid& grid) {
+    is_valid_box(const Box box, const BoxGrid& grid) {
       int i1 = std::get<0>(box);
       int i2 = std::get<1>(box);
       return (i1 >= 0
@@ -109,40 +170,37 @@ namespace Clustering {
                                     << std::endl;
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
-      int i1, i2;
-      std::tuple<int, int> box;
-      #pragma omp parallel for default(none) private(i,box,i1,i2,ib,dist,j,k,l,c) \
+      Box box;
+      BoxIterator box_it;
+      #pragma omp parallel for default(none) private(i,box,box_it,ib,dist,j,k,l,c) \
                                firstprivate(n_rows,n_cols,n_radii,radii,rad2) \
                                shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
         // loop over surrounding boxes to find neighbor candidates
-        for (i1=-1; i1 <= 1; ++i1) {
-          for (i2=-1; i2 <= 1; ++i2) {
-            box = std::make_tuple(std::get<0>(grid.assigned_box[i])+i1
-                                , std::get<1>(grid.assigned_box[i])+i2);
-            if (is_valid_box(box, grid)) {
-              // loop over frames inside surrounding box
-              for (ib=0; ib < grid.boxes[box].size(); ++ib) {
-                j = grid.boxes[box][ib];
-                if (i < j) {
-                  dist = 0.0f;
-                  #pragma simd reduction(+:dist)
-                  for (k=0; k < n_cols; ++k) {
-                    c = coords[i*n_cols+k] - coords[j*n_cols+k];
-                    dist += c*c;
-                  }
-                  for (l=0; l < n_radii; ++l) {
-                    if (dist < rad2[l]) {
-                      #pragma omp atomic
-                      pops[radii[l]][i] += 1;
-                      #pragma omp atomic
-                      pops[radii[l]][j] += 1;
-                    } else {
-                      // if it's not in the bigger radius,
-                      // it won't be in the smaller ones.
-                      break;
-                    }
+        for (box_it=BoxIterator(&grid, i); ! box_it.finished(); ++box_it) {
+          box = *box_it;
+          if (is_valid_box(box, grid)) {
+            // loop over frames inside surrounding box
+            for (ib=0; ib < grid.boxes[box].size(); ++ib) {
+              j = grid.boxes[box][ib];
+              if (i < j) {
+                dist = 0.0f;
+                #pragma simd reduction(+:dist)
+                for (k=0; k < n_cols; ++k) {
+                  c = coords[i*n_cols+k] - coords[j*n_cols+k];
+                  dist += c*c;
+                }
+                for (l=0; l < n_radii; ++l) {
+                  if (dist < rad2[l]) {
+                    #pragma omp atomic
+                    pops[radii[l]][i] += 1;
+                    #pragma omp atomic
+                    pops[radii[l]][j] += 1;
+                  } else {
+                    // if it's not in the bigger radius,
+                    // it won't be in the smaller ones.
+                    break;
                   }
                 }
               }

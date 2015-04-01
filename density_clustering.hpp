@@ -12,26 +12,53 @@
 
 namespace Clustering {
   namespace Density {
+    //TODO doc
     using FreeEnergy = std::pair<std::size_t, float>;
     using SizePair = std::pair<std::size_t, std::size_t>;
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
+
+    using Box = std::tuple<int, int>;
+
+    //TODO doc
     struct BoxGrid {
       std::vector<int> n_boxes;
-      std::vector<std::tuple<int, int>> assigned_box;
-      std::map<std::tuple<int, int>, std::vector<int>> boxes;
+      std::vector<Box> assigned_box;
+      std::map<Box, std::vector<int>> boxes;
     };
 
+    class BoxIterator : public std::iterator<std::output_iterator_tag, int> {
+     public:
+      BoxIterator();
+      BoxIterator(const BoxGrid* grid, Box center);
+      BoxIterator(const BoxGrid* grid, std::size_t center_index);
+      BoxIterator& operator++();
+      bool operator==(const BoxIterator& rhs);
+      bool operator!=(const BoxIterator& rhs);
+      Box& operator*();
+      bool finished();
+     protected:
+      const BoxGrid* _grid;
+      Box _center;
+      int _pos1;
+      int _pos2;
+      bool _finished;
+      Box _current_position;
+      void _update_position();
+    };
+
+    //TODO doc
     BoxGrid
     compute_box_grid(const float* coords,
                      const std::size_t n_rows,
                      const std::size_t n_cols,
                      const float radius);
 
+    //TODO doc
     bool
-    is_valid_box(const std::tuple<int, int> box
-               , const BoxGrid& grid);
+    is_valid_box(const std::tuple<int, int> box,
+                 const BoxGrid& grid);
 
     //TODO doc
     std::vector<std::size_t>
