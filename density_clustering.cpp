@@ -12,17 +12,25 @@
 
 namespace Clustering {
   namespace Density {
-    BoxIterator::BoxIterator()
-      : BoxIterator(NULL, 0) {
-    }
-
     BoxIterator::BoxIterator(const BoxGrid* grid, Box center)
       : _grid(grid)
       , _center(center)
-      , _pos1(-1)
-      , _pos2(-1)
-      , _finished(false) {
+      , _finished(false)
+      , _box_diff({ Box(-1, 1)
+                  , Box( 0, 1)
+                  , Box( 1, 1)
+                  , Box(-1, 0)
+                  , Box( 0, 0)
+                  , Box( 1, 0)
+                  , Box(-1,-1)
+                  , Box( 0,-1)
+                  , Box( 1,-1) })
+      , _i_box_diff(0) {
       this->_update_position();
+    }
+
+    BoxIterator::BoxIterator()
+      : BoxIterator(NULL, 0) {
     }
 
     BoxIterator::BoxIterator(const BoxGrid* grid, std::size_t center_index)
@@ -31,31 +39,24 @@ namespace Clustering {
 
     void
     BoxIterator::_update_position() {
-      _current_position = std::make_tuple(std::get<0>(_center)+_pos1, std::get<1>(_center)+_pos2);
+      _current_position = std::make_tuple(std::get<0>(_center)+std::get<0>(_box_diff[_i_box_diff])
+                                        , std::get<1>(_center)+std::get<1>(_box_diff[_i_box_diff]));
     }
 
     BoxIterator&
     BoxIterator::operator++() {
-      if (_pos1 < 1 || _pos2 < 1) {
-        if (_pos1 == 1) {
-          _pos2++;
-        } else if (_pos2 == 1) {
-          _pos1++;
-          _pos2 = -1;
-        } else {
-          _pos1++;
-        }
+      ++_i_box_diff;
+      if (_i_box_diff < _box_diff.size()) {
+        _update_position();
       } else {
         _finished = true;
       }
-      this->_update_position();
       return *this;
     }
 
     bool
     BoxIterator::operator==(const BoxIterator& rhs) {
-      return (rhs._pos1 == _pos1
-           && rhs._pos2 == _pos2
+      return (rhs._i_box_diff == _i_box_diff
            && rhs._center == _center);
     }
 
@@ -172,17 +173,18 @@ namespace Clustering {
       float dist, c;
       Box box;
       BoxIterator box_it;
+      Clustering::logger(std::cout) << "after box iter init" << std::endl;
       #pragma omp parallel for default(none) private(i,box,box_it,ib,dist,j,k,l,c) \
                                firstprivate(n_rows,n_cols,n_radii,radii,rad2) \
                                shared(coords,pops,grid,std::cout) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        std::cout << "\n* ";
-        std::cout << std::get<0>(grid.assigned_box[i]) << " " << std::get<1>(grid.assigned_box[i]) << "\n";
+        //std::cout << "\n* ";
+        //std::cout << std::get<0>(grid.assigned_box[i]) << " " << std::get<1>(grid.assigned_box[i]) << "\n";
         // loop over surrounding boxes to find neighbor candidates
         for (box_it=BoxIterator(&grid, i); ! box_it.finished(); ++box_it) {
           box = *box_it;
-          std::cout << std::get<0>(box) << " " << std::get<1>(box) << "\n";
+          //std::cout << std::get<0>(box) << " " << std::get<1>(box) << "\n";
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
             for (ib=0; ib < grid.boxes[box].size(); ++ib) {

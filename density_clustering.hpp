@@ -30,8 +30,8 @@ namespace Clustering {
 
     class BoxIterator : public std::iterator<std::output_iterator_tag, int> {
      public:
-      BoxIterator();
       BoxIterator(const BoxGrid* grid, Box center);
+      BoxIterator();
       BoxIterator(const BoxGrid* grid, std::size_t center_index);
       BoxIterator& operator++();
       bool operator==(const BoxIterator& rhs);
@@ -41,10 +41,10 @@ namespace Clustering {
      protected:
       const BoxGrid* _grid;
       Box _center;
-      int _pos1;
-      int _pos2;
       bool _finished;
       Box _current_position;
+      std::vector<Box> _box_diff;
+      std::size_t _i_box_diff;
       void _update_position();
     };
 
