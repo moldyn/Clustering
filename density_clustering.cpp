@@ -12,47 +12,62 @@
 
 namespace Clustering {
   namespace Density {
-    BoxIterator::BoxIterator()
-      : BoxIterator({0, 0}) {
-    }
-
-    BoxIterator::BoxIterator(Box center)
-      : _center(center)
-      , _finished(false)
-      , _box_diff({ {-1, 1}
-                  , { 0, 1}
-                  , { 1, 1}
-                  , {-1, 0}
-                  , { 0, 0}
-                  , { 1, 0}
-                  , {-1,-1}
-                  , { 0,-1}
-                  , { 1,-1} })
-      , _i_box_diff(0) {
-      this->_update_position();
-    }
-
-    void
-    BoxIterator::_update_position() {
-      if (_finished) {
-        _current_position = {};
-      } else {
-        _current_position = {_center[0]+_box_diff[_i_box_diff][0]
-                           , _center[1]+_box_diff[_i_box_diff][1]};
-      }
-    }
+//    BoxIterator::BoxIterator()
+//      : BoxIterator({0, 0}) {
+//    }
+//
+//    BoxIterator::BoxIterator(Box center)
+//      : _center(center)
+//      , _finished(false)
+//      , _box_diff({ {-1, 1}
+//                  , { 0, 1}
+//                  , { 1, 1}
+//                  , {-1, 0}
+//                  , { 0, 0}
+//                  , { 1, 0}
+//                  , {-1,-1}
+//                  , { 0,-1}
+//                  , { 1,-1} })
+//      , _i_box_diff(0) {
+//      this->_update_position();
+//    }
+//
+//    void
+//    BoxIterator::_update_position() {
+//      if (_finished) {
+//        _current_position = {};
+//      } else {
+//        _current_position = {_center[0]+_box_diff[_i_box_diff][0]
+//                           , _center[1]+_box_diff[_i_box_diff][1]};
+//      }
+//    }
+//
+//    Box
+//    BoxIterator::next() {
+//      Box before = _current_position;
+//      _finished = (++_i_box_diff >= (int) _box_diff.size());
+//      _update_position();
+//      return before;
+//    }
+//
+//    bool
+//    BoxIterator::finished() {
+//      return _finished;
+//    }
 
     Box
-    BoxIterator::next() {
-      Box before = _current_position;
-      _finished = (++_i_box_diff >= (int) _box_diff.size());
-      _update_position();
-      return before;
-    }
-
-    bool
-    BoxIterator::finished() {
-      return _finished;
+    neighbor_box(Box center, int i_neighbor) {
+      const std::vector<Box>
+      box_diff = { {-1, 1}
+                 , { 0, 1}
+                 , { 1, 1}
+                 , {-1, 0}
+                 , { 0, 0}
+                 , { 1, 0}
+                 , {-1,-1}
+                 , { 0,-1}
+                 , { 1,-1} };
+      return {center[0] + box_diff[i_neighbor][0], center[1] + box_diff[i_neighbor][1]};
     }
 
     BoxGrid
@@ -152,18 +167,21 @@ namespace Clustering {
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
       Box box;
-      Clustering::logger(std::cout) << "before box iter init" << std::endl;
-      BoxIterator box_it;
-      Clustering::logger(std::cout) << "after box iter init" << std::endl;
-      #pragma omp parallel for default(none) private(i,box,box_it,ib,dist,j,k,l,c) \
-                               firstprivate(n_rows,n_cols,n_radii,radii,rad2) \
-                               shared(coords,pops,grid,std::cout) \
+      Box center;
+      int i_neighbor;
+      int n_neighbor_boxes = 9;
+      //TODO iterator to function call:  neigbor_box(center, i)
+
+      #pragma omp parallel for default(none) private(i,box,center,i_neighbor,ib,dist,j,k,l,c) \
+                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,n_neighbor_boxes) \
+                               shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        box_it = BoxIterator(grid.assigned_box[i]);
+        //box_it = BoxIterator(grid.assigned_box[i]);
+        center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
-        while ( ! box_it.finished()) {
-          box = box_it.next();
+        for (i_neighbor=0; i_neighbor < n_neighbor_boxes; ++i_neighbor) {
+          box = neighbor_box(center, i_neighbor);
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
             for (ib=0; ib < grid.boxes[box].size(); ++ib) {
