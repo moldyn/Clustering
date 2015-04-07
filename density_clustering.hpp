@@ -18,8 +18,7 @@ namespace Clustering {
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
-
-    using Box = std::tuple<int, int>;
+    using Box = std::vector<int>;
 
     //TODO doc
     struct BoxGrid {
@@ -42,9 +41,9 @@ namespace Clustering {
       const BoxGrid* _grid;
       Box _center;
       bool _finished;
+//      std::vector<Box> _box_diff;
+//      std::size_t _i_box_diff;
       Box _current_position;
-      std::vector<Box> _box_diff;
-      std::size_t _i_box_diff;
       void _update_position();
     };
 
@@ -57,7 +56,7 @@ namespace Clustering {
 
     //TODO doc
     bool
-    is_valid_box(const std::tuple<int, int> box,
+    is_valid_box(const Box box,
                  const BoxGrid& grid);
 
     //TODO doc

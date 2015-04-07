@@ -15,17 +15,17 @@ namespace Clustering {
     BoxIterator::BoxIterator(const BoxGrid* grid, Box center)
       : _grid(grid)
       , _center(center)
-      , _finished(false)
-      , _box_diff({ Box(-1, 1)
-                  , Box( 0, 1)
-                  , Box( 1, 1)
-                  , Box(-1, 0)
-                  , Box( 0, 0)
-                  , Box( 1, 0)
-                  , Box(-1,-1)
-                  , Box( 0,-1)
-                  , Box( 1,-1) })
-      , _i_box_diff(0) {
+      , _finished(false) {
+//      , _i_box_diff(0) {
+//      _box_diff.push_back(std::make_tuple(-1, 1));
+//      _box_diff.push_back(std::make_tuple( 0, 1));
+//      _box_diff.push_back(std::make_tuple( 1, 1));
+//      _box_diff.push_back(std::make_tuple(-1, 0));
+//      _box_diff.push_back(std::make_tuple( 0, 0));
+//      _box_diff.push_back(std::make_tuple( 1, 0));
+//      _box_diff.push_back(std::make_tuple(-1,-1));
+//      _box_diff.push_back(std::make_tuple( 0,-1));
+//      _box_diff.push_back(std::make_tuple( 1,-1));
       this->_update_position();
     }
 
@@ -39,25 +39,26 @@ namespace Clustering {
 
     void
     BoxIterator::_update_position() {
-      _current_position = std::make_tuple(std::get<0>(_center)+std::get<0>(_box_diff[_i_box_diff])
-                                        , std::get<1>(_center)+std::get<1>(_box_diff[_i_box_diff]));
+//      _current_position = {_center[0]+_box_diff[_i_box_diff][0]
+//                         , _center[1]+_box_diff[_i_box_diff][1]};
     }
 
     BoxIterator&
     BoxIterator::operator++() {
-      ++_i_box_diff;
-      if (_i_box_diff < _box_diff.size()) {
-        _update_position();
-      } else {
-        _finished = true;
-      }
+//      ++_i_box_diff;
+//      if (_i_box_diff < _box_diff.size()) {
+//        _update_position();
+//      } else {
+//        _finished = true;
+//      }
       return *this;
     }
 
     bool
     BoxIterator::operator==(const BoxIterator& rhs) {
-      return (rhs._i_box_diff == _i_box_diff
-           && rhs._center == _center);
+      return (//rhs._i_box_diff == _i_box_diff
+          // &&
+           rhs._center == _center);
     }
 
     bool
@@ -116,7 +117,7 @@ namespace Clustering {
       for (std::size_t i=0; i < n_rows; ++i) {
         i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / radius;
         i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
-        grid.assigned_box[i] = std::make_tuple(i_box_1, i_box_2);
+        grid.assigned_box[i] = {i_box_1, i_box_2};
         grid.boxes[grid.assigned_box[i]].push_back(i);
       }
       return grid;
@@ -124,8 +125,8 @@ namespace Clustering {
 
     bool
     is_valid_box(const Box box, const BoxGrid& grid) {
-      int i1 = std::get<0>(box);
-      int i2 = std::get<1>(box);
+      int i1 = box[0];
+      int i2 = box[1];
       return (i1 >= 0
            && i1 < grid.n_boxes[0]
            && i2 >= 0
@@ -172,6 +173,7 @@ namespace Clustering {
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
       Box box;
+      Clustering::logger(std::cout) << "before box iter init" << std::endl;
       BoxIterator box_it;
       Clustering::logger(std::cout) << "after box iter init" << std::endl;
       #pragma omp parallel for default(none) private(i,box,box_it,ib,dist,j,k,l,c) \
