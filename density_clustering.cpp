@@ -134,11 +134,11 @@ namespace Clustering {
       for (i=0; i < n_rows; ++i) {
         center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
-        //for (i_neighbor=0; i_neighbor < n_neighbor_boxes; ++i_neighbor) {
-        for(i_diff1=-1; i_diff1 <= 1; ++i_diff1)
-        for(i_diff2=-1; i_diff2 <= 1; ++i_diff2) {
-          //box = neighbor_box(center, i_neighbor);
-          box = {center[0]+i_diff1, center[1]+i_diff2};
+        for (i_neighbor=0; i_neighbor < n_neighbor_boxes; ++i_neighbor) {
+//        for(i_diff1=-1; i_diff1 <= 1; ++i_diff1)
+//        for(i_diff2=-1; i_diff2 <= 1; ++i_diff2) {
+          box = neighbor_box(center, i_neighbor);
+          //box = {center[0]+i_diff1, center[1]+i_diff2};
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
             for (ib=0; ib < grid.boxes[box].size(); ++ib) {

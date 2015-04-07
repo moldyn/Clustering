@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <array>
 #include <utility>
 #include <string>
 
@@ -18,7 +19,8 @@ namespace Clustering {
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
-    using Box = std::vector<int>;
+    //using Box = std::vector<int>;
+    using Box = std::array<int, 2>;
 
     //TODO doc
     struct BoxGrid {
