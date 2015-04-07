@@ -21,6 +21,15 @@ namespace Clustering {
   
     //using Box = std::vector<int>;
     using Box = std::array<int, 2>;
+    constexpr int box_diff[9][2] = { {-1, 1}
+                                   , { 0, 1}
+                                   , { 1, 1}
+                                   , {-1, 0}
+                                   , { 0, 0}
+                                   , { 1, 0}
+                                   , {-1,-1}
+                                   , { 0,-1}
+                                   , { 1,-1} };
 
     //TODO doc
     struct BoxGrid {
@@ -29,7 +38,7 @@ namespace Clustering {
       std::map<Box, std::vector<int>> boxes;
     };
 
-    Box
+    constexpr Box
     neighbor_box(const Box center, const int i_neighbor);
 
     //TODO doc
