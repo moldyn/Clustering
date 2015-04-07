@@ -28,28 +28,26 @@ namespace Clustering {
                   , {-1,-1}
                   , { 0,-1}
                   , { 1,-1} })
-      , _i_box_diff(-1) {
+      , _i_box_diff(0) {
       this->_update_position();
     }
 
     void
     BoxIterator::_update_position() {
-      _current_position = {_center[0]+_box_diff[_i_box_diff][0]
-                         , _center[1]+_box_diff[_i_box_diff][1]};
+      if (_finished) {
+        _current_position = {};
+      } else {
+        _current_position = {_center[0]+_box_diff[_i_box_diff][0]
+                           , _center[1]+_box_diff[_i_box_diff][1]};
+      }
     }
 
     Box
     BoxIterator::next() {
-      if (_finished) {
-        return {};
-      } else {
-        ++_i_box_diff;
-        if (_i_box_diff == (int) _box_diff.size()) {
-          _finished = true;
-        }
-        _update_position();
-        return _current_position;
-      }
+      Box before = _current_position;
+      _finished = (++_i_box_diff >= (int) _box_diff.size());
+      _update_position();
+      return before;
     }
 
     bool
