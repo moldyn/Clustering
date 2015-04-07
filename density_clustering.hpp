@@ -37,7 +37,7 @@ namespace Clustering {
       Box _center;
       bool _finished;
       std::vector<Box> _box_diff;
-      std::size_t _i_box_diff;
+      int _i_box_diff;
       Box _current_position;
       void _update_position();
     };

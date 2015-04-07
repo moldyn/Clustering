@@ -28,7 +28,7 @@ namespace Clustering {
                   , {-1,-1}
                   , { 0,-1}
                   , { 1,-1} })
-      , _i_box_diff(0) {
+      , _i_box_diff(-1) {
       this->_update_position();
     }
 
@@ -40,10 +40,16 @@ namespace Clustering {
 
     Box
     BoxIterator::next() {
-      if (! _finished) {
+      if (_finished) {
+        return {};
+      } else {
+        ++_i_box_diff;
+        if (_i_box_diff == (int) _box_diff.size()) {
+          _finished = true;
+        }
+        _update_position();
         return _current_position;
       }
-      return _current_position;
     }
 
     bool
