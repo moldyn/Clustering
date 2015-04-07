@@ -12,62 +12,37 @@
 
 namespace Clustering {
   namespace Density {
-    BoxIterator::BoxIterator(const BoxGrid* grid, Box center)
-      : _grid(grid)
-      , _center(center)
-      , _finished(false) {
-//      , _i_box_diff(0) {
-//      _box_diff.push_back(std::make_tuple(-1, 1));
-//      _box_diff.push_back(std::make_tuple( 0, 1));
-//      _box_diff.push_back(std::make_tuple( 1, 1));
-//      _box_diff.push_back(std::make_tuple(-1, 0));
-//      _box_diff.push_back(std::make_tuple( 0, 0));
-//      _box_diff.push_back(std::make_tuple( 1, 0));
-//      _box_diff.push_back(std::make_tuple(-1,-1));
-//      _box_diff.push_back(std::make_tuple( 0,-1));
-//      _box_diff.push_back(std::make_tuple( 1,-1));
-      this->_update_position();
-    }
-
     BoxIterator::BoxIterator()
-      : BoxIterator(NULL, 0) {
+      : BoxIterator({0, 0}) {
     }
 
-    BoxIterator::BoxIterator(const BoxGrid* grid, std::size_t center_index)
-      : BoxIterator(grid, grid->assigned_box[center_index]) {
+    BoxIterator::BoxIterator(Box center)
+      : _center(center)
+      , _finished(false)
+      , _box_diff({ {-1, 1}
+                  , { 0, 1}
+                  , { 1, 1}
+                  , {-1, 0}
+                  , { 0, 0}
+                  , { 1, 0}
+                  , {-1,-1}
+                  , { 0,-1}
+                  , { 1,-1} })
+      , _i_box_diff(0) {
+      this->_update_position();
     }
 
     void
     BoxIterator::_update_position() {
-//      _current_position = {_center[0]+_box_diff[_i_box_diff][0]
-//                         , _center[1]+_box_diff[_i_box_diff][1]};
+      _current_position = {_center[0]+_box_diff[_i_box_diff][0]
+                         , _center[1]+_box_diff[_i_box_diff][1]};
     }
 
-    BoxIterator&
-    BoxIterator::operator++() {
-//      ++_i_box_diff;
-//      if (_i_box_diff < _box_diff.size()) {
-//        _update_position();
-//      } else {
-//        _finished = true;
-//      }
-      return *this;
-    }
-
-    bool
-    BoxIterator::operator==(const BoxIterator& rhs) {
-      return (//rhs._i_box_diff == _i_box_diff
-          // &&
-           rhs._center == _center);
-    }
-
-    bool
-    BoxIterator::operator!=(const BoxIterator& rhs) {
-      return !(*this == rhs);
-    }
-
-    Box&
-    BoxIterator::operator*() {
+    Box
+    BoxIterator::next() {
+      if (! _finished) {
+        return _current_position;
+      }
       return _current_position;
     }
 
@@ -181,12 +156,10 @@ namespace Clustering {
                                shared(coords,pops,grid,std::cout) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        //std::cout << "\n* ";
-        //std::cout << std::get<0>(grid.assigned_box[i]) << " " << std::get<1>(grid.assigned_box[i]) << "\n";
+        box_it = BoxIterator(grid.assigned_box[i]);
         // loop over surrounding boxes to find neighbor candidates
-        for (box_it=BoxIterator(&grid, i); ! box_it.finished(); ++box_it) {
-          box = *box_it;
-          //std::cout << std::get<0>(box) << " " << std::get<1>(box) << "\n";
+        while ( ! box_it.finished()) {
+          box = box_it.next();
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
             for (ib=0; ib < grid.boxes[box].size(); ++ib) {

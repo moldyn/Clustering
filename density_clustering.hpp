@@ -27,22 +27,17 @@ namespace Clustering {
       std::map<Box, std::vector<int>> boxes;
     };
 
-    class BoxIterator : public std::iterator<std::output_iterator_tag, int> {
+    class BoxIterator {
      public:
-      BoxIterator(const BoxGrid* grid, Box center);
       BoxIterator();
-      BoxIterator(const BoxGrid* grid, std::size_t center_index);
-      BoxIterator& operator++();
-      bool operator==(const BoxIterator& rhs);
-      bool operator!=(const BoxIterator& rhs);
-      Box& operator*();
+      BoxIterator(Box center);
+      Box next();
       bool finished();
      protected:
-      const BoxGrid* _grid;
       Box _center;
       bool _finished;
-//      std::vector<Box> _box_diff;
-//      std::size_t _i_box_diff;
+      std::vector<Box> _box_diff;
+      std::size_t _i_box_diff;
       Box _current_position;
       void _update_position();
     };
