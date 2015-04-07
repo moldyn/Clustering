@@ -14,7 +14,8 @@ namespace Clustering {
   namespace Density {
     constexpr Box
     neighbor_box(const Box center, const int i_neighbor) {
-      return {center[0] + box_diff[i_neighbor][0], center[1] + box_diff[i_neighbor][1]};
+      return {center[0] + BOX_DIFF[i_neighbor][0]
+            , center[1] + BOX_DIFF[i_neighbor][1]};
     }
 
     BoxGrid
@@ -116,15 +117,14 @@ namespace Clustering {
       Box box;
       Box center;
       int i_neighbor;
-      int n_neighbor_boxes = 9;
       #pragma omp parallel for default(none) private(i,box,center,i_neighbor,ib,dist,j,k,l,c) \
-                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,n_neighbor_boxes) \
+                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES) \
                                shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
         center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
-        for (i_neighbor=0; i_neighbor < n_neighbor_boxes; ++i_neighbor) {
+        for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
           box = neighbor_box(center, i_neighbor);
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
