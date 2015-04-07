@@ -174,12 +174,15 @@ namespace Clustering {
       BoxIterator box_it;
       #pragma omp parallel for default(none) private(i,box,box_it,ib,dist,j,k,l,c) \
                                firstprivate(n_rows,n_cols,n_radii,radii,rad2) \
-                               shared(coords,pops,grid) \
+                               shared(coords,pops,grid,std::cout) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
+        std::cout << "\n* ";
+        std::cout << std::get<0>(grid.assigned_box[i]) << " " << std::get<1>(grid.assigned_box[i]) << "\n";
         // loop over surrounding boxes to find neighbor candidates
         for (box_it=BoxIterator(&grid, i); ! box_it.finished(); ++box_it) {
           box = *box_it;
+          std::cout << std::get<0>(box) << " " << std::get<1>(box) << "\n";
           if (is_valid_box(box, grid)) {
             // loop over frames inside surrounding box
             for (ib=0; ib < grid.boxes[box].size(); ++ib) {
