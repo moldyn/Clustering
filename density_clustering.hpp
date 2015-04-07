@@ -20,17 +20,17 @@ namespace Clustering {
     using Neighborhood = Clustering::Tools::Neighborhood;
   
     //using Box = std::vector<int>;
-    using Box = std::array<int, 2>;
-    constexpr int BOX_DIFF[9][2] = { {-1, 1}
-                                   , { 0, 1}
-                                   , { 1, 1}
-                                   , {-1, 0}
-                                   , { 0, 0}
-                                   , { 1, 0}
-                                   , {-1,-1}
-                                   , { 0,-1}
-                                   , { 1,-1} };
-    const int N_NEIGHBOR_BOXES = 9;
+    using Box = std::array<int, 3>;
+    constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
+                                   , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
+                                   , {-1,-1,-1}, { 0,-1,-1}, { 1,-1,-1}
+                                   , {-1, 1, 0}, { 0, 1, 0}, { 1, 1, 0}
+                                   , {-1, 0, 0}, { 0, 0, 0}, { 1, 0, 0}
+                                   , {-1,-1, 0}, { 0,-1, 0}, { 1,-1, 0}
+                                   , {-1, 1, 1}, { 0, 1, 1}, { 1, 1, 1}
+                                   , {-1, 0, 1}, { 0, 0, 1}, { 1, 0, 1}
+                                   , {-1,-1, 1}, { 0,-1, 1}, { 1,-1, 1}};
+    const int N_NEIGHBOR_BOXES = 27;
 
     //TODO doc
     struct BoxGrid {
