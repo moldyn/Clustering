@@ -120,7 +120,8 @@ namespace Clustering {
       Box box;
       Box center;
       int i_neighbor;
-      #pragma omp parallel for default(none) private(i,box,center,i_neighbor,ib,dist,j,k,l,c) \
+      std::vector<int> box_buffer;
+      #pragma omp parallel for default(none) private(i,box,box_buffer,center,i_neighbor,ib,dist,j,k,l,c) \
                                firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES) \
                                shared(coords,pops,grid) \
                                schedule(dynamic,1024)
@@ -130,9 +131,10 @@ namespace Clustering {
         for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
           box = neighbor_box(center, i_neighbor);
           if (is_valid_box(box, grid)) {
+            box_buffer = grid.boxes[box];
             // loop over frames inside surrounding box
-            for (ib=0; ib < grid.boxes[box].size(); ++ib) {
-              j = grid.boxes[box][ib];
+            for (ib=0; ib < box_buffer.size(); ++ib) {
+              j = box_buffer[ib];
               if (i < j) {
                 dist = 0.0f;
                 #pragma simd reduction(+:dist)
