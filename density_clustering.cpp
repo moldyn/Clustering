@@ -121,19 +121,11 @@ namespace Clustering {
       Box center;
       int i_neighbor;
       std::vector<int> box_buffer;
-
-      std::size_t n_count = 0;
       #pragma omp parallel for default(none) private(i,box,box_buffer,center,i_neighbor,ib,dist,j,k,l,c) \
                                firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES) \
-                               shared(coords,pops,grid,  n_count, std::cout) \
+                               shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        #pragma omp atomic
-        ++n_count;
-        if (n_count % 1000 == 0) {
-          #pragma omp atomic
-          std::cout << n_count << " / " << n_rows << std::endl;
-        }
         center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
         for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
