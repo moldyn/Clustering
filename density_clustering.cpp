@@ -193,10 +193,16 @@ namespace Clustering {
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
+                      const float radius,
                       const std::vector<float>& free_energy) {
-
-      //TODO compute boxed grid
-
+      BoxGrid grid = compute_box_grid(coords, n_rows, n_cols, radius);
+      Clustering::logger(std::cout) << " box grid: "
+                                    << grid.n_boxes[0]
+                                    << " x "
+                                    << grid.n_boxes[1]
+                                    << " x "
+                                    << grid.n_boxes[2]
+                                    << std::endl;
       Neighborhood nh;
       Neighborhood nh_high_dens;
       // initialize neighborhood
@@ -205,11 +211,15 @@ namespace Clustering {
         nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
       }
       // calculate nearest neighbors with distances
-      std::size_t i, j, c, min_j, min_j_high_dens;
+      std::size_t i, j, c, ib, min_j, min_j_high_dens;
       float dist, d, mindist, mindist_high_dens;
+      Box box;
+      int i_neighbor;
+      Box center;
+      std::vector<int> box_buffer;
       ASSUME_ALIGNED(coords);
       #pragma omp parallel for default(none) \
-                               private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
+                               private(i,box,box_buffer,center,i_neighbor,ib,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
                                firstprivate(n_rows,n_cols) \
                                shared(coords,nh,nh_high_dens,free_energy) \
                                schedule(dynamic, 2048)
@@ -219,8 +229,24 @@ namespace Clustering {
         min_j = n_rows+1;
         min_j_high_dens = n_rows+1;
 
+
         //TODO use boxed grid.
         //     if no neighbor in grid, fall back to j \in [0, n_rows]
+        
+
+        std::vector<int> frames_buffer;
+        center = grid.assigned_box[i];
+        // loop over surrounding boxes to find neighbor candidates
+        for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
+          box = neighbor_box(center, i_neighbor);
+          if (is_valid_box(box, grid)) {
+            box_buffer = grid.boxes[box];
+            // append frames from box to frames_buffer
+            frames_buffer.insert(frames_buffer.end(), box_buffer.begin(), box_buffer.end());
+
+          //TODO: finish here
+
+
 
         for (j=0; j < n_rows; ++j) {
           if (i != j) {
@@ -390,7 +416,11 @@ namespace Clustering {
         nh_high_dens = nh_pair.second;
       } else if (args.count("nearest-neighbors") || args.count("output")) {
         Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
-        auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+        if ( ! args.count("radius")) {
+          std::cerr << "error: radius (-r) is required!" << std::endl;
+        }
+        const float radius = args["radius"].as<float>();
+        auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, radius, free_energies);
         nh = std::get<0>(nh_tuple);
         nh_high_dens = std::get<1>(nh_tuple);
         if (args.count("nearest-neighbors")) {

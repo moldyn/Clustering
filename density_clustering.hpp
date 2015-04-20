@@ -19,7 +19,6 @@ namespace Clustering {
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
-    //using Box = std::vector<int>;
     using Box = std::array<int, 3>;
     constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
                                    , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
@@ -81,6 +80,7 @@ namespace Clustering {
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
+                      const float radius,
                       const std::vector<float>& free_energy);
   
     // returns neighborhood set of single frame.
