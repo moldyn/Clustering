@@ -132,9 +132,6 @@ endif()
 if(DC_STATIC_LINKING)
     set(CMAKE_EXE_LINKER_FLAGS "-static")
     set_target_properties(clustering PROPERTIES LINK_SEARCH_END_STATIC 1)
-#    set_target_properties(network_builder PROPERTIES LINK_SEARCH_END_STATIC 1)
-#    set_target_properties(state_filter PROPERTIES LINK_SEARCH_END_STATIC 1)
-#    set_target_properties(coring PROPERTIES LINK_SEARCH_END_STATIC 1)
 endif(DC_STATIC_LINKING)
 
 

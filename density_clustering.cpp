@@ -8,9 +8,74 @@
 #endif
 
 #include <algorithm>
+#include <list>
 
 namespace Clustering {
   namespace Density {
+    constexpr Box
+    neighbor_box(const Box center, const int i_neighbor) {
+      return {center[0] + BOX_DIFF[i_neighbor][0]
+            , center[1] + BOX_DIFF[i_neighbor][1]
+            , center[2] + BOX_DIFF[i_neighbor][2]};
+    }
+
+    BoxGrid
+    compute_box_grid(const float* coords,
+                     const std::size_t n_rows,
+                     const std::size_t n_cols,
+                     const float radius) {
+      // use first, second and third coordinates, since these usually
+      // correspond to first, second and third PCs, having highest variance.
+      const int BOX_DIM_1 = 0;
+      const int BOX_DIM_2 = 1;
+      const int BOX_DIM_3 = 2;
+      BoxGrid grid;
+      ASSUME_ALIGNED(coords);
+      // find min/max values for first and second dimension
+      float min_x1=coords[0*n_cols+BOX_DIM_1];
+      float max_x1=coords[0*n_cols+BOX_DIM_1];
+      float min_x2=coords[0*n_cols+BOX_DIM_2];
+      float max_x2=coords[0*n_cols+BOX_DIM_2];
+      float min_x3=coords[0*n_cols+BOX_DIM_3];
+      float max_x3=coords[0*n_cols+BOX_DIM_3];
+      Clustering::logger(std::cout) << "setting up boxes for fast NN search" << std::endl;
+      for (std::size_t i=1; i < n_rows; ++i) {
+        min_x1 = std::min(min_x1, coords[i*n_cols+BOX_DIM_1]);
+        max_x1 = std::max(max_x1, coords[i*n_cols+BOX_DIM_1]);
+        min_x2 = std::min(min_x2, coords[i*n_cols+BOX_DIM_2]);
+        max_x2 = std::max(max_x2, coords[i*n_cols+BOX_DIM_2]);
+        min_x3 = std::min(min_x3, coords[i*n_cols+BOX_DIM_3]);
+        max_x3 = std::max(max_x3, coords[i*n_cols+BOX_DIM_3]);
+      }
+      // build 2D grid with boxes for efficient nearest neighbor search
+      grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
+      grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
+      grid.n_boxes.push_back(fabs(max_x3 - min_x3) / radius + 1);
+      grid.assigned_box.resize(n_rows);
+      int i_box_1, i_box_2, i_box_3;
+      for (std::size_t i=0; i < n_rows; ++i) {
+        i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / radius;
+        i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
+        i_box_3 = (coords[i*n_cols+BOX_DIM_3] - min_x3) / radius;
+        grid.assigned_box[i] = {i_box_1, i_box_2, i_box_3};
+        grid.boxes[grid.assigned_box[i]].push_back(i);
+      }
+      return grid;
+    }
+
+    bool
+    is_valid_box(const Box box, const BoxGrid& grid) {
+      int i1 = box[0];
+      int i2 = box[1];
+      int i3 = box[2];
+      return (i1 >= 0
+           && i1 < grid.n_boxes[0]
+           && i2 >= 0
+           && i2 < grid.n_boxes[1]
+           && i3 >= 0
+           && i3 < grid.n_boxes[2]);
+    }
+
     std::vector<std::size_t>
     calculate_populations(const float* coords,
                           const std::size_t n_rows,
@@ -40,38 +105,62 @@ namespace Clustering {
       for (std::size_t i=0; i < n_radii; ++i) {
         rad2[i] = radii[i]*radii[i];
       }
-      std::size_t i, j, k, l;
-      float dist, c;
       ASSUME_ALIGNED(coords);
-      #pragma omp parallel for default(none) private(i,j,k,l,c,dist) \
-                               firstprivate(n_rows,n_cols,radii,rad2,n_radii) \
-                               shared(coords,pops) \
+      std::size_t i, j, k, l, ib;
+      BoxGrid grid = compute_box_grid(coords, n_rows, n_cols, radii[0]);
+      Clustering::logger(std::cout) << " box grid: "
+                                    << grid.n_boxes[0]
+                                    << " x "
+                                    << grid.n_boxes[1]
+                                    << " x "
+                                    << grid.n_boxes[2]
+                                    << std::endl;
+      Clustering::logger(std::cout) << "computing pops" << std::endl;
+      float dist, c;
+      Box box;
+      Box center;
+      int i_neighbor;
+      std::vector<int> box_buffer;
+      #pragma omp parallel for default(none) private(i,box,box_buffer,center,i_neighbor,ib,dist,j,k,l,c) \
+                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES) \
+                               shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
-        for (j=i+1; j < n_rows; ++j) {
-          dist = 0.0f;
-          #pragma simd reduction(+:dist)
-          for (k=0; k < n_cols; ++k) {
-            c = coords[i*n_cols+k] - coords[j*n_cols+k];
-            dist += c*c;
-          }
-          for (l=0; l < n_radii; ++l) {
-            if (dist < rad2[l]) {
-              #pragma omp atomic
-              pops[radii[l]][i] += 1;
-              #pragma omp atomic
-              pops[radii[l]][j] += 1;
-            } else {
-              // if it's not in the bigger radius,
-              // it won't be in the smaller ones.
-              break;
+        center = grid.assigned_box[i];
+        // loop over surrounding boxes to find neighbor candidates
+        for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
+          box = neighbor_box(center, i_neighbor);
+          if (is_valid_box(box, grid)) {
+            box_buffer = grid.boxes[box];
+            // loop over frames inside surrounding box
+            for (ib=0; ib < box_buffer.size(); ++ib) {
+              j = box_buffer[ib];
+              if (i < j) {
+                dist = 0.0f;
+                #pragma simd reduction(+:dist)
+                for (k=0; k < n_cols; ++k) {
+                  c = coords[i*n_cols+k] - coords[j*n_cols+k];
+                  dist += c*c;
+                }
+                for (l=0; l < n_radii; ++l) {
+                  if (dist < rad2[l]) {
+                    #pragma omp atomic
+                    pops[radii[l]][i] += 1;
+                    #pragma omp atomic
+                    pops[radii[l]][j] += 1;
+                  } else {
+                    // if it's not in the bigger radius,
+                    // it won't be in the smaller ones.
+                    break;
+                  }
+                }
+              }
             }
           }
         }
       }
       return pops;
     }
-
   
     std::vector<float>
     calculate_free_energies(const std::vector<std::size_t>& pops) {
@@ -116,10 +205,10 @@ namespace Clustering {
       float dist, d, mindist, mindist_high_dens;
       ASSUME_ALIGNED(coords);
       #pragma omp parallel for default(none) \
-                               private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
-                               firstprivate(n_rows,n_cols) \
-                               shared(coords,nh,nh_high_dens,free_energy) \
-                               schedule(dynamic, 2048)
+                      private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
+                      firstprivate(n_rows,n_cols) \
+                      shared(coords,nh,nh_high_dens,free_energy) \
+                      schedule(dynamic, 2048)
       for (i=0; i < n_rows; ++i) {
         mindist = std::numeric_limits<float>::max();
         mindist_high_dens = std::numeric_limits<float>::max();
@@ -293,6 +382,9 @@ namespace Clustering {
         nh_high_dens = nh_pair.second;
       } else if (args.count("nearest-neighbors") || args.count("output")) {
         Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
+        if ( ! args.count("radius")) {
+          std::cerr << "error: radius (-r) is required!" << std::endl;
+        }
         auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
         nh = std::get<0>(nh_tuple);
         nh_high_dens = std::get<1>(nh_tuple);

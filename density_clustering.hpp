@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <array>
 #include <utility>
 #include <string>
 
@@ -12,11 +13,46 @@
 
 namespace Clustering {
   namespace Density {
+    //TODO doc
     using FreeEnergy = std::pair<std::size_t, float>;
     using SizePair = std::pair<std::size_t, std::size_t>;
     using Neighbor = std::pair<std::size_t, float>;
     using Neighborhood = Clustering::Tools::Neighborhood;
   
+    using Box = std::array<int, 3>;
+    constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
+                                   , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
+                                   , {-1,-1,-1}, { 0,-1,-1}, { 1,-1,-1}
+                                   , {-1, 1, 0}, { 0, 1, 0}, { 1, 1, 0}
+                                   , {-1, 0, 0}, { 0, 0, 0}, { 1, 0, 0}
+                                   , {-1,-1, 0}, { 0,-1, 0}, { 1,-1, 0}
+                                   , {-1, 1, 1}, { 0, 1, 1}, { 1, 1, 1}
+                                   , {-1, 0, 1}, { 0, 0, 1}, { 1, 0, 1}
+                                   , {-1,-1, 1}, { 0,-1, 1}, { 1,-1, 1}};
+    const int N_NEIGHBOR_BOXES = 27;
+
+    //TODO doc
+    struct BoxGrid {
+      std::vector<int> n_boxes;
+      std::vector<Box> assigned_box;
+      std::map<Box, std::vector<int>> boxes;
+    };
+
+    constexpr Box
+    neighbor_box(const Box center, const int i_neighbor);
+
+    //TODO doc
+    BoxGrid
+    compute_box_grid(const float* coords,
+                     const std::size_t n_rows,
+                     const std::size_t n_cols,
+                     const float radius);
+
+    //TODO doc
+    bool
+    is_valid_box(const Box box,
+                 const BoxGrid& grid);
+
     //TODO doc
     std::vector<std::size_t>
     calculate_populations(const float* coords,
@@ -30,7 +66,6 @@ namespace Clustering {
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const std::vector<float> radii);
-
 
     //TODO doc
     std::vector<float>
