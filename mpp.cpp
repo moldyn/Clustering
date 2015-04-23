@@ -86,8 +86,6 @@ namespace Clustering {
                              std::set<std::size_t> cluster_names,
                              float q_min,
                              std::map<std::size_t, float> min_free_energy) {
-      //TODO: count transitions -> heuristic for neighbor vs. dynamic
-      
       std::map<std::size_t, std::size_t> future_state;
       for (std::size_t i: cluster_names) {
         std::vector<std::size_t> candidates;
@@ -188,9 +186,7 @@ namespace Clustering {
                SparseMatrixF transition_matrix,
                std::set<std::size_t> cluster_names,
                float q_min,
-               std::vector<float> free_energy,
-               Neighborhood nh_high_dens) {
-      //TODO use neighborhood info for high density in this function
+               std::vector<float> free_energy) {
       std::map<std::size_t, std::size_t> pops = microstate_populations(clusters, cluster_names);
       std::map<std::size_t, float> min_free_energy = microstate_min_free_energy(clusters, free_energy);
       std::map<std::size_t, std::size_t> sinks;
@@ -203,7 +199,7 @@ namespace Clustering {
           }
         }
         if (metastable_states.size() == 0) {
-          // no stable state: use all in path as candidates
+          // no stable state: treat all states in path as 'metastable'
           metastable_states = mpp[i];
         }
         // helper function: compare states by their population
@@ -214,31 +210,18 @@ namespace Clustering {
         auto fe_compare = [&](std::size_t i, std::size_t j) -> bool {
           return min_free_energy[i] < min_free_energy[j];
         };
-        // find sink candidate state by population
-//        auto candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
+        // find sink candidate state from lowest free energy
         auto candidate = std::min_element(metastable_states.begin(), metastable_states.end(), fe_compare);
-        std::size_t max_pop = pops[*candidate];
+        float min_fe = free_energy[*candidate];
         std::set<std::size_t> sink_candidates;
-
-//TODO: candidates by FE (i.e. compare min FE instead of max pop)
-
-
-        while (candidate != metastable_states.end() && pops[*candidate] == max_pop) {
-          // there may be several states with same (max.) population,
+        while (candidate != metastable_states.end() && free_energy[*candidate] == min_fe) {
+          // there may be several states with same (min.) free energy,
           // collect them all into one set
           sink_candidates.insert(*candidate);
           metastable_states.erase(candidate);
-          candidate = std::max_element(metastable_states.begin(), metastable_states.end(), pop_compare);
+          candidate = std::min_element(metastable_states.begin(), metastable_states.end(), fe_compare);
         }
-//        // select sink either as the one with highest population ...
-//        if (sink_candidates.size() == 1) {
-//          sinks[i] = (*sink_candidates.begin());
-//        } else {
-//          // or as the one with lowest Free Energy, if several microstates
-//          // have the same high population
-//          sinks[i] = (*std::min_element(sink_candidates.begin(), sink_candidates.end(), min_fe_compare));
-//        }
-//      // select sink by lowest Free Energy
+        // select sink by lowest free energy
         if (sink_candidates.size() == 1) {
           sinks[i] = (*sink_candidates.begin());
         } else {
@@ -267,8 +250,7 @@ namespace Clustering {
                                    std::vector<std::size_t> concat_limits,
                                    float q_min,
                                    std::size_t lagtime,
-                                   std::vector<float> free_energy,
-                                   Neighborhood nh_high_dens) {
+                                   std::vector<float> free_energy) {
       std::set<std::size_t> microstate_names;
       std::vector<std::size_t> traj = initial_trajectory;
       std::map<std::size_t, std::size_t> lumping;
@@ -310,8 +292,7 @@ namespace Clustering {
                                                             , trans_prob
                                                             , microstate_names
                                                             , q_min
-                                                            , free_energy
-                                                            , nh_high_dens);
+                                                            , free_energy);
         // lump trajectory into sinks
         std::vector<std::size_t> traj_old = traj;
         logger(std::cout) << "  lumping trajectory" << std::endl;
@@ -346,9 +327,6 @@ namespace Clustering {
       std::vector<std::size_t> traj = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
       Clustering::logger(std::cout) << "loading free energies" << std::endl;
       std::vector<float> free_energy = Clustering::Tools::read_free_energies(args["free-energy-input"].as<std::string>());
-      // nearest neighbors with higher density (= lower free energy)
-      Clustering::Tools::Neighborhood nh_high_dens = std::get<1>(
-        Clustering::Tools::read_neighborhood(args["nearest-neighbor-input"].as<std::string>()));
       float q_min_from = args["qmin-from"].as<float>();
       float q_min_to = args["qmin-to"].as<float>();
       float q_min_step = args["qmin-step"].as<float>();
@@ -364,7 +342,7 @@ namespace Clustering {
         }
       }
       for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy, nh_high_dens);
+        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
         // write trajectory at current Qmin level to file
         traj = std::get<0>(traj_sinks);
         Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.3f.dat"
@@ -376,7 +354,6 @@ namespace Clustering {
         for (auto from_to: sinks) {
           transitions[from_to.first] = {from_to.second, q_min};
         }
-        //transitions.insert(sinks.begin(), sinks.end());
         // write microstate populations to file
         std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
         Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.3f.dat"

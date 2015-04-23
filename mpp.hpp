@@ -79,8 +79,7 @@ namespace Clustering {
                SparseMatrixF transition_matrix,
                std::set<std::size_t> cluster_names,
                float q_min,
-               std::vector<float> free_energy,
-               Neighborhood nh_high_dens);
+               std::vector<float> free_energy);
 
     // lump states based on path sinks and return new trajectory.
     // new microstates will have IDs of sinks.
@@ -94,8 +93,7 @@ namespace Clustering {
                                    std::vector<std::size_t> concat_limits,
                                    float q_min,
                                    std::size_t lagtime,
-                                   std::vector<float> free_energy,
-                                   Neighborhood nearest_neighbors);
+                                   std::vector<float> free_energy);
 
     /*
      * run MPP clustering
