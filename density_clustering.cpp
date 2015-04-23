@@ -8,7 +8,6 @@
 #endif
 
 #include <algorithm>
-#include <list>
 
 namespace Clustering {
   namespace Density {
