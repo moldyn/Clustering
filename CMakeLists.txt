@@ -160,4 +160,5 @@ endif(DC_STATIC_LINKING)
 
 install(TARGETS ${CLUSTERING_BINARIES} RUNTIME DESTINATION .)
 
+## TODO: add_custom_target: doc
 
