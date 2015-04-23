@@ -63,6 +63,16 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <omp.h>
 #include <boost/program_options.hpp>
 
+/*! 
+ * The main function of 'clustering' is essentially a wrapper around the different sub-modules.
+ * These include:
+ *   - density: for density-based clustering on the given geometric space
+ *   - network: for the network/microstate generation from density-based clustering results
+ *   - mpp: for Most Probable Path clustering of microstates
+ *   - coring: for boundary corrections of clustered state trajectories
+ *   - filter: for fast filtering of coordinates, order parameters, etc. based on\n
+ *             a given state trajectory (i.e. clustering result)
+ */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   std::string general_help = 
@@ -210,22 +220,6 @@ int main(int argc, char* argv[]) {
     ("list", b_po::bool_switch()->default_value(false),
           "list states and their populations")
   ;
-//  b_po::options_description desc_filter (std::string(argv[1]).append(
-//    "\n\n"
-//    "filter phase space (e.g. dihedral angles) for given state."
-//    "\n"
-//    "options"));
-//  desc_filter.add_options()
-//    ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-//    // optional
-//    ("states,s", b_po::value<std::string>()->required(),
-//          "(required): file with state information (i.e. clustered trajectory).")
-//    ("phase-space,p", b_po::value<std::string>()->required(),
-//          "(required): file with phase space data.")
-//    ("output,o", b_po::value<std::string>(), "(optional): filtered data. will write to STDOUT if not given.")
-//    ("selected-state", b_po::value<std::size_t>()->required(),
-//          "(required): state id fo r selected state.")
-//  ;
   // coring options
   b_po::options_description desc_coring (std::string(argv[1]).append(
     "\n\n"
