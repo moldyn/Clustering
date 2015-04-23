@@ -80,7 +80,6 @@ namespace Clustering {
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
-                      const float radius,
                       const std::vector<float>& free_energy);
   
     // returns neighborhood set of single frame.
