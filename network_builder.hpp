@@ -30,11 +30,20 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/program_options.hpp>
 
 namespace Clustering {
+//! functions for network creation from free energy screening
 namespace NetworkBuilder {
-
-void
-main(boost::program_options::variables_map args);
-
+  /*!
+   * controlling function and user interface for network creation
+   *
+   * *parsed arguments*:\n
+   *    - **min**: min. free energy to take into account
+   *    - **max**: max. free energy to take into account
+   *    - **step**: free energy stepping
+   *    - **basename**: basic input file format
+   *    - **minpop**: min. population per microstate, discard states with lower population
+   */
+  void
+  main(boost::program_options::variables_map args);
 } // end namespace Clustering
 } // end namespace NetworkBuilder
 

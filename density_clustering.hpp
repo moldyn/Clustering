@@ -117,7 +117,9 @@ namespace Clustering {
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy);
-
+    //! compute local neighborhood of a given frame.
+    //! neighbor candidates are all frames below a given limit,
+    //! effectively limiting the frames to the ones below a free energy cutoff.
     std::set<std::size_t>
     high_density_neighborhood(const float* coords,
                               const std::size_t n_cols,
@@ -125,18 +127,36 @@ namespace Clustering {
                               const std::size_t i_frame,
                               const std::size_t limit,
                               const float max_dist);
-    
-    //TODO doc
+    //! compute sigma2 as deviation of squared nearest-neighbor distances.
+    //! sigma2 is given by E[x^2] > Var(x) = E[x^2] - E[x]^2,
+    //! with x being the distances between nearest neighbors).
     double
     compute_sigma2(const Neighborhood& nh);
-
-    //TODO doc
+    //! given an initial clustering computed from free energy cutoff screenings,
+    //! assign all yet unclustered frames (those in 'state 0') to their geometrically
+    //! next cluster. do this by starting at the lowest free energy of unassigned frames,
+    //! then assigning the next lowest, etc.
+    //! thus, all initial clusters will be filled with growing free energy, effectively producing
+    //! microstates separated close to the free energy barriers.
     std::vector<std::size_t>
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
-
-    // TODO doc
+    //! user interface and controlling function for density-based geometric clustering.\n\n
+    //! *parsed parameters*:\n
+    //!   - **file** : input file with coordinates\n
+    //!   - **free-energy-input**: previously computed free energies (input)\n
+    //!   - **free-energy**: computed free energies (output)\n
+    //!   - **population**: computed populations (output)\n
+    //!   - **output**: clustered trajectory\n
+    //!   - **radii**: list of radii for free energy / population computations (input)\n
+    //!   - **radius**: radius for clustering (input)\n
+    //!   - **nearest-neighbors-input**: previously computed nearest neighbor list (input)\n
+    //!   - **nearest-neighbors**: nearest neighbor list (output)\n
+    //!   - **threshold-screening**: option for automated free energy threshold screening (input)\n
+    //!   - **threshold**: threshold for single run with limited free energy (input)\n
+    //!   - **only-initial**: if true, do not fill microstates up to barriers,
+    //!                       but keep initial clusters below free energy cutoff (bool flag)
     void
     main(boost::program_options::variables_map args);
   } // end namespace Density

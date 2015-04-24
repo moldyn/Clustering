@@ -27,10 +27,14 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 namespace Clustering {
+  //! global flag: use verbose output?
   extern bool verbose;
+  //! fake-stream used as output if nothing should be printed to stdout/stderr.
   extern std::ostream devnull;
-
+  //! logger, use like logger(std::cout) << ...;
+  //! will print to given stream if global 'verbose' is set to true.
   std::ostream& logger(std::ostream& s);
+  //! print formatted debug output to std::cerr.
   std::ostream& debug();
 } // end namespace Clustering
 

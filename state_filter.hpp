@@ -27,11 +27,19 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/program_options.hpp>
 
 namespace Clustering {
+//! functionality for filtering coordinates or order parameters (ASCII or GROMACS' .xtc) based on state trajectory.
 namespace Filter {
-
-void
-main(boost::program_options::variables_map args);
-
+  /*!
+   *  controlling function and user interface for state filtering.
+   *
+   *  *parsed arguments*:
+   *    - **states**: input file with state trajectory
+   *    - **coords**: ASCII or .xtc file with coordinates or order parameters
+   *    - **output**: filtered coordinates
+   *    - **state**: selected state that should be filtered from full data set
+   */
+  void
+  main(boost::program_options::variables_map args);
 } // end namespace Filter
 } // end namespace Clustering
 

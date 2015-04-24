@@ -27,7 +27,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "config.hpp"
 #include "density_clustering.hpp"
 
-/*
+/*! \file
  * this module holds common implementations for both, single-node and MPI code.
  * it is used for functions that are too similar for both versions and have
  * only slight variations that can be implemented by 'ifdef'-guards.
@@ -35,8 +35,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Clustering {
   namespace Density {
-
-    //TODO doc
+    //! returns state trajectory for clusters given by a free energy threshold.
+    //! frames with a local free energy estimate higher than the given threshold
+    //! will not be clustered and remain in 'state 0'.
     std::vector<std::size_t>
     initial_density_clustering(const std::vector<float>& free_energy
                              , const Neighborhood& nh
@@ -50,7 +51,6 @@ namespace Clustering {
                              , const int mpi_node_id
 #endif
                                );
-
   } // end namespace Density
 } // end namespace Clustering
 

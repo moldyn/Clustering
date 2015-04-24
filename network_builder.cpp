@@ -404,7 +404,6 @@ namespace NetworkBuilder {
         {
           cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
           max_id = *std::max_element(cl_now.begin(), cl_now.end());
-          //TODO bugfix: correct pop count!
           for (std::size_t i=0; i < n_rows; ++i) {
             if (cl_next[i] != 0) {
               cl_next[i] += max_id;
@@ -465,7 +464,6 @@ namespace NetworkBuilder {
     // all non-leaf states are kept as non-assignment state '0'.
     save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
     // generate html-file with embedded javascript to visualize network
-    //TODO html-generation
     save_network_to_html("network_visualization.html", network, free_energies, pops);
   }
 } // end namespace NetworkBuilder

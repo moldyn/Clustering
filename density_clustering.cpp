@@ -74,7 +74,7 @@ namespace Clustering {
           max_x3 = std::max(max_x3, coords[i*n_cols+BOX_DIM_3]);
         }
       }
-      // build 2D grid with boxes for efficient nearest neighbor search
+      // build 3D grid with boxes for efficient nearest neighbor search
       grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
       if (n_cols > 1) {
         grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);

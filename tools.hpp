@@ -47,80 +47,71 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 namespace Clustering {
+//! additional tools used throughout the *clustering* package
 namespace Tools {
-
-//! matches neighbor's frame id to distance
-using Neighbor = std::pair<std::size_t, float>;
-//! map frame id to neighbors
-using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
-
-//TODO doc
-void
-write_pops(std::string fname, std::vector<std::size_t> pops);
-
-//TODO doc
-void
-write_fes(std::string fname, std::vector<float> fes);
-
-//TODO doc
-std::vector<std::size_t>
-read_clustered_trajectory(std::string filename);
-
-//TODO doc
-void
-write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
-
-//TODO doc
-template <typename NUM>
-std::vector<NUM>
-read_single_column(std::string filename);
-
-//TODO doc
-template <typename NUM>
-void
-write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format=false);
-
-template <typename KEY, typename VAL>
-void
-write_map(std::string filename, std::map<KEY, VAL> mapping);
-
-std::vector<float>
-read_free_energies(std::string filename);
-
-//TODO doc
-std::pair<Neighborhood, Neighborhood>
-read_neighborhood(const std::string fname);
-
-//TODO doc
-void
-write_neighborhood(const std::string fname,
-                   const Neighborhood& nh,
-                   const Neighborhood& nh_high_dens);
-
-//TODO doc
-std::map<std::size_t, std::size_t>
-microstate_populations(std::vector<std::size_t> traj);
-
-// read coordinates from space-separated ASCII file.
-// will write data with precision of NUM-type into memory.
-// format: [row * n_cols + col]
-// return value: tuple of {data (unique_ptr<NUM> with custom deleter), n_rows (size_t), n_cols (size_t)}.
-template <typename NUM>
-std::tuple<NUM*, std::size_t, std::size_t>
-read_coords(std::string filename,
-            std::vector<std::size_t> usecols = std::vector<std::size_t>());
-
-template <typename NUM>
-void
-free_coords(NUM* coords);
-
-std::string
-stringprintf(const std::string& str, ...);
-
-template <typename NUM>
-NUM
-string_to_num(const std::string &s);
-
+  //! matches neighbor's frame id to distance
+  using Neighbor = std::pair<std::size_t, float>;
+  //! map frame id to neighbors
+  using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
+  //! write populations as column into given file
+  void
+  write_pops(std::string fname, std::vector<std::size_t> pops);
+  //! write free energies as column into given file
+  void
+  write_fes(std::string fname, std::vector<float> fes);
+  //! read states from trajectory (given as plain text file)
+  std::vector<std::size_t>
+  read_clustered_trajectory(std::string filename);
+  //! write state trajectory into plain text file
+  void
+  write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
+  //! read single column of numbers from given file. number type (int, float, ...) given as template parameter
+  template <typename NUM>
+  std::vector<NUM>
+  read_single_column(std::string filename);
+  //! write single column of numbers to given file. number type (int, float, ...) given as template parameter
+  template <typename NUM>
+  void
+  write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format=false);
+  //! write key-value map to plain text file with key as first and value as second column
+  template <typename KEY, typename VAL>
+  void
+  write_map(std::string filename, std::map<KEY, VAL> mapping);
+  //! read free energies from plain text file
+  std::vector<float>
+  read_free_energies(std::string filename);
+  //! read neighborhood info from plain text file
+  //! (two different neighborhoods: nearest neighbor (NN) and NN with higher density)
+  std::pair<Neighborhood, Neighborhood>
+  read_neighborhood(const std::string fname);
+  //! write neighborhood info to plain text file
+  //! (two different neighborhoods: nearest neighbor (NN) and NN with higher density)
+  void
+  write_neighborhood(const std::string fname,
+                     const Neighborhood& nh,
+                     const Neighborhood& nh_high_dens);
+  //! compute microstate populations from clustered trajectory
+  std::map<std::size_t, std::size_t>
+  microstate_populations(std::vector<std::size_t> traj);
+  //! read coordinates from space-separated ASCII file.
+  //! will write data with precision of NUM-type into memory.
+  //! format: [row * n_cols + col]
+  //! return value: tuple of {data (unique_ptr<NUM> with custom deleter), n_rows (size_t), n_cols (size_t)}.
+  template <typename NUM>
+  std::tuple<NUM*, std::size_t, std::size_t>
+  read_coords(std::string filename,
+              std::vector<std::size_t> usecols = std::vector<std::size_t>());
+  //! free memory pointing to coordinates
+  template <typename NUM>
+  void
+  free_coords(NUM* coords);
+  //! printf-version for std::string
+  std::string
+  stringprintf(const std::string& str, ...);
+  //! convert std::string to number of given template format
+  template <typename NUM>
+  NUM
+  string_to_num(const std::string &s);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
 

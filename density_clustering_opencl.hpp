@@ -34,12 +34,14 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Clustering {
 namespace Density {
+//! OpenCL implementations of compute intensive functions
 namespace OpenCL {
-
-//TODO doc
-std::map<float, std::vector<std::size_t>>
-calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, std::vector<float> radii);
-
+  //! OpenCL implementation of
+  //! Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, std::vector<float> radii);
+  //!
+  //! **ATTENTION**: OpenCL support is unfinished and not expected to return sound results.
+  std::map<float, std::vector<std::size_t>>
+  calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, std::vector<float> radii);
 } // end namespace OpenCL
 } // end namespace Density
 } // end namespace Clustering

@@ -36,21 +36,22 @@ namespace Density {
 namespace MPI {
 
   namespace {
-    /*
+    /*!
+     *
      * use no. of rows and no. of MPI nodes to calculate the optimal
      * indices for equal load balancing on all machines to
      * calculate an upper triangular matrix by a nested loop
-     * of the form
-     *   FOR i=0 TO n_rows
-     *     FOR j=i+1 TO n_rows
-     *       [...]
+     * of the form\n\n
+     *     FOR i=0 TO n_rows\n
+     * >      FOR j=i+1 TO n_rows\n
+     * >>        [...]
      *
      * the returned indices are for the initial index of the outer loop.
      * the inner loop will be local.
-     * i.e. on every MPI node, the loop will be of the form
-     *   FOR i=indices[node_id] TO (is_last_node ? n_rows : indices[next_node])
-     *     FOR j=i+1 TO n_rows
-     *       [...]
+     * i.e. on every MPI node, the loop will be of the form\n\n
+     *     FOR i=indices[node_id] TO (is_last_node ? n_rows : indices[next_node])\n
+     * >      FOR j=i+1 TO n_rows\n
+     * >>        [...]
      *
      * computation of optimal indices is heavily based on triangular summation
      * (please recall the 'algorithm of young C.F. Gauss').
