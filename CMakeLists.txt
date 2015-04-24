@@ -83,24 +83,25 @@ else()
 endif()
 
 if (DC_USE_OPENCL)
-  if (DC_USE_MPI)
-    message(SEND_ERROR "sorry, MPI and OpenCL are at the moment mutually exclusive. might change with a newer release.")
-  endif()
-  set (DC_USE_OPENCL "#define DC_USE_OPENCL")
-  set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -l OpenCL")
-  find_package(OpenCL REQUIRED)
-  if(OPENCL_HAS_CPP_BINDINGS)
-  	message( "using OpenCL for GPGPU computing")
-    # generate kernel headers with python
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/kernel)
-    execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/generate_header.py
-                                      ${CMAKE_SOURCE_DIR}/pops.cl
-                                      ${CMAKE_BINARY_DIR}/kernel/pops.h)
-    include_directories(${CMAKE_BINARY_DIR})
-  else(OPENCL_HAS_CPP_BINDINGS)
-  	message(SEND_ERROR "No OpenCL CPP bindings found" )
-  endif(OPENCL_HAS_CPP_BINDINGS)
+  message(SEND_ERROR "OpenCL support is not yet fully implemented. Sorry.")
+#  if (DC_USE_MPI)
+#    message(SEND_ERROR "sorry, MPI and OpenCL are at the moment mutually exclusive. might change with a newer release.")
+#  endif()
+#  set (DC_USE_OPENCL "#define DC_USE_OPENCL")
+#  set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
+#  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -l OpenCL")
+#  find_package(OpenCL REQUIRED)
+#  if(OPENCL_HAS_CPP_BINDINGS)
+#  	message( "using OpenCL for GPGPU computing")
+#    # generate kernel headers with python
+#    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/kernel)
+#    execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/generate_header.py
+#                                      ${CMAKE_SOURCE_DIR}/pops.cl
+#                                      ${CMAKE_BINARY_DIR}/kernel/pops.h)
+#    include_directories(${CMAKE_BINARY_DIR})
+#  else(OPENCL_HAS_CPP_BINDINGS)
+#  	message(SEND_ERROR "No OpenCL CPP bindings found" )
+#  endif(OPENCL_HAS_CPP_BINDINGS)
 endif(DC_USE_OPENCL)
 
 
