@@ -1,36 +1,32 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Clustering by lettis</title>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<title>Clustering by lettis</title>
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-  </head>
-  <body>
-    <div class="wrapper">
-      <header>
-        <h1>Clustering</h1>
-        <p>Robust and stable clustering of molecular dynamics simulation trajectories.</p>
-
-        <p class="view"><a href="https://github.com/lettis/Clustering">View the Project on GitHub <small>lettis/Clustering</small></a></p>
-
-
-        <ul>
-          <li><a href="https://github.com/lettis/Clustering/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/lettis/Clustering/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/lettis/Clustering">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
-        <p>This software package provides extensive tools for robust and stable clustering of molecular dynamics trajectories.
+<link rel="stylesheet" href="stylesheets/styles.css">
+<link rel="stylesheet" href="stylesheets/pygment_trac.css">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<!--[if lt IE 9]>
+<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+</head>
+<body>
+<div class="wrapper">
+<header>
+ <h1>Clustering</h1>
+ <p>Robust and stable clustering of molecular dynamics simulation trajectories.</p>
+ <p class="view"><a href="https://github.com/lettis/Clustering">View the Project on GitHub <small>lettis/Clustering</small></a></p>
+ <ul>
+ <li><a href="https://github.com/lettis/Clustering/zipball/master">Download <strong>ZIP File</strong></a></li>
+ <li><a href="https://github.com/lettis/Clustering/tarball/master">Download <strong>TAR Ball</strong></a></li>
+ <li><a href="https://github.com/lettis/Clustering">View On <strong>GitHub</strong></a></li>
+ </ul>
+</header>
+<section>
+<p>This software package provides extensive tools for robust and stable clustering of molecular dynamics trajectories.
 The essential functions are:</p>
-
 <ul>
 <li>density-based geometric clustering for microstate generation</li>
 <li>dynamic clustering based on the Most-Probable-Path algorithm (MPP)</li>
@@ -186,9 +182,18 @@ to distribute the binary, e.g. on a cluster.</p>
 <p>For MPI support, build your binary with the additional cmake-flag -DDC_USE_MPI=ON.
 Invoke the <em>clustering_mpi</em> binary in the following way to run on several nodes with local multithreading via OpenMP:</p>
 
-<pre><code> # /usr/bin/mpirun -n N_NODES -bind-to-core -bynode -cpus-per-proc N_THREADS_PER_NODE -report-bindings  \
-      clustering_mpi density -f COORDS_FILE -r RADIUS -p POPS_OUT -d FE_OUT -n N_THREADS_PER_NODE
-</code></pre>
+<p># /usr/bin/mpirun -n N_NODES -bind-to-core -bynode -cpus-per-proc N_THREADS_PER_NODE -report-bindings  \
+clustering_mpi density -f COORDS_FILE -r RADIUS -p POPS_OUT -d FE_OUT -n N_THREADS_PER_NODE</p>
+
+
+
+
+<h1>
+<a id="api-docs" class="anchor" href="#api-docs" aria-hidden="true"><span class="octicon octicon-link"></span></a>API-Docs (Doxygen Output)</h1>
+
+<p><b>Look <a href="doc/index.html">here</a> for a detailed source code description.</b></p>
+
+
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/lettis">lettis</a></p>
