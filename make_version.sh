@@ -37,6 +37,8 @@ cp -r clustering.cpp\
       coring.hpp\
       embedded_cytoscape.hpp\
       doc\
+      doxygen.config\
+      coords_file\
       $v_dir/
 
 tar cf $v_dir.tar $v_dir/
