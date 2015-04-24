@@ -38,7 +38,7 @@ namespace MPI {
   //! identify MPI process 0 as main process
   const int MAIN_PROCESS = 0;
   //! MPI implementation of
-  //! Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, const float radius)
+  //! \link Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, const float radius)
   std::vector<std::size_t>
   calculate_populations(const float* coords,
                         const std::size_t n_rows,
@@ -47,7 +47,7 @@ namespace MPI {
                         const int mpi_n_nodes,
                         const int mpi_node_id);
   //! MPI implementation of
-  //! Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, const std::vector<float> radii)
+  //! \link Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, const std::vector<float> radii)
   std::map<float, std::vector<std::size_t>>
   calculate_populations(const float* coords,
                         const std::size_t n_rows,
@@ -56,7 +56,7 @@ namespace MPI {
                         const int mpi_n_nodes,
                         const int mpi_node_id);
   //! MPI implementation of
-  //! Clustering::Density::nearest_neighbors
+  //! \link Clustering::Density::nearest_neighbors
   std::tuple<Neighborhood, Neighborhood>
   nearest_neighbors(const float* coords,
                     const std::size_t n_rows,
@@ -65,7 +65,7 @@ namespace MPI {
                     const int mpi_n_nodes,
                     const int mpi_node_id);
   //! MPI implementation of
-  //! Clustering::Density::high_density_neighborhood
+  //! \link Clustering::Density::high_density_neighborhood
   std::set<std::size_t>
   high_density_neighborhood(const float* coords,
                             const std::size_t n_cols,
@@ -76,7 +76,7 @@ namespace MPI {
                             const int mpi_n_nodes,
                             const int mpi_node_id);
   //! MPI implementation of
-  //! Clustering::Density::main
+  //! \link Clustering::Density::main
   void
   main(boost::program_options::variables_map args);
 } // end namespace MPI

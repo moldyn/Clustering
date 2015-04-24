@@ -37,7 +37,7 @@ namespace Density {
 //! OpenCL implementations of compute intensive functions
 namespace OpenCL {
   //! OpenCL implementation of
-  //! Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, std::vector<float> radii);
+  //! \link Clustering::Density::calculate_populations(const float* coords, const std::size_t n_rows, const std::size_t n_cols, std::vector<float> radii);
   //!
   //! **ATTENTION**: OpenCL support is unfinished and not expected to return sound results.
   std::map<float, std::vector<std::size_t>>
