@@ -35,13 +35,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Clustering {
   namespace Density {
-    constexpr Box
-    neighbor_box(const Box center, const int i_neighbor) {
-      return {center[0] + BOX_DIFF[i_neighbor][0]
-            , center[1] + BOX_DIFF[i_neighbor][1]
-            , center[2] + BOX_DIFF[i_neighbor][2]};
-    }
-
     BoxGrid
     compute_box_grid(const float* coords,
                      const std::size_t n_rows,
@@ -49,41 +42,67 @@ namespace Clustering {
                      const float radius) {
       // use first, second and third coordinates, since these usually
       // correspond to first, second and third PCs, having highest variance.
+      // if clustering is only in 1 or 2 dimensions, boxes of higher dimensions
+      // will be kept empty.
       const int BOX_DIM_1 = 0;
       const int BOX_DIM_2 = 1;
       const int BOX_DIM_3 = 2;
       BoxGrid grid;
       ASSUME_ALIGNED(coords);
       // find min/max values for first and second dimension
-      float min_x1=coords[0*n_cols+BOX_DIM_1];
-      float max_x1=coords[0*n_cols+BOX_DIM_1];
-      float min_x2=coords[0*n_cols+BOX_DIM_2];
-      float max_x2=coords[0*n_cols+BOX_DIM_2];
-      float min_x3=coords[0*n_cols+BOX_DIM_3];
-      float max_x3=coords[0*n_cols+BOX_DIM_3];
+      float min_x1=0.0f, max_x1=0.0f, min_x2=0.0f, max_x2=0.0f, min_x3=0.0f, max_x3=0.0f;
+      min_x1=coords[0*n_cols+BOX_DIM_1];
+      max_x1=coords[0*n_cols+BOX_DIM_1];
+      if (n_cols > 1) {
+        min_x2=coords[0*n_cols+BOX_DIM_2];
+        max_x2=coords[0*n_cols+BOX_DIM_2];
+      }
+      if (n_cols > 2) {
+        min_x3=coords[0*n_cols+BOX_DIM_3];
+        max_x3=coords[0*n_cols+BOX_DIM_3];
+      }
       Clustering::logger(std::cout) << "setting up boxes for fast NN search" << std::endl;
       for (std::size_t i=1; i < n_rows; ++i) {
         min_x1 = std::min(min_x1, coords[i*n_cols+BOX_DIM_1]);
         max_x1 = std::max(max_x1, coords[i*n_cols+BOX_DIM_1]);
-        min_x2 = std::min(min_x2, coords[i*n_cols+BOX_DIM_2]);
-        max_x2 = std::max(max_x2, coords[i*n_cols+BOX_DIM_2]);
-        min_x3 = std::min(min_x3, coords[i*n_cols+BOX_DIM_3]);
-        max_x3 = std::max(max_x3, coords[i*n_cols+BOX_DIM_3]);
+        if (n_cols > 1) {
+          min_x2 = std::min(min_x2, coords[i*n_cols+BOX_DIM_2]);
+          max_x2 = std::max(max_x2, coords[i*n_cols+BOX_DIM_2]);
+        }
+        if (n_cols > 2) {
+          min_x3 = std::min(min_x3, coords[i*n_cols+BOX_DIM_3]);
+          max_x3 = std::max(max_x3, coords[i*n_cols+BOX_DIM_3]);
+        }
       }
       // build 2D grid with boxes for efficient nearest neighbor search
       grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
-      grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
-      grid.n_boxes.push_back(fabs(max_x3 - min_x3) / radius + 1);
+      if (n_cols > 1) {
+        grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
+      }
+      if (n_cols > 2) {
+        grid.n_boxes.push_back(fabs(max_x3 - min_x3) / radius + 1);
+      }
       grid.assigned_box.resize(n_rows);
-      int i_box_1, i_box_2, i_box_3;
+      int i_box_1=0, i_box_2=0, i_box_3=0;
       for (std::size_t i=0; i < n_rows; ++i) {
         i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / radius;
-        i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
-        i_box_3 = (coords[i*n_cols+BOX_DIM_3] - min_x3) / radius;
+        if (n_cols > 1) {
+          i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
+        }
+        if (n_cols > 2) {
+          i_box_3 = (coords[i*n_cols+BOX_DIM_3] - min_x3) / radius;
+        }
         grid.assigned_box[i] = {i_box_1, i_box_2, i_box_3};
         grid.boxes[grid.assigned_box[i]].push_back(i);
       }
       return grid;
+    }
+
+    constexpr Box
+    neighbor_box(const Box center, const int i_neighbor) {
+      return {center[0] + BOX_DIFF[i_neighbor][0]
+            , center[1] + BOX_DIFF[i_neighbor][1]
+            , center[2] + BOX_DIFF[i_neighbor][2]};
     }
 
     bool
@@ -91,12 +110,12 @@ namespace Clustering {
       int i1 = box[0];
       int i2 = box[1];
       int i3 = box[2];
-      return (i1 >= 0
-           && i1 < grid.n_boxes[0]
-           && i2 >= 0
-           && i2 < grid.n_boxes[1]
-           && i3 >= 0
-           && i3 < grid.n_boxes[2]);
+      return ((i1 >= 0)
+           && (i1 < grid.n_boxes[0])
+           && (i2 >= 0)
+           && ((i2 < grid.n_boxes[1]) || (grid.n_boxes[1] == 0))
+           && (i3 >= 0)
+           && ((i3 < grid.n_boxes[2]) || (grid.n_boxes[2] == 0)));
     }
 
     std::vector<std::size_t>

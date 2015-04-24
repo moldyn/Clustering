@@ -22,6 +22,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #pragma once
 
 #include <vector>
@@ -35,15 +36,21 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tools.hpp"
 
+//! general namespace for clustering package
 namespace Clustering {
+  //! namespace for density-based clustering functions
   namespace Density {
-    //TODO doc
+    //! matches frame id to free energy
     using FreeEnergy = std::pair<std::size_t, float>;
-    using SizePair = std::pair<std::size_t, std::size_t>;
-    using Neighbor = std::pair<std::size_t, float>;
+    //! matches neighbor's frame id to distance
+    using Neighbor = Clustering::Tools::Neighbor;
+    //! map frame id to neighbors
     using Neighborhood = Clustering::Tools::Neighborhood;
-  
+    //! encodes 3D box for box-assisted search algorithm
     using Box = std::array<int, 3>;
+    //! encodes box differences in 3D, i.e. if you are at
+    //! the center box, the 27 different tuples hold the steppings
+    //! to the 27 spacial neighbors (including the center box itself).
     constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
                                    , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
                                    , {-1,-1,-1}, { 0,-1,-1}, { 1,-1,-1}
@@ -53,61 +60,64 @@ namespace Clustering {
                                    , {-1, 1, 1}, { 0, 1, 1}, { 1, 1, 1}
                                    , {-1, 0, 1}, { 0, 0, 1}, { 1, 0, 1}
                                    , {-1,-1, 1}, { 0,-1, 1}, { 1,-1, 1}};
+    //! number of neigbor boxes in cubic 3D grid (including center box).
     const int N_NEIGHBOR_BOXES = 27;
-
-    //TODO doc
+    //! the full grid constructed for boxed-assisted nearest neighbor
+    //! search with fixed distance criterion.
     struct BoxGrid {
+      //! total number of boxes
       std::vector<int> n_boxes;
+      //! matching frame id to the frame's assigned box
       std::vector<Box> assigned_box;
+      //! the boxes with a list of assigned frame ids
       std::map<Box, std::vector<int>> boxes;
     };
-
+    //! returns neighbor box given by neighbor index (in 3D: 27 different neighbors, including center itself)
+    //! and the given center box.
     constexpr Box
     neighbor_box(const Box center, const int i_neighbor);
-
-    //TODO doc
+    //! uses fixed radius to separate coordinate space in equally sized
+    //! boxes for box-assisted nearest neighbor search.
     BoxGrid
     compute_box_grid(const float* coords,
                      const std::size_t n_rows,
                      const std::size_t n_cols,
                      const float radius);
-
-    //TODO doc
+    //! returns true, if the box is a valid box in the grid.
+    //! return false, if the box is outside of the grid.
     bool
     is_valid_box(const Box box,
                  const BoxGrid& grid);
-
-    //TODO doc
+    //! calculate population of n-dimensional hypersphere per frame for one fixed radius.
     std::vector<std::size_t>
     calculate_populations(const float* coords,
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const float radius);
-  
-    //TODO doc
+    //! calculate populations of n-dimensional hypersphere per frame for
+    //! different radii in one go. computationally much more efficient than
+    //! running single-radius version for every radius.
     std::map<float, std::vector<std::size_t>>
     calculate_populations(const float* coords,
                           const std::size_t n_rows,
                           const std::size_t n_cols,
                           const std::vector<float> radii);
-
-    //TODO doc
+    //! re-use populations to calculate local free energy estimate
+    //! via $\Delta G = -k_B T \\ln(P)$.
     std::vector<float>
     calculate_free_energies(const std::vector<std::size_t>& pops);
-  
-    //TODO doc
+    //! returns the given free energies sorted lowest to highest.
+    //! original indices are retained.
     std::vector<FreeEnergy>
     sorted_free_energies(const std::vector<float>& fe);
-  
-    //TODO doc
+    //! for every frame: compute the nearest neighbor (first tuple field)
+    //! and the nearest neighbor with lower free energy, i.e. higher density (second tuple field).
     std::tuple<Neighborhood, Neighborhood>
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy);
-  
-    // returns neighborhood set of single frame.
-    // all ids are sorted in free energy.
+
     std::set<std::size_t>
     high_density_neighborhood(const float* coords,
                               const std::size_t n_cols,

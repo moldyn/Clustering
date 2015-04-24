@@ -49,7 +49,10 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace Clustering {
 namespace Tools {
 
-using Neighborhood = std::map<std::size_t, std::pair<std::size_t, float>>;
+//! matches neighbor's frame id to distance
+using Neighbor = std::pair<std::size_t, float>;
+//! map frame id to neighbors
+using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
 
 //TODO doc
 void

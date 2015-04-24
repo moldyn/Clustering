@@ -161,5 +161,8 @@ endif(DC_STATIC_LINKING)
 
 install(TARGETS ${CLUSTERING_BINARIES} RUNTIME DESTINATION .)
 
-## TODO: add_custom_target: doc
+# create source-doc with doxygen
+add_custom_target(doc
+                  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                  COMMAND doxygen doxygen.config)
 

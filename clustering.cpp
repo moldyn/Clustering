@@ -22,6 +22,18 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+/*!\file
+ *
+ * The main function of 'clustering' is essentially being a wrapper around the different sub-modules:
+ *   - **density**: for density-based clustering on the given geometric space
+ *   - **network**: for the network/microstate generation from density-based clustering results
+ *   - **mpp**:     for Most Probable Path clustering of microstates
+ *   - **coring**:  for boundary corrections of clustered state trajectories
+ *   - **filter**:  for fast filtering of coordinates, order parameters, etc. based on\n
+ *                  a given state trajectory (i.e. clustering result)
+ */
+
 #include "config.hpp"
 // sub-modules
 #include "density_clustering.hpp"
@@ -39,16 +51,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <omp.h>
 #include <boost/program_options.hpp>
 
-/*! 
- * The main function of 'clustering' is essentially a wrapper around the different sub-modules.
- * These include:
- *   - density: for density-based clustering on the given geometric space
- *   - network: for the network/microstate generation from density-based clustering results
- *   - mpp: for Most Probable Path clustering of microstates
- *   - coring: for boundary corrections of clustered state trajectories
- *   - filter: for fast filtering of coordinates, order parameters, etc. based on\n
- *             a given state trajectory (i.e. clustering result)
- */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   std::string general_help = 
