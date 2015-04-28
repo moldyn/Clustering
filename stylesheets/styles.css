@@ -41,7 +41,7 @@ a {
 
 a small {
   font-size:11px;
-  color:#777;
+  color:#555;
   margin-top:-0.6em;
   display:block;
 }
@@ -60,7 +60,7 @@ blockquote {
 
 code, pre {
   font-family:Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal;
-  color:#333;
+  color:#222;
   font-size:12px;
 }
 
@@ -84,12 +84,12 @@ th, td {
 }
 
 dt {
-  color:#444;
+  color:#222;
   font-weight:700;
 }
 
 th {
-  color:#444;
+  color:#222;
 }
 
 img {
@@ -132,7 +132,7 @@ header li {
 header ul a {
   line-height:1;
   font-size:11px;
-  color:#999;
+  color:#444;
   display:block;
   text-align:center;
   padding-top:6px;
@@ -251,6 +251,6 @@ footer {
   body {
     padding:0.4in;
     font-size:12pt;
-    color:#444;
+    color:#222;
   }
 }
