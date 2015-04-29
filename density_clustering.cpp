@@ -78,13 +78,17 @@ namespace Clustering {
       grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
       if (n_cols > 1) {
         grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
+      } else {
+        grid.n_boxes.push_back(1);
       }
       if (n_cols > 2) {
         grid.n_boxes.push_back(fabs(max_x3 - min_x3) / radius + 1);
+      } else {
+        grid.n_boxes.push_back(1);
       }
       grid.assigned_box.resize(n_rows);
-      int i_box_1=0, i_box_2=0, i_box_3=0;
       for (std::size_t i=0; i < n_rows; ++i) {
+        int i_box_1=0, i_box_2=0, i_box_3=0;
         i_box_1 = (coords[i*n_cols+BOX_DIM_1] - min_x1) / radius;
         if (n_cols > 1) {
           i_box_2 = (coords[i*n_cols+BOX_DIM_2] - min_x2) / radius;
@@ -113,9 +117,9 @@ namespace Clustering {
       return ((i1 >= 0)
            && (i1 < grid.n_boxes[0])
            && (i2 >= 0)
-           && ((i2 < grid.n_boxes[1]) || (grid.n_boxes[1] == 0))
+           && (i2 < grid.n_boxes[1])
            && (i3 >= 0)
-           && ((i3 < grid.n_boxes[2]) || (grid.n_boxes[2] == 0)));
+           && (i3 < grid.n_boxes[2]));
     }
 
     std::vector<std::size_t>
@@ -329,8 +333,8 @@ namespace Clustering {
     compute_sigma2(const Neighborhood& nh) {
       double sigma2 = 0.0;
       for (auto match: nh) {
-        // first second: nearest neighbor info
-        // second second: squared dist to nearest neighbor
+        // 'first second': nearest neighbor info
+        // 'second second': squared dist to nearest neighbor
         sigma2 += match.second.second;
       }
       return (sigma2 / nh.size());
@@ -442,6 +446,10 @@ namespace Clustering {
           Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
           clustering = read_clustered_trajectory(args["input"].as<std::string>());
         } else if (args.count("threshold-screening")) {
+
+
+//TODO: re-use old results from previous step
+
           std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
           if (threshold_params.size() != 3) {
             std::cerr << "error: option -T expects exactly three floating point arguments: FROM STEP TO." << std::endl;
@@ -450,6 +458,7 @@ namespace Clustering {
           Clustering::logger(std::cout) << "running free energy landscape screening" << std::endl;
           float t_from = threshold_params[0];
           float t_step = threshold_params[1];
+          //TODO: auto: max
           float t_to = threshold_params[2];
           std::vector<std::size_t> clustering(n_rows);
           // upper limit extended to a 10th of the stepsize to

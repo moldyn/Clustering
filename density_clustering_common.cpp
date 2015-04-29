@@ -79,9 +79,15 @@ namespace Density {
 #ifdef DC_USE_MPI
     }
 #endif
+
+//TODO initialize distinct name from initial clustering
+
     std::size_t distinct_name = 0;
     bool clusters_merged = false;
     while ( ! clusters_merged) {
+
+//TODO initialize visited_frames from initial clustering
+
       std::set<std::size_t> visited_frames = {};
       clusters_merged = true;
 #ifdef DC_USE_MPI
@@ -94,7 +100,7 @@ namespace Density {
       for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
         if (visited_frames.count(i) == 0) {
           visited_frames.insert(i);
-          // all frames in local neighborhood should be clustered
+          // all frames in local neighborhood should be clustered ...
 #ifdef DC_USE_MPI
           std::set<std::size_t> local_nh = Clustering::Density::MPI::high_density_neighborhood(coords,
                                                                                                n_cols,
@@ -112,7 +118,7 @@ namespace Density {
                                                                      first_frame_above_threshold,
                                                                      4*sigma2);
 #endif
-          // let's see if at least some of them already have a
+          // ... let's see if at least some of them already have a
           // designated cluster assignment
           std::set<std::size_t> cluster_names;
           for (auto j: local_nh) {
