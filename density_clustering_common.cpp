@@ -50,7 +50,8 @@ namespace Density {
     using namespace Clustering::Density::MPI;
 #endif
     std::vector<std::size_t> clustering;
-    if (initial_clusters.size() == n_rows) {
+    bool have_initial_clusters = (initial_clusters.size() == n_rows);
+    if (have_initial_clusters) {
       clustering = initial_clusters;
     } else {
       clustering = std::vector<std::size_t>(n_rows);
@@ -79,17 +80,20 @@ namespace Density {
 #ifdef DC_USE_MPI
     }
 #endif
-
-//TODO initialize distinct name from initial clustering
-
-    std::size_t distinct_name = 0;
-    bool clusters_merged = false;
-    while ( ! clusters_merged) {
-
-//TODO initialize visited_frames from initial clustering
-
+    // initialize distinct name from initial clustering
+    std::size_t distinct_name = *std::max_element(clustering.begin(), clustering.end());
+    bool neighboring_clusters_merged = false;
+    while ( ! neighboring_clusters_merged) {
       std::set<std::size_t> visited_frames = {};
-      clusters_merged = true;
+      if (have_initial_clusters) {
+        // initialize visited_frames from initial clustering
+        for (std::size_t i=0; i < n_rows; ++i) {
+          if (initial_clusters[i] != 0) {
+            visited_frames.insert(i);
+          }
+        }
+      }
+      neighboring_clusters_merged = true;
 #ifdef DC_USE_MPI
       if (mpi_node_id == MAIN_PROCESS) {
 #endif
@@ -100,7 +104,7 @@ namespace Density {
       for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
         if (visited_frames.count(i) == 0) {
           visited_frames.insert(i);
-          // all frames in local neighborhood should be clustered ...
+          // all frames/clusters in local neighborhood should be merged ...
 #ifdef DC_USE_MPI
           std::set<std::size_t> local_nh = Clustering::Density::MPI::high_density_neighborhood(coords,
                                                                                                n_cols,
@@ -126,7 +130,7 @@ namespace Density {
             visited_frames.insert(j);
           }
           if ( ! (cluster_names.size() == 1 && cluster_names.count(0) != 1)) {
-            clusters_merged = false;
+            neighboring_clusters_merged = false;
             // remove the 'zero' state, i.e. state of unassigned frames
             if (cluster_names.count(0) == 1) {
               cluster_names.erase(0);

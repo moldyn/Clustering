@@ -114,6 +114,8 @@ int main(int argc, char* argv[]) {
     ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(),
                                           "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
+                                          "default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"
+                                          "parameters may be given partially, e.g.: -T 0.2 0.4 to start at 0.2 and go to MAX_FE at steps 0.4.\n"
                                           "for threshold-screening, --output denotes the basename only. output files will have the"
                                           " current threshold limit appended to the given filename.")
     ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")

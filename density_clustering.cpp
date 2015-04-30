@@ -363,6 +363,7 @@ namespace Clustering {
       using namespace Clustering::Tools;
       const std::string input_file = args["file"].as<std::string>();
       // setup coords
+      // TODO: use a simple 'Coords'-struct for these three
       float* coords;
       std::size_t n_rows;
       std::size_t n_cols;
@@ -446,27 +447,32 @@ namespace Clustering {
           Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
           clustering = read_clustered_trajectory(args["input"].as<std::string>());
         } else if (args.count("threshold-screening")) {
-
-
-//TODO: re-use old results from previous step
-
           std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
-          if (threshold_params.size() != 3) {
-            std::cerr << "error: option -T expects exactly three floating point arguments: FROM STEP TO." << std::endl;
+          if (threshold_params.size() > 3) {
+            std::cerr << "error: option -T expects at most three floating point arguments: FROM STEP TO." << std::endl;
             exit(EXIT_FAILURE);
           }
           Clustering::logger(std::cout) << "running free energy landscape screening" << std::endl;
-          float t_from = threshold_params[0];
-          float t_step = threshold_params[1];
-          //TODO: auto: max
-          float t_to = threshold_params[2];
+          float t_from = 0.1;
+          float t_step = 0.1;
+          float t_to = *std::max_element(free_energies.begin(), free_energies.end());
+          if (threshold_params.size() >= 1) {
+            t_from = threshold_params[0];
+          }
+          if (threshold_params.size() >= 2) {
+            t_step = threshold_params[1];
+          }
+          if (threshold_params.size() == 3) {
+            t_to = threshold_params[2];
+          }
           std::vector<std::size_t> clustering(n_rows);
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
           float t_to_low = t_to - t_step/10.0f + t_step;
           float t_to_high = t_to + t_step/10.0f + t_step;
           for (float t=t_from; ! (t_to_low < t && t < t_to_high); t += t_step) {
-            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
+            // compute clusters at this step, re-using old results from previous step
+            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, clustering);
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
           }
