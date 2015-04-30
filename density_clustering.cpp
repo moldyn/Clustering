@@ -456,7 +456,7 @@ namespace Clustering {
           float t_from = 0.1;
           float t_step = 0.1;
           float t_to = *std::max_element(free_energies.begin(), free_energies.end());
-          if (threshold_params.size() >= 1) {
+          if (threshold_params.size() >= 1 && threshold_params[0] >= 0.0f) {
             t_from = threshold_params[0];
           }
           if (threshold_params.size() >= 2) {
@@ -470,8 +470,8 @@ namespace Clustering {
           // circumvent rounding errors when comparing on equality
           float t_to_low = t_to - t_step/10.0f + t_step;
           float t_to_high = t_to + t_step/10.0f + t_step;
-          for (float t=t_from; ! (t_to_low < t && t < t_to_high); t += t_step) {
-            // compute clusters at this step, re-using old results from previous step
+          for (float t=t_from; (t < t_to_low) && !(t_to_high < t); t += t_step) {
+            // compute clusters, re-using old results from previous step
             clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, clustering);
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);

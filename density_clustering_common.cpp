@@ -83,16 +83,20 @@ namespace Density {
     // initialize distinct name from initial clustering
     std::size_t distinct_name = *std::max_element(clustering.begin(), clustering.end());
     bool neighboring_clusters_merged = false;
-    while ( ! neighboring_clusters_merged) {
-      std::set<std::size_t> visited_frames = {};
-      if (have_initial_clusters) {
-        // initialize visited_frames from initial clustering
-        for (std::size_t i=0; i < n_rows; ++i) {
-          if (initial_clusters[i] != 0) {
-            visited_frames.insert(i);
-          }
+    std::set<std::size_t> visited_frames = {};
+    if (have_initial_clusters) {
+      // initialize visited_frames from initial clustering
+      // (with indices in order of sorted free energies)
+      for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
+        std::size_t i_original = fe_sorted[i].first;
+        if (initial_clusters[i_original] != 0) {
+          visited_frames.insert(i);
         }
       }
+      logger(std::cout) << "# already visited: " << visited_frames.size() << std::endl;
+    }
+    // indices inside this loop are in order of sorted(!) free energies
+    while ( ! neighboring_clusters_merged) {
       neighboring_clusters_merged = true;
 #ifdef DC_USE_MPI
       if (mpi_node_id == MAIN_PROCESS) {
