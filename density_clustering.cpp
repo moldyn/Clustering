@@ -473,6 +473,8 @@ namespace Clustering {
           for (float t=t_from; (t < t_to_low) && !(t_to_high < t); t += t_step) {
             // compute clusters, re-using old results from previous step
             clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, clustering);
+  //TODO debug
+//            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
           }

@@ -131,7 +131,9 @@ namespace Density {
           std::set<std::size_t> cluster_names;
           for (auto j: local_nh) {
             cluster_names.insert(clustering[fe_sorted[j].first]);
-            visited_frames.insert(j);
+            if ( ! have_initial_clusters) {
+              visited_frames.insert(j);
+            }
           }
           if ( ! (cluster_names.size() == 1 && cluster_names.count(0) != 1)) {
             neighboring_clusters_merged = false;
