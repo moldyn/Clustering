@@ -46,22 +46,30 @@ namespace Clustering {
     using Neighbor = Clustering::Tools::Neighbor;
     //! map frame id to neighbors
     using Neighborhood = Clustering::Tools::Neighborhood;
-    //! encodes 3D box for box-assisted search algorithm
-    using Box = std::array<int, 3>;
-    //! encodes box differences in 3D, i.e. if you are at
-    //! the center box, the 27 different tuples hold the steppings
-    //! to the 27 spacial neighbors (including the center box itself).
-    constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
-                                   , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
-                                   , {-1,-1,-1}, { 0,-1,-1}, { 1,-1,-1}
-                                   , {-1, 1, 0}, { 0, 1, 0}, { 1, 1, 0}
-                                   , {-1, 0, 0}, { 0, 0, 0}, { 1, 0, 0}
-                                   , {-1,-1, 0}, { 0,-1, 0}, { 1,-1, 0}
-                                   , {-1, 1, 1}, { 0, 1, 1}, { 1, 1, 1}
-                                   , {-1, 0, 1}, { 0, 0, 1}, { 1, 0, 1}
-                                   , {-1,-1, 1}, { 0,-1, 1}, { 1,-1, 1}};
-    //! number of neigbor boxes in cubic 3D grid (including center box).
-    const int N_NEIGHBOR_BOXES = 27;
+    //! encodes 2D box for box-assisted search algorithm
+    using Box = std::array<int, 2>;
+    //! encodes box differences in 2D, i.e. if you are at
+    //! the center box, the 9 different tuples hold the steppings
+    //! to the 9 spacial neighbors (including the center box itself).
+    constexpr int BOX_DIFF[9][2] = {{-1, 1}, { 0, 1}, { 1, 1}
+                                  , {-1, 0}, { 0, 0}, { 1, 0}
+                                  , {-1,-1}, { 0,-1}, { 1,-1}};
+    //! number of neigbor boxes in 2D grid (including center box).
+    const int N_NEIGHBOR_BOXES = 9;
+//    //! encodes box differences in 3D, i.e. if you are at
+//    //! the center box, the 27 different tuples hold the steppings
+//    //! to the 27 spacial neighbors (including the center box itself).
+//    constexpr int BOX_DIFF[27][3] = {{-1, 1,-1}, { 0, 1,-1}, { 1, 1,-1}
+//                                   , {-1, 0,-1}, { 0, 0,-1}, { 1, 0,-1}
+//                                   , {-1,-1,-1}, { 0,-1,-1}, { 1,-1,-1}
+//                                   , {-1, 1, 0}, { 0, 1, 0}, { 1, 1, 0}
+//                                   , {-1, 0, 0}, { 0, 0, 0}, { 1, 0, 0}
+//                                   , {-1,-1, 0}, { 0,-1, 0}, { 1,-1, 0}
+//                                   , {-1, 1, 1}, { 0, 1, 1}, { 1, 1, 1}
+//                                   , {-1, 0, 1}, { 0, 0, 1}, { 1, 0, 1}
+//                                   , {-1,-1, 1}, { 0,-1, 1}, { 1,-1, 1}};
+//    //! number of neigbor boxes in cubic 3D grid (including center box).
+//    const int N_NEIGHBOR_BOXES = 27;
     //! the full grid constructed for boxed-assisted nearest neighbor
     //! search with fixed distance criterion.
     struct BoxGrid {
