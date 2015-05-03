@@ -456,7 +456,7 @@ namespace MPI {
     Neighborhood nh_high_dens;
     if (args.count("nearest-neighbors-input")) {
       Clustering::logger(std::cout) << "re-using nearest neighbor data." << std::endl;
-      auto nh_pair = Clustering::Density::read_neighborhood(args["nearest-neighbors-input"].as<std::string>());
+      auto nh_pair = Clustering::Tools::read_neighborhood(args["nearest-neighbors-input"].as<std::string>());
       nh = nh_pair.first;
       nh_high_dens = nh_pair.second;
     } else if (args.count("nearest-neighbors") || args.count("output")) {
@@ -465,7 +465,7 @@ namespace MPI {
       nh = std::get<0>(nh_tuple);
       nh_high_dens = std::get<1>(nh_tuple);
       if (node_id == MAIN_PROCESS && args.count("nearest-neighbors")) {
-        Clustering::Density::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens);
+        Clustering::Tools::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens);
       }
     }
     //// clustering
@@ -482,7 +482,7 @@ namespace MPI {
           exit(EXIT_FAILURE);
         }
         float threshold = args["threshold"].as<float>();
-        clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, {}, n_cols, n_nodes, node_id);
+        clustering = Clustering::Density::initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, {}, n_nodes, node_id);
       }
       if (node_id == MAIN_PROCESS) {
         if ( ! args["only-initial"].as<bool>()) {
