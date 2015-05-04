@@ -40,9 +40,9 @@ namespace Clustering {
                      const std::size_t n_rows,
                      const std::size_t n_cols,
                      const float radius) {
-      // use first, second and third coordinates, since these usually
-      // correspond to first, second and third PCs, having highest variance.
-      // if clustering is only in 1 or 2 dimensions, boxes of higher dimensions
+      // use first and second coordinates, since these usually
+      // correspond to first and second PCs, having highest variance.
+      // if clustering is only in 1 dimension, boxes of higher dimensions
       // will be kept empty.
       const int BOX_DIM_1 = 0;
       const int BOX_DIM_2 = 1;
@@ -65,10 +65,10 @@ namespace Clustering {
           max_x2 = std::max(max_x2, coords[i*n_cols+BOX_DIM_2]);
         }
       }
-      // build 3D grid with boxes for efficient nearest neighbor search
-      grid.n_boxes.push_back(fabs(max_x1 - min_x1) / radius + 1);
+      // build 2D grid with boxes for efficient nearest neighbor search
+      grid.n_boxes.push_back((max_x1 - min_x1) / radius + 1);
       if (n_cols > 1) {
-        grid.n_boxes.push_back(fabs(max_x2 - min_x2) / radius + 1);
+        grid.n_boxes.push_back((max_x2 - min_x2) / radius + 1);
       } else {
         grid.n_boxes.push_back(1);
       }
@@ -137,8 +137,6 @@ namespace Clustering {
                                     << grid.n_boxes[0]
                                     << " x "
                                     << grid.n_boxes[1]
-                                    << " x "
-                                    << grid.n_boxes[2]
                                     << std::endl;
       Clustering::logger(std::cout) << "computing pops" << std::endl;
       float dist, c;
