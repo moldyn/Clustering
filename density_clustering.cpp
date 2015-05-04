@@ -149,6 +149,7 @@ namespace Clustering {
                                shared(coords,pops,grid) \
                                schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
+//TODO: debug: find missing neighbors!
         center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
         for (i_neighbor=0; i_neighbor < N_NEIGHBOR_BOXES; ++i_neighbor) {
