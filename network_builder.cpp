@@ -391,6 +391,7 @@ namespace NetworkBuilder {
     // this is nevessary, since every initially clustered trajectory
     // at different thresholds uses the same ids starting with 0.
     const float prec = d_step / 10.0f;
+    //TODO: additionally to fuzzy equal: need to be lower!
     for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
       Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
       cl_now = cl_next;
