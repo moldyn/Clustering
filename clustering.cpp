@@ -169,11 +169,12 @@ int main(int argc, char* argv[]) {
   desc_network.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.1f"),
-          "(optional): basename of input files (default: clust.\%0.1f).")
-    ("min", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
-    ("max", b_po::value<float>()->default_value(8.0f, "8.0"), "(optional): maximum free energy (default: 8.0).")
-    ("step", b_po::value<float>()->default_value(0.1f, "0.1"), "(optional): minimum free energy (default: 0.1).")
+    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.2f"),
+          "(optional): basename of input files (default: clust.\%0.2f).")
+    ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
+    //TODO max-default: MAX_FE
+    ("max", b_po::value<float>()->default_value(8.0f, "8.00"), "(optional): maximum free energy (default:  8.00).")
+    ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
     ("minpop,p", b_po::value<std::size_t>()->default_value(1),
           "(optional): minimum population of node to be considered for network (default: 1).")
     // defaults

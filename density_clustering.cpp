@@ -108,9 +108,14 @@ namespace Clustering {
                           const float radius) {
       std::vector<float> radii = {radius};
 #ifdef DC_USE_OPENCL
-      std::map<float, std::vector<std::size_t>> pop_map = Clustering::Density::OpenCL::calculate_populations(coords, n_rows, n_cols, radii);
+      std::map<float, std::vector<std::size_t>> pop_map =
+        Clustering::Density::OpenCL::calculate_populations(coords
+                                                         , n_rows
+                                                         , n_cols
+                                                         , radii);
 #else
-      std::map<float, std::vector<std::size_t>> pop_map = calculate_populations(coords, n_rows, n_cols, radii);
+      std::map<float, std::vector<std::size_t>> pop_map =
+        calculate_populations(coords, n_rows, n_cols, radii);
 #endif
       return pop_map[radius];
     }
@@ -443,6 +448,7 @@ namespace Clustering {
             t_to = threshold_params[2];
           }
           std::vector<std::size_t> clustering(n_rows);
+//TODO what about 'fuzzy_equal' function?
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
           float t_to_low = t_to - t_step/10.0f + t_step;
@@ -450,7 +456,7 @@ namespace Clustering {
           for (float t=t_from; (t < t_to_low) && !(t_to_high < t); t += t_step) {
             // compute clusters, re-using old results from previous step
             clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, clustering);
-  //TODO debug
+  //TODO why is there an empty 'clust' file?
 //            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);

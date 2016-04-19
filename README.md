@@ -1,36 +1,46 @@
 
 
 
-This software package provides extensive tools for robust and stable clustering of molecular dynamics trajectories.
+This software package provides extensive tools for robust and stable
+clustering of molecular dynamics trajectories.
 The essential functions are:
   - density-based geometric clustering for microstate generation
   - dynamic clustering based on the Most-Probable-Path algorithm (MPP)
   - variable dynamic coring for boundary corrections
 
-Additionally, the package includes tools to efficiently filter original coordinates or order parameters based on a discrete state definition
+Additionally, the package includes tools to efficiently filter original
+coordinates or order parameters based on a discrete state definition
 to identify representative structures and variables of clusters.
 
-Computationally demanding functions are parallelized in a hybrid model using OpenMP for SMP parallelization on a single node (multithreading)
-and MPI over different cluster nodes. MPI support, however, is optional and for a modern computer with a high number of fast cores or
+<!--
+Computationally demanding functions are parallelized in a hybrid model using
+OpenMP for SMP parallelization on a single node (multithreading)
+and MPI over different cluster nodes. MPI support, however, is optional and
+for a modern computer with a high number of fast cores or
 even multiple CPUs, OpenMP parallelization is sufficiently fast.
+-->
+Computationally demanding functions are parallelized using OpenMP.
 
 
 # Citations
 The underlying methods are based on the following articles:
-  - A. Jain and G. Stock, *Hierarchical folding free energy landscape of HP35 revealed by most probable path clustering*,
+  - A. Jain and G. Stock, *Hierarchical folding free energy landscape of HP35
+    revealed by most probable path clustering*,
     J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: 10.1021/jp410398a
-  - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify Metastable Conformational States of Proteins*
-    (**unpublished draft title**; please re-check [our group website](http://www.moldyn.uni-freiburg.de/publications/Publikationen.html) for the published article)
+  - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
+    Metastable Conformational States of Proteins*,
+    J. Chem. Theory Comput., Just Accepted Manuscript; DOI: 10.1021/acs.jctc.5b01233
 
-We kindly ask you to cite these articles if you use this software package for published works.
+We kindly ask you to cite these articles if you use this software package for
+published works.
 
 
 # Licensing
 Copyright (c) 2015, [Florian Sittel](http://www.lettis.net)
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -56,11 +66,12 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  required:
   -  **BOOST >= 1.49**
   -  **cmake >= 2.8**
-  -  a **recent** C++ compiler (e.g. GNU g++ 4.9 or Intel icpc 15, must support C++11 standard)
+  -  a **recent** C++ compiler (e.g. GNU g++ >= 4.9, must
+     support C++11 standard)
 
  optional:
   - doxygen (to build the API docs)
-  - MPI (for parallelized execution on clusters)
+<!--  - MPI (for parallelized execution on clusters) -->
 
 ## Quick-Start
 
@@ -84,7 +95,8 @@ To quickly get a working (but possibly underperforming) binary
 
       \# cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path
 
-  - then compile and install the package to /my/installation/path (or any other path you chose above) by invoking
+  - then compile and install the package to /my/installation/path (or any other
+    path you chose above) by invoking
 
       \# make
 
@@ -94,8 +106,9 @@ To quickly get a working (but possibly underperforming) binary
 ## Optimized Binaries and Custom Build Options
 
 ### Vectorization
-If you have a modern computer with vectorizing instruction sets (SSE2, SSE4_2, AVX, ...),
-set the following **cmake-option**: -DDC_CPU_ACCELERATION=<OPTION>, where <OPTION> is one of
+If you have a modern computer with vectorizing instruction sets (SSE2, SSE4_2,
+AVX, ...), set the following **cmake-option**: -DCPU_ACCELERATION=<OPTION>,
+where <OPTION> is one of
   - SSE2
   - SSE4_1
   - SSE4_2
@@ -111,17 +124,22 @@ Check in the *flags:*-block, if a certain instruction set is supported.
 If it is not listed, it is not supported.
 
 ### Native Compilation
-To compile the code with '-march=native' option (specific to the GNU compiler), add '-DDC_NATIVE_COMPILATION=ON' to your cmake-flags.
-Using this option, the GNU compiler will automatically use all available instruction sets for optimal performance (**attention**: you still
+To compile the code with '-march=native' option (specific to the GNU compiler),
+add '-DNATIVE_COMPILATION=ON' to your cmake-flags.
+Using this option, the GNU compiler will automatically use all available
+instruction sets for optimal performance (**attention**: you still
 need to set the vectorization option above, even if you use this option).
 
-Unfortunately, the resulting binary will most likely run only on the computer it was compiled on - do **not** use this option if you want
+Unfortunately, the resulting binary will most likely run only on the computer
+it was compiled on - do **not** use this option if you want
 to distribute the binary, e.g. on a cluster.
 
+<!--
 ### MPI
 For MPI support, build your binary with the additional cmake-flag -DDC_USE_MPI=ON.
 Invoke the *clustering_mpi* binary in the following way to run on several nodes with local multithreading via OpenMP:
 
      # /usr/bin/mpirun -n N_NODES -bind-to-core -bynode -cpus-per-proc N_THREADS_PER_NODE -report-bindings  \
           clustering_mpi density -f COORDS_FILE -r RADIUS -p POPS_OUT -d FE_OUT -n N_THREADS_PER_NODE
+-->
 
