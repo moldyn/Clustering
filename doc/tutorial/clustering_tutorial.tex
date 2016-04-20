@@ -5,13 +5,38 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{listings}
-\textwidth18cm
-\textheight23cm
-\hoffset-1.5cm
+\usepackage[xcolor,framemethod=tikz,nobreak]{mdframed}
+\usepackage{units}
+
+%\textwidth18cm
+\textwidth16cm
+%\hoffset-1.5cm
+
+\textheight24cm
+\voffset-1.5cm
+
 \setlength{\oddsidemargin}{0.3cm}
 \setlength{\evensidemargin}{0.3cm}
 
+
 \begin{document}
+
+% set code environment (lstlisting)
+\lstset{language=bash}
+\lstset{basicstyle=\ttfamily}
+\lstset{columns=fullflexible}
+
+\mdfsetup{
+  font={\footnotesize\sffamily},
+  frametitlefont={\large\sffamily\bfseries},
+  middlelinecolor=red,
+  middlelinewidth=2pt,
+  backgroundcolor=red!10,
+  roundcorner=10pt,
+  innerbottommargin=20pt,
+  innerleftmargin=20pt,
+  innerrightmargin=20pt,
+  frametitleaboveskip=20pt}
 
 \title{\vspace{-3cm}The \emph{clustering} Tutorial}
 \author{Florian Sittel}
@@ -40,31 +65,32 @@ space-separated plain text.
 From now on, let's assume we have prepared input data for \emph{clustering} in
 the file {\ttfamily coords}.
 
-\subsection{Available test data}
-If you want to get your hands dirty right away and do not yet have suitable
-data, you can get a data set at
-http://www.moldyn.uni-freiburg.de/software/aib9.pca.reduced.bz2.
+\begin{mdframed}[frametitle={Test data available!}]
+  If you want to get your hands dirty right away and do not yet have suitable
+  data, you can get a data set at
+  http://www.moldyn.uni-freiburg.de/software/aib9.pca.reduced.bz2.
 
-Download the data, e.g., with {\ttfamily wget}, unpack it with
-{\ttfamily bzip2} and create a symlink called 'coords' to be in line with
-the rest of the tutorial:
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily]
+  Download the data, e.g., with {\ttfamily wget}, unpack it with
+  {\ttfamily bzip2} and create a symlink called 'coords' to be in line with
+  the rest of the tutorial:
+  \begin{lstlisting}
   wget http://www.moldyn.uni-freiburg.de/software/aib9.pca.reduced.bz2
 
   bunzip2 aib9.pca.reduced.bz2
 
   ln -s aib9.pca.reduced coords
-\end{lstlisting}
+  \end{lstlisting}
 
-If your computer is missing any of these programs, install them (or let the
-sysadmin do it). If they are not available, get a decent Linux distribution...
+  If your computer is missing any of these programs, install them (or let the
+  sysadmin do it). If they are not available, get a decent Linux distribution...
 
-The data consists of $\sim 1.4 \cdot 10^6$ frames of a simulation of the
-peptide Aib9 (for more information on this data set, see \cite{Buchenberg15}),
-reduced to four essential coordinates based on a principal
-component analysis using dihedral angles.
-Fig. \ref{fig:pca_proj} shows the 2D projections along principal components
-1 \& 2 and 3 \& 4 to give an impression of the free energy landscape.
+  The data consists of $\sim 1.4 \cdot 10^6$ frames of a simulation of the
+  peptide Aib9 (for more information on this data set, see \cite{Buchenberg15}),
+  reduced to four essential coordinates based on a principal
+  component analysis using dihedral angles.
+  Fig. \ref{fig:pca_proj} shows the 2D projections along principal components
+  1 \& 2 and 3 \& 4 to give an impression of the free energy landscape.
+\end{mdframed}
 
 \begin{figure}
   \centerline{
@@ -76,6 +102,7 @@ Fig. \ref{fig:pca_proj} shows the 2D projections along principal components
     and (right) third and fourth principal components of
     Aib9 based on PCA of dihedral angles.}
 \end{figure}
+
 
 
 \section{The optimal radius for density clustering}
@@ -94,13 +121,13 @@ feature.
 
 Run the command
 
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily]
+\begin{lstlisting}
   clustering density -f coords
-                     -R 0.2 0.4 0.6 0.8
-                     -p pop
-                     -d fe
-                     -n 12
-                     -v
+                       -R 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8
+                       -p pop
+                       -d fe
+                       -n 12
+                       -v
 \end{lstlisting}
 
 to compute the free energies and populations for a set of different radii.
@@ -116,18 +143,39 @@ The single parameters are
   \item -v: Verbose mode with lots of output.
 \end{itemize}
 
-Using a shell like bash, you can generate a list of radii on the fly, without
-having to write them out manually:
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily]
-  clustering density -f coords -R `seq 0.2 0.2 0.8` ...
+Using a shell like bash, you can generate a list of radii on the fly via the
+{\ttfamily seq} command, without having to write them out manually:
+\begin{lstlisting}
+  clustering density -f coords -R $(seq 0.1 0.1 0.8) ...
 \end{lstlisting}
 
 For every radius, sort the frame populations in descending order and fit to an
 exponential decay (or visually inspect instead of fitting).
 The optimal radius is the one that fits best.
 
-Let's assume from now on that 0.6 is the radius of our choice for the given
+Let's assume from now on that 0.3 is the radius of our choice for the given
 data set.
+
+\begin{mdframed}[innertopmargin=20pt]
+  Running above command for the Aib9 data set took about 20 minutes on
+  12 hyperthreaded cores of a Core i7-4930K.
+  Figure \ref{fig:pops_ordered} shows the resulting populations for various
+  radii, reordered from highest to lowest population.
+  From this plot, we select 0.3 as optimal radius, since it is, on the one
+  hand, small enough to resolve local densities and, on the other hand, shows
+  near-exponential decay. Pro-tip: use log-plots...
+\end{mdframed}
+
+
+\begin{figure}
+  \centerline{
+    \includegraphics[width=10cm] {pops_ordered}}
+  \caption{\label{fig:pops_ordered}
+      Populations of Aib9 frames for different hypersphere radii,
+      ordered from highest populated to lowest populated frame.
+      Populations have been normalized to max(pop) = 1.}
+\end{figure}
+
 
 
 \section{Geometric clustering via density screening}
@@ -138,22 +186,35 @@ them when needed.
 \subsection{Computing the local neighborhood for a given radius}
 The free energies have already been computed (and hopefully stored by defining
 '-d'!) in the radius evaluation step.
-Here, we will compute the local neighborhoods per frame:
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily]
+Here, we will compute the local neighborhoods per frame, reusing the previously
+computed free energies:
+\begin{lstlisting}
+  ln -s fe_0.300000 fe
+
   clustering density -f coords
-                     -r 0.6
-                     -D fe_0.6
-                     -b nn_0.6
-                     -n 12
-                     -v
+                       -r 0.3
+                       -D fe
+                       -b nn
+                       -n 12
+                       -v
 \end{lstlisting}
 The (new) options are
 \begin{itemize}
-  \item -r: Use radius of 0.6 for all computations.
-  \item -D: Reuse free energies that already have been computed before.
+  \item -r: Use radius of 0.3 for all computations.
+  \item -D: Reuse free energies (radius 0.3), that already have been
+            computed in the previous step (symlinked to 'fe')
   \item -b: Compute neighborhood (i.e. nearest neighbors) for the given
-            radius and store for later reuse in file 'nn\_0.6'.
+            radius and store for later reuse in file 'nn'.
 \end{itemize}
+
+
+\begin{mdframed}[innertopmargin=20pt]
+  Running above command for the Aib9 data set took about XY minutes on
+  12 hyperthreaded cores of a Core i7-4930K.
+\end{mdframed}
+
+
+
 
 \subsection{Screening the FEL\label{sec:screening}}
 Given the readily computed free energies (fe\_0.6) and neighborhoods (nn\_0.6)

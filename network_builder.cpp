@@ -34,6 +34,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unordered_set>
 
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 #include <omp.h>
 
 
@@ -366,6 +367,7 @@ namespace NetworkBuilder {
 
   void
   main(boost::program_options::variables_map args) {
+    namespace b_fs = boost::filesystem;
     using namespace Clustering::Tools;
     // setup two threads parallel read/write
     omp_set_num_threads(2);
@@ -391,9 +393,18 @@ namespace NetworkBuilder {
     // this is nevessary, since every initially clustered trajectory
     // at different thresholds uses the same ids starting with 0.
     const float prec = d_step / 10.0f;
-    //TODO: additionally to fuzzy equal: need to be lower!
     for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
       Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
+
+      //TODO: MAX_FE
+      std::string fname = stringprintf(basename, d + d_step);
+      if (b_fs::exists(b_fs::path(fname))) {
+        std::cout << "file exists: " << fname << std::endl;
+      } else {
+        std::cout << "file does not exist: " << fname << std::endl;
+        break;
+      }
+
       cl_now = cl_next;
       #pragma omp parallel sections
       {
@@ -403,7 +414,7 @@ namespace NetworkBuilder {
         }
         #pragma omp section
         {
-          cl_next = read_clustered_trajectory(stringprintf(basename, d + d_step));
+          cl_next = read_clustered_trajectory(fname);
           max_id = *std::max_element(cl_now.begin(), cl_now.end());
           for (std::size_t i=0; i < n_rows; ++i) {
             if (cl_next[i] != 0) {

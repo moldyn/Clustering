@@ -110,7 +110,7 @@ configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
 
-find_package (Boost 1.49 COMPONENTS program_options REQUIRED)
+find_package (Boost 1.49 COMPONENTS program_options system filesystem REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
 add_subdirectory(coords_file)
