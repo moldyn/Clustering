@@ -32,6 +32,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <set>
 #include <unordered_set>
+#include <limits>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -385,7 +386,12 @@ namespace NetworkBuilder {
     std::map<std::size_t, std::size_t> pops;
     std::map<std::size_t, float> free_energies;
 
-    std::vector<std::size_t> cl_next = read_clustered_trajectory(stringprintf(basename, d_min));
+    std::string fname_next = stringprintf(basename, d_min);
+    if ( ! b_fs::exists(fname_next)) {
+      std::cerr << "error: file does not exist: " << fname_next << std::endl;
+      exit(EXIT_SUCCESS);
+    }
+    std::vector<std::size_t> cl_next = read_clustered_trajectory(fname_next);
     std::vector<std::size_t> cl_now;
     std::size_t max_id;
     std::size_t n_rows = cl_next.size();
@@ -393,19 +399,17 @@ namespace NetworkBuilder {
     // this is nevessary, since every initially clustered trajectory
     // at different thresholds uses the same ids starting with 0.
     const float prec = d_step / 10.0f;
-    for (float d=d_min; ! fuzzy_equal(d, d_max, prec); d += d_step) {
+    if (d_max == 0.0f) {
+      // default: collect all until MAX_FE
+      d_max = std::numeric_limits<float>::max();
+    } else {
+      d_max += d_step;
+    }
+    float d;
+    for (d=d_min; ! fuzzy_equal(d, d_max, prec) && b_fs::exists(fname_next); d += d_step) {
       Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
-
-      //TODO: MAX_FE
-      std::string fname = stringprintf(basename, d + d_step);
-      if (b_fs::exists(b_fs::path(fname))) {
-        std::cout << "file exists: " << fname << std::endl;
-      } else {
-        std::cout << "file does not exist: " << fname << std::endl;
-        break;
-      }
-
       cl_now = cl_next;
+      fname_next = stringprintf(basename, d + d_step);
       #pragma omp parallel sections
       {
         #pragma omp section
@@ -414,31 +418,25 @@ namespace NetworkBuilder {
         }
         #pragma omp section
         {
-          cl_next = read_clustered_trajectory(fname);
-          max_id = *std::max_element(cl_now.begin(), cl_now.end());
-          for (std::size_t i=0; i < n_rows; ++i) {
-            if (cl_next[i] != 0) {
-              cl_next[i] += max_id;
-              if (cl_now[i] != 0) {
-                network[cl_now[i]] = cl_next[i];
-                ++pops[cl_now[i]];
-                free_energies[cl_now[i]] = d;
+          if (b_fs::exists(fname_next)) {
+            cl_next = read_clustered_trajectory(fname_next);
+            max_id = *std::max_element(cl_now.begin(), cl_now.end());
+            for (std::size_t i=0; i < n_rows; ++i) {
+              if (cl_next[i] != 0) {
+                cl_next[i] += max_id;
+                if (cl_now[i] != 0) {
+                  network[cl_now[i]] = cl_next[i];
+                  ++pops[cl_now[i]];
+                  free_energies[cl_now[i]] = d;
+                }
               }
             }
           }
         }
       }
     }
-    // handle last trajectory
-    Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d_max) << std::endl;
-    cl_now = cl_next;
-    write_clustered_trajectory(stringprintf(remapped_name, d_max), cl_now);
-    for (std::size_t i=0; i < n_rows; ++i) {
-      if (cl_now[i] != 0) {
-        ++pops[cl_now[i]];
-        free_energies[cl_now[i]] = d_max;
-      }
-    }
+    // set correct value for d_max for later reference
+    d_max = d-d_step;
     // if minpop given: delete nodes and edges not fulfilling min. population criterium
     if (minpop > 1) {
       Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;

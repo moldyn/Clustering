@@ -172,8 +172,7 @@ int main(int argc, char* argv[]) {
     ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.2f"),
           "(optional): basename of input files (default: clust.\%0.2f).")
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
-    //TODO max-default: MAX_FE
-    ("max", b_po::value<float>()->default_value(8.0f, "8.00"), "(optional): maximum free energy (default:  8.00).")
+    ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
     ("minpop,p", b_po::value<std::size_t>()->default_value(1),
           "(optional): minimum population of node to be considered for network (default: 1).")
