@@ -21,6 +21,16 @@ even multiple CPUs, OpenMP parallelization is sufficiently fast.
 -->
 Computationally demanding functions are parallelized using OpenMP.
 
+# Documentation
+All options are well documented and may be viewed by 'clustering -h'.
+
+The 'doc' directory includes an extensive tutorial which describes all technical
+details in performing a complete clustering run from trajectory to markov state model.
+
+The source code itself is additionally documented via doxygen. Run 'make doc' in
+the build directory (see below for installation intructions) to compile the source
+code documentation in html.
+
 
 # Citations
 The underlying methods are based on the following articles:
