@@ -1,0 +1,58 @@
+\hypertarget{namespaceClustering}{\section{Clustering Namespace Reference}
+\label{namespaceClustering}\index{Clustering@{Clustering}}
+}
+
+
+general namespace for clustering package  
+
+
+\subsection*{Namespaces}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{namespaceClustering_1_1Density}{Density}
+\begin{DoxyCompactList}\small\item\em namespace for density-\/based clustering functions \end{DoxyCompactList}\item 
+\hyperlink{namespaceClustering_1_1Filter}{Filter}
+\begin{DoxyCompactList}\small\item\em functionality for filtering coordinates or order parameters (A\-S\-C\-I\-I or G\-R\-O\-M\-A\-C\-S' .xtc) based on state trajectory. \end{DoxyCompactList}\item 
+\hyperlink{namespaceClustering_1_1MPP}{M\-P\-P}
+\begin{DoxyCompactList}\small\item\em functions related to \char`\"{}\-Most Probable Path\char`\"{}-\/clustering \end{DoxyCompactList}\item 
+\hyperlink{namespaceClustering_1_1NetworkBuilder}{Network\-Builder}
+\begin{DoxyCompactList}\small\item\em functions for network creation from free energy screening \end{DoxyCompactList}\item 
+\hyperlink{namespaceClustering_1_1Tools}{Tools}
+\begin{DoxyCompactList}\small\item\em additional tools used throughout the {\itshape clustering} package \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{namespaceClustering_acb34e417b17573d2ae71f519f0999243}{std\-::ostream {\bfseries devnull} (0)}\label{namespaceClustering_acb34e417b17573d2ae71f519f0999243}
+
+\item 
+std\-::ostream \& \hyperlink{namespaceClustering_a0ead5f9ec5399dfd97de1959952ad27e}{logger} (std\-::ostream \&s)
+\item 
+\hypertarget{namespaceClustering_a539dad7637e87e271ee24ac3deabdb5f}{std\-::ostream \& \hyperlink{namespaceClustering_a539dad7637e87e271ee24ac3deabdb5f}{debug} ()}\label{namespaceClustering_a539dad7637e87e271ee24ac3deabdb5f}
+
+\begin{DoxyCompactList}\small\item\em print formatted debug output to std\-::cerr. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{namespaceClustering_a2d345c7908fc94461ac1a278bb00ba22}{bool \hyperlink{namespaceClustering_a2d345c7908fc94461ac1a278bb00ba22}{verbose} = false}\label{namespaceClustering_a2d345c7908fc94461ac1a278bb00ba22}
+
+\begin{DoxyCompactList}\small\item\em global flag\-: use verbose output? \end{DoxyCompactList}\item 
+\hypertarget{namespaceClustering_a6a1cfe2793536c71c20bd1b35537a9ea}{std\-::ostream \hyperlink{namespaceClustering_a6a1cfe2793536c71c20bd1b35537a9ea}{devnull}}\label{namespaceClustering_a6a1cfe2793536c71c20bd1b35537a9ea}
+
+\begin{DoxyCompactList}\small\item\em fake-\/stream used as output if nothing should be printed to stdout/stderr. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+general namespace for clustering package 
+
+\subsection{Function Documentation}
+\hypertarget{namespaceClustering_a0ead5f9ec5399dfd97de1959952ad27e}{\index{Clustering@{Clustering}!logger@{logger}}
+\index{logger@{logger}!Clustering@{Clustering}}
+\subsubsection[{logger}]{\setlength{\rightskip}{0pt plus 5cm}std\-::ostream \& Clustering\-::logger (
+\begin{DoxyParamCaption}
+\item[{std\-::ostream \&}]{s}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_a0ead5f9ec5399dfd97de1959952ad27e}
+logger, use like logger(std\-::cout) $<$$<$ ...; will print to given stream if global 'verbose' is set to true. 
+
+Definition at line 32 of file logger.\-cpp.
+

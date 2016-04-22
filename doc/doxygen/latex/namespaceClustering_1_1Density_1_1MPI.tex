@@ -1,0 +1,117 @@
+\hypertarget{namespaceClustering_1_1Density_1_1MPI}{\section{Clustering\-:\-:Density\-:\-:M\-P\-I Namespace Reference}
+\label{namespaceClustering_1_1Density_1_1MPI}\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}}
+}
+
+
+M\-P\-I implementations of compute intensive functions.  
+
+
+\subsection*{Namespaces}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{namespaceClustering_1_1Density_1_1MPI_1_1anonymous__namespace_02density__clustering__mpi_8cpp_03}{anonymous\-\_\-namespace\{density\-\_\-clustering\-\_\-mpi.\-cpp\}}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+std\-::vector$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_1_1MPI_a49411f6868731f415fc9f4df88a93f85}{calculate\-\_\-populations} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const float radius, const int mpi\-\_\-n\-\_\-nodes, const int mpi\-\_\-node\-\_\-id)
+\item 
+std\-::map$<$ float, std\-::vector\\*
+$<$ std\-::size\-\_\-t $>$ $>$ \hyperlink{namespaceClustering_1_1Density_1_1MPI_a26f0389754b56b3ab9cba8b1e104eea4}{calculate\-\_\-populations} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, std\-::vector$<$ float $>$ radii, const int mpi\-\_\-n\-\_\-nodes, const int mpi\-\_\-node\-\_\-id)
+\item 
+std\-::tuple$<$ \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood}, \\*
+\hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} $>$ \hyperlink{namespaceClustering_1_1Density_1_1MPI_a96e8c2094ad93897c31ba99c1834558f}{nearest\-\_\-neighbors} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$ float $>$ \&free\-\_\-energy, const int mpi\-\_\-n\-\_\-nodes, const int mpi\-\_\-node\-\_\-id)
+\item 
+std\-::set$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_1_1MPI_a5c65622ccb0ac27b493afb7a87d08e29}{high\-\_\-density\-\_\-neighborhood} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$ \hyperlink{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}{Free\-Energy} $>$ \&sorted\-\_\-fe, const std\-::size\-\_\-t i\-\_\-frame, const std\-::size\-\_\-t limit, const float max\-\_\-dist, const int mpi\-\_\-n\-\_\-nodes, const int mpi\-\_\-node\-\_\-id)
+\item 
+void \hyperlink{namespaceClustering_1_1Density_1_1MPI_a90f5cd06769c3bdac5360fd9441f2008}{main} (boost\-::program\-\_\-options\-::variables\-\_\-map args)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a3608311a74b2fbc1123a289b7923ad58}{const int \hyperlink{namespaceClustering_1_1Density_1_1MPI_a3608311a74b2fbc1123a289b7923ad58}{M\-A\-I\-N\-\_\-\-P\-R\-O\-C\-E\-S\-S} = 0}\label{namespaceClustering_1_1Density_1_1MPI_a3608311a74b2fbc1123a289b7923ad58}
+
+\begin{DoxyCompactList}\small\item\em identify M\-P\-I process 0 as main process \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+M\-P\-I implementations of compute intensive functions. 
+
+\subsection{Function Documentation}
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a49411f6868731f415fc9f4df88a93f85}{\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}!calculate\-\_\-populations@{calculate\-\_\-populations}}
+\index{calculate\-\_\-populations@{calculate\-\_\-populations}!Clustering::Density::MPI@{Clustering\-::\-Density\-::\-M\-P\-I}}
+\subsubsection[{calculate\-\_\-populations}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ std\-::size\-\_\-t $>$ Clustering\-::\-Density\-::\-M\-P\-I\-::calculate\-\_\-populations (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const float}]{radius, }
+\item[{const int}]{mpi\-\_\-n\-\_\-nodes, }
+\item[{const int}]{mpi\-\_\-node\-\_\-id}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_1_1MPI_a49411f6868731f415fc9f4df88a93f85}
+M\-P\-I implementation of \hyperlink{namespaceClustering_1_1Density_a70bfcb6c8250fb6db892e765380c5957}{Clustering\-::\-Density\-::calculate\-\_\-populations(const float$\ast$ coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const float radius)}
+
+Definition at line 82 of file density\-\_\-clustering\-\_\-mpi.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a26f0389754b56b3ab9cba8b1e104eea4}{\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}!calculate\-\_\-populations@{calculate\-\_\-populations}}
+\index{calculate\-\_\-populations@{calculate\-\_\-populations}!Clustering::Density::MPI@{Clustering\-::\-Density\-::\-M\-P\-I}}
+\subsubsection[{calculate\-\_\-populations}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$ float, std\-::vector$<$ std\-::size\-\_\-t $>$ $>$ Clustering\-::\-Density\-::\-M\-P\-I\-::calculate\-\_\-populations (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{std\-::vector$<$ float $>$}]{radii, }
+\item[{const int}]{mpi\-\_\-n\-\_\-nodes, }
+\item[{const int}]{mpi\-\_\-node\-\_\-id}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_1_1MPI_a26f0389754b56b3ab9cba8b1e104eea4}
+M\-P\-I implementation of \hyperlink{namespaceClustering_1_1Density_a1a709df0601b34b713d3fbb4a79e937c}{Clustering\-::\-Density\-::calculate\-\_\-populations(const float$\ast$ coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$float$>$ radii)}
+
+Definition at line 95 of file density\-\_\-clustering\-\_\-mpi.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a5c65622ccb0ac27b493afb7a87d08e29}{\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}!high\-\_\-density\-\_\-neighborhood@{high\-\_\-density\-\_\-neighborhood}}
+\index{high\-\_\-density\-\_\-neighborhood@{high\-\_\-density\-\_\-neighborhood}!Clustering::Density::MPI@{Clustering\-::\-Density\-::\-M\-P\-I}}
+\subsubsection[{high\-\_\-density\-\_\-neighborhood}]{\setlength{\rightskip}{0pt plus 5cm}std\-::set$<$ std\-::size\-\_\-t $>$ Clustering\-::\-Density\-::\-M\-P\-I\-::high\-\_\-density\-\_\-neighborhood (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ Free\-Energy $>$ \&}]{sorted\-\_\-fe, }
+\item[{const std\-::size\-\_\-t}]{i\-\_\-frame, }
+\item[{const std\-::size\-\_\-t}]{limit, }
+\item[{const float}]{max\-\_\-dist, }
+\item[{const int}]{mpi\-\_\-n\-\_\-nodes, }
+\item[{const int}]{mpi\-\_\-node\-\_\-id}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_1_1MPI_a5c65622ccb0ac27b493afb7a87d08e29}
+M\-P\-I implementation of \hyperlink{namespaceClustering_1_1Density_ae9451b462c1ce38ac2a5fb5da6538282}{Clustering\-::\-Density\-::high\-\_\-density\-\_\-neighborhood}
+
+Definition at line 298 of file density\-\_\-clustering\-\_\-mpi.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a90f5cd06769c3bdac5360fd9441f2008}{\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}!main@{main}}
+\index{main@{main}!Clustering::Density::MPI@{Clustering\-::\-Density\-::\-M\-P\-I}}
+\subsubsection[{main}]{\setlength{\rightskip}{0pt plus 5cm}void Clustering\-::\-Density\-::\-M\-P\-I\-::main (
+\begin{DoxyParamCaption}
+\item[{boost\-::program\-\_\-options\-::variables\-\_\-map}]{args}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_1_1MPI_a90f5cd06769c3bdac5360fd9441f2008}
+M\-P\-I implementation of \hyperlink{namespaceClustering_1_1Density_ad7b2bae0fb60829edfba6b2ef3b1e5b2}{Clustering\-::\-Density\-::main}
+
+Definition at line 393 of file density\-\_\-clustering\-\_\-mpi.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_1_1MPI_a96e8c2094ad93897c31ba99c1834558f}{\index{Clustering\-::\-Density\-::\-M\-P\-I@{Clustering\-::\-Density\-::\-M\-P\-I}!nearest\-\_\-neighbors@{nearest\-\_\-neighbors}}
+\index{nearest\-\_\-neighbors@{nearest\-\_\-neighbors}!Clustering::Density::MPI@{Clustering\-::\-Density\-::\-M\-P\-I}}
+\subsubsection[{nearest\-\_\-neighbors}]{\setlength{\rightskip}{0pt plus 5cm}std\-::tuple$<$ {\bf Neighborhood}, {\bf Neighborhood} $>$ Clustering\-::\-Density\-::\-M\-P\-I\-::nearest\-\_\-neighbors (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ float $>$ \&}]{free\-\_\-energy, }
+\item[{const int}]{mpi\-\_\-n\-\_\-nodes, }
+\item[{const int}]{mpi\-\_\-node\-\_\-id}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_1_1MPI_a96e8c2094ad93897c31ba99c1834558f}
+M\-P\-I implementation of \hyperlink{namespaceClustering_1_1Density_a2ad6788d0b10b1560092a19394319e5c}{Clustering\-::\-Density\-::nearest\-\_\-neighbors}
+
+Definition at line 187 of file density\-\_\-clustering\-\_\-mpi.\-cpp.
+

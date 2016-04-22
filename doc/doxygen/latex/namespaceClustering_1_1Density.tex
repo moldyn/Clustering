@@ -1,0 +1,311 @@
+\hypertarget{namespaceClustering_1_1Density}{\section{Clustering\-:\-:Density Namespace Reference}
+\label{namespaceClustering_1_1Density}\index{Clustering\-::\-Density@{Clustering\-::\-Density}}
+}
+
+
+namespace for density-\/based clustering functions  
+
+
+\subsection*{Namespaces}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{namespaceClustering_1_1Density_1_1MPI}{M\-P\-I}
+\begin{DoxyCompactList}\small\item\em M\-P\-I implementations of compute intensive functions. \end{DoxyCompactList}\item 
+\hyperlink{namespaceClustering_1_1Density_1_1OpenCL}{Open\-C\-L}
+\begin{DoxyCompactList}\small\item\em Open\-C\-L implementations of compute intensive functions. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \hyperlink{namespaceClustering_1_1Density_structClustering_1_1Density_1_1BoxGrid}{Box\-Grid}
+\end{DoxyCompactItemize}
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}{using \hyperlink{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}{Free\-Energy} = std\-::pair$<$ std\-::size\-\_\-t, float $>$}\label{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}
+
+\begin{DoxyCompactList}\small\item\em matches frame id to free energy \end{DoxyCompactList}\item 
+\hypertarget{namespaceClustering_1_1Density_ac3c667ff26944b877f55b8a20deb2ce7}{using \hyperlink{namespaceClustering_1_1Density_ac3c667ff26944b877f55b8a20deb2ce7}{Neighbor} = \hyperlink{namespaceClustering_1_1Tools_a63a5e933e8b64deefbb1128bbbdc3dd1}{Clustering\-::\-Tools\-::\-Neighbor}}\label{namespaceClustering_1_1Density_ac3c667ff26944b877f55b8a20deb2ce7}
+
+\begin{DoxyCompactList}\small\item\em matches neighbor's frame id to distance \end{DoxyCompactList}\item 
+\hypertarget{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{using \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} = \hyperlink{namespaceClustering_1_1Tools_ad2b6f4886446247db27ece196d76575c}{Clustering\-::\-Tools\-::\-Neighborhood}}\label{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}
+
+\begin{DoxyCompactList}\small\item\em map frame id to neighbors \end{DoxyCompactList}\item 
+\hypertarget{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{using \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box} = std\-::array$<$ int, 2 $>$}\label{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}
+
+\begin{DoxyCompactList}\small\item\em encodes 2\-D box for box-\/assisted search algorithm \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{namespaceClustering_1_1Density_structClustering_1_1Density_1_1BoxGrid}{Box\-Grid} \hyperlink{namespaceClustering_1_1Density_a07a6658238b06f32df2b108fcfa9d438}{compute\-\_\-box\-\_\-grid} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const float radius)
+\item 
+constexpr \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box} \hyperlink{namespaceClustering_1_1Density_a448fe4bc43047910281875c4e0e78b13}{neighbor\-\_\-box} (const \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box} center, const int i\-\_\-neighbor)
+\item 
+bool \hyperlink{namespaceClustering_1_1Density_ae39916e623a97a8aabf26b37cb81ab37}{is\-\_\-valid\-\_\-box} (const \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box} box, const \hyperlink{namespaceClustering_1_1Density_structClustering_1_1Density_1_1BoxGrid}{Box\-Grid} \&grid)
+\item 
+\hypertarget{namespaceClustering_1_1Density_a70bfcb6c8250fb6db892e765380c5957}{std\-::vector$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_a70bfcb6c8250fb6db892e765380c5957}{calculate\-\_\-populations} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const float radius)}\label{namespaceClustering_1_1Density_a70bfcb6c8250fb6db892e765380c5957}
+
+\begin{DoxyCompactList}\small\item\em calculate population of n-\/dimensional hypersphere per frame for one fixed radius. \end{DoxyCompactList}\item 
+std\-::map$<$ float, std\-::vector\\*
+$<$ std\-::size\-\_\-t $>$ $>$ \hyperlink{namespaceClustering_1_1Density_a1a709df0601b34b713d3fbb4a79e937c}{calculate\-\_\-populations} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, std\-::vector$<$ float $>$ radii)
+\item 
+std\-::vector$<$ float $>$ \hyperlink{namespaceClustering_1_1Density_a9bc67a1fd0cfb678507e7f6eea991a48}{calculate\-\_\-free\-\_\-energies} (const std\-::vector$<$ std\-::size\-\_\-t $>$ \&pops)
+\item 
+std\-::vector$<$ \hyperlink{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}{Free\-Energy} $>$ \hyperlink{namespaceClustering_1_1Density_ab6c5ac7778d09db1fbd759e35338c7a4}{sorted\-\_\-free\-\_\-energies} (const std\-::vector$<$ float $>$ \&fe)
+\item 
+std\-::tuple$<$ \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood}, \\*
+\hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} $>$ \hyperlink{namespaceClustering_1_1Density_a2ad6788d0b10b1560092a19394319e5c}{nearest\-\_\-neighbors} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$ float $>$ \&free\-\_\-energy)
+\item 
+std\-::set$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_ae9451b462c1ce38ac2a5fb5da6538282}{high\-\_\-density\-\_\-neighborhood} (const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$ \hyperlink{namespaceClustering_1_1Density_af77cfa169766fdc136b680121101496d}{Free\-Energy} $>$ \&sorted\-\_\-fe, const std\-::size\-\_\-t i\-\_\-frame, const std\-::size\-\_\-t limit, const float max\-\_\-dist)
+\item 
+double \hyperlink{namespaceClustering_1_1Density_a92ef0c61760425c1c8ad5341d89b76a3}{compute\-\_\-sigma2} (const \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} \&nh)
+\item 
+std\-::vector$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_a96ffa5e84e38620f39293be0486e8ef9}{assign\-\_\-low\-\_\-density\-\_\-frames} (const std\-::vector$<$ std\-::size\-\_\-t $>$ \&initial\-\_\-clustering, const \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} \&nh\-\_\-high\-\_\-dens, const std\-::vector$<$ float $>$ \&free\-\_\-energy)
+\item 
+void \hyperlink{namespaceClustering_1_1Density_ad7b2bae0fb60829edfba6b2ef3b1e5b2}{main} (boost\-::program\-\_\-options\-::variables\-\_\-map args)
+\item 
+std\-::vector$<$ std\-::size\-\_\-t $>$ \hyperlink{namespaceClustering_1_1Density_ad32c63c74da476d94d8e12813d45e750}{initial\-\_\-density\-\_\-clustering} (const std\-::vector$<$ float $>$ \&free\-\_\-energy, const \hyperlink{namespaceClustering_1_1Density_a23a99ccebc9d9cf5c9df6af14559d539}{Neighborhood} \&nh, const float free\-\_\-energy\-\_\-threshold, const float $\ast$coords, const std\-::size\-\_\-t n\-\_\-rows, const std\-::size\-\_\-t n\-\_\-cols, const std\-::vector$<$ std\-::size\-\_\-t $>$ initial\-\_\-clusters)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+constexpr int \hyperlink{namespaceClustering_1_1Density_ab8f90ad24e04bd119fe67c47dee26bf9}{B\-O\-X\-\_\-\-D\-I\-F\-F} \mbox{[}9\mbox{]}\mbox{[}2\mbox{]}
+\item 
+\hypertarget{namespaceClustering_1_1Density_a9100d8226a5b20341fad7a6a281842c4}{const int \hyperlink{namespaceClustering_1_1Density_a9100d8226a5b20341fad7a6a281842c4}{N\-\_\-\-N\-E\-I\-G\-H\-B\-O\-R\-\_\-\-B\-O\-X\-E\-S} = 9}\label{namespaceClustering_1_1Density_a9100d8226a5b20341fad7a6a281842c4}
+
+\begin{DoxyCompactList}\small\item\em number of neigbor boxes in 2\-D grid (including center box). \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+namespace for density-\/based clustering functions 
+
+\subsection{Class Documentation}
+\index{Clustering\-::\-Density\-::\-Box\-Grid@{Clustering\-::\-Density\-::\-Box\-Grid}}\label{structClustering_1_1Density_1_1BoxGrid}
+\hypertarget{namespaceClustering_1_1Density_structClustering_1_1Density_1_1BoxGrid}{}
+\subsubsection{struct Clustering\-:\-:Density\-:\-:Box\-Grid}
+the full grid constructed for boxed-\/assisted nearest neighbor search with fixed distance criterion. 
+
+Definition at line 75 of file density\-\_\-clustering.\-hpp.
+
+\begin{DoxyFields}{Class Members}
+\hypertarget{namespaceClustering_1_1Density_afa7485c170c0de1020d9e0a2ae1c0887}{vector$<$ \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box} $>$}\label{namespaceClustering_1_1Density_afa7485c170c0de1020d9e0a2ae1c0887}
+&
+assigned\-\_\-box&
+matching frame id to the frame's assigned box \\
+\hline
+
+\hypertarget{namespaceClustering_1_1Density_adc569c320ff9120fe361fb1398c692bb}{map$<$ \hyperlink{namespaceClustering_1_1Density_a0ffd1a27b8195eaf74276ea91ef920ad}{Box}, vector$<$ int $>$ $>$}\label{namespaceClustering_1_1Density_adc569c320ff9120fe361fb1398c692bb}
+&
+boxes&
+the boxes with a list of assigned frame ids \\
+\hline
+
+\hypertarget{namespaceClustering_1_1Density_ac1f5ab2e679acbdec2e9d08a2a353059}{vector$<$ int $>$}\label{namespaceClustering_1_1Density_ac1f5ab2e679acbdec2e9d08a2a353059}
+&
+n\-\_\-boxes&
+total number of boxes \\
+\hline
+
+\end{DoxyFields}
+
+
+\subsection{Function Documentation}
+\hypertarget{namespaceClustering_1_1Density_a96ffa5e84e38620f39293be0486e8ef9}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!assign\-\_\-low\-\_\-density\-\_\-frames@{assign\-\_\-low\-\_\-density\-\_\-frames}}
+\index{assign\-\_\-low\-\_\-density\-\_\-frames@{assign\-\_\-low\-\_\-density\-\_\-frames}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{assign\-\_\-low\-\_\-density\-\_\-frames}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ std\-::size\-\_\-t $>$ Clustering\-::\-Density\-::assign\-\_\-low\-\_\-density\-\_\-frames (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ std\-::size\-\_\-t $>$ \&}]{initial\-\_\-clustering, }
+\item[{const {\bf Neighborhood} \&}]{nh\-\_\-high\-\_\-dens, }
+\item[{const std\-::vector$<$ float $>$ \&}]{free\-\_\-energy}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a96ffa5e84e38620f39293be0486e8ef9}
+given an initial clustering computed from free energy cutoff screenings, assign all yet unclustered frames (those in 'state 0') to their geometrically next cluster. do this by starting at the lowest free energy of unassigned frames, then assigning the next lowest, etc. thus, all initial clusters will be filled with growing free energy, effectively producing microstates separated close to the free energy barriers. 
+
+Definition at line 326 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a9bc67a1fd0cfb678507e7f6eea991a48}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!calculate\-\_\-free\-\_\-energies@{calculate\-\_\-free\-\_\-energies}}
+\index{calculate\-\_\-free\-\_\-energies@{calculate\-\_\-free\-\_\-energies}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{calculate\-\_\-free\-\_\-energies}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ float $>$ Clustering\-::\-Density\-::calculate\-\_\-free\-\_\-energies (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ std\-::size\-\_\-t $>$ \&}]{pops}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a9bc67a1fd0cfb678507e7f6eea991a48}
+re-\/use populations to calculate local free energy estimate via \$ G = -\/k\-\_\-\-B T \textbackslash{}ln(\-P)\$. 
+
+Definition at line 194 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a1a709df0601b34b713d3fbb4a79e937c}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!calculate\-\_\-populations@{calculate\-\_\-populations}}
+\index{calculate\-\_\-populations@{calculate\-\_\-populations}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{calculate\-\_\-populations}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$ float, std\-::vector$<$ std\-::size\-\_\-t $>$ $>$ Clustering\-::\-Density\-::calculate\-\_\-populations (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ float $>$}]{radii}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a1a709df0601b34b713d3fbb4a79e937c}
+calculate populations of n-\/dimensional hypersphere per frame for different radii in one go. computationally much more efficient than running single-\/radius version for every radius. 
+
+Definition at line 124 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a07a6658238b06f32df2b108fcfa9d438}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!compute\-\_\-box\-\_\-grid@{compute\-\_\-box\-\_\-grid}}
+\index{compute\-\_\-box\-\_\-grid@{compute\-\_\-box\-\_\-grid}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{compute\-\_\-box\-\_\-grid}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Box\-Grid} Clustering\-::\-Density\-::compute\-\_\-box\-\_\-grid (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const float}]{radius}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a07a6658238b06f32df2b108fcfa9d438}
+uses fixed radius to separate coordinate space in equally sized boxes for box-\/assisted nearest neighbor search. 
+
+Definition at line 39 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a92ef0c61760425c1c8ad5341d89b76a3}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!compute\-\_\-sigma2@{compute\-\_\-sigma2}}
+\index{compute\-\_\-sigma2@{compute\-\_\-sigma2}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{compute\-\_\-sigma2}]{\setlength{\rightskip}{0pt plus 5cm}double Clustering\-::\-Density\-::compute\-\_\-sigma2 (
+\begin{DoxyParamCaption}
+\item[{const {\bf Neighborhood} \&}]{nh}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a92ef0c61760425c1c8ad5341d89b76a3}
+compute sigma2 as deviation of squared nearest-\/neighbor distances. sigma2 is given by E\mbox{[}x$^\wedge$2\mbox{]} $>$ Var(x) = E\mbox{[}x$^\wedge$2\mbox{]} -\/ E\mbox{[}x\mbox{]}$^\wedge$2, with x being the distances between nearest neighbors). 
+
+Definition at line 315 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_ae9451b462c1ce38ac2a5fb5da6538282}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!high\-\_\-density\-\_\-neighborhood@{high\-\_\-density\-\_\-neighborhood}}
+\index{high\-\_\-density\-\_\-neighborhood@{high\-\_\-density\-\_\-neighborhood}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{high\-\_\-density\-\_\-neighborhood}]{\setlength{\rightskip}{0pt plus 5cm}std\-::set$<$ std\-::size\-\_\-t $>$ Clustering\-::\-Density\-::high\-\_\-density\-\_\-neighborhood (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ Free\-Energy $>$ \&}]{sorted\-\_\-fe, }
+\item[{const std\-::size\-\_\-t}]{i\-\_\-frame, }
+\item[{const std\-::size\-\_\-t}]{limit, }
+\item[{const float}]{max\-\_\-dist}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_ae9451b462c1ce38ac2a5fb5da6538282}
+compute local neighborhood of a given frame. neighbor candidates are all frames below a given limit, effectively limiting the frames to the ones below a free energy cutoff. 
+
+Definition at line 274 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_ad32c63c74da476d94d8e12813d45e750}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!initial\-\_\-density\-\_\-clustering@{initial\-\_\-density\-\_\-clustering}}
+\index{initial\-\_\-density\-\_\-clustering@{initial\-\_\-density\-\_\-clustering}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{initial\-\_\-density\-\_\-clustering}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ std\-::size\-\_\-t $>$ Clustering\-::\-Density\-::initial\-\_\-density\-\_\-clustering (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ float $>$ \&}]{free\-\_\-energy, }
+\item[{const Neighborhood \&}]{nh, }
+\item[{const float}]{free\-\_\-energy\-\_\-threshold, }
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ std\-::size\-\_\-t $>$}]{initial\-\_\-clusters}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_ad32c63c74da476d94d8e12813d45e750}
+returns state trajectory for clusters given by a free energy threshold. frames with a local free energy estimate higher than the given threshold will not be clustered and remain in 'state 0'. 
+
+Definition at line 37 of file density\-\_\-clustering\-\_\-common.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_ae39916e623a97a8aabf26b37cb81ab37}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!is\-\_\-valid\-\_\-box@{is\-\_\-valid\-\_\-box}}
+\index{is\-\_\-valid\-\_\-box@{is\-\_\-valid\-\_\-box}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{is\-\_\-valid\-\_\-box}]{\setlength{\rightskip}{0pt plus 5cm}bool Clustering\-::\-Density\-::is\-\_\-valid\-\_\-box (
+\begin{DoxyParamCaption}
+\item[{const Box}]{box, }
+\item[{const Box\-Grid \&}]{grid}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_ae39916e623a97a8aabf26b37cb81ab37}
+returns true, if the box is a valid box in the grid. return false, if the box is outside of the grid. 
+
+Definition at line 95 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_ad7b2bae0fb60829edfba6b2ef3b1e5b2}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!main@{main}}
+\index{main@{main}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{main}]{\setlength{\rightskip}{0pt plus 5cm}void Clustering\-::\-Density\-::main (
+\begin{DoxyParamCaption}
+\item[{boost\-::program\-\_\-options\-::variables\-\_\-map}]{args}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_ad7b2bae0fb60829edfba6b2ef3b1e5b2}
+user interface and controlling function for density-\/based geometric clustering.\par
+\par
+{\itshape parsed parameters}\-:\par
+
+\begin{DoxyItemize}
+\item {\bfseries file} \-: input file with coordinates\par
+
+\item {\bfseries free-\/energy-\/input}\-: previously computed free energies (input)\par
+
+\item {\bfseries free-\/energy}\-: computed free energies (output)\par
+
+\item {\bfseries population}\-: computed populations (output)\par
+
+\item {\bfseries output}\-: clustered trajectory\par
+
+\item {\bfseries radii}\-: list of radii for free energy / population computations (input)\par
+
+\item {\bfseries radius}\-: radius for clustering (input)\par
+
+\item {\bfseries nearest-\/neighbors-\/input}\-: previously computed nearest neighbor list (input)\par
+
+\item {\bfseries nearest-\/neighbors}\-: nearest neighbor list (output)\par
+
+\item {\bfseries threshold-\/screening}\-: option for automated free energy threshold screening (input)\par
+
+\item {\bfseries threshold}\-: threshold for single run with limited free energy (input)\par
+
+\item {\bfseries only-\/initial}\-: if true, do not fill microstates up to barriers, but keep initial clusters below free energy cutoff (bool flag) 
+\end{DoxyItemize}
+
+Definition at line 344 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a2ad6788d0b10b1560092a19394319e5c}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!nearest\-\_\-neighbors@{nearest\-\_\-neighbors}}
+\index{nearest\-\_\-neighbors@{nearest\-\_\-neighbors}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{nearest\-\_\-neighbors}]{\setlength{\rightskip}{0pt plus 5cm}std\-::tuple$<$ {\bf Neighborhood}, {\bf Neighborhood} $>$ Clustering\-::\-Density\-::nearest\-\_\-neighbors (
+\begin{DoxyParamCaption}
+\item[{const float $\ast$}]{coords, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-rows, }
+\item[{const std\-::size\-\_\-t}]{n\-\_\-cols, }
+\item[{const std\-::vector$<$ float $>$ \&}]{free\-\_\-energy}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a2ad6788d0b10b1560092a19394319e5c}
+for every frame\-: compute the nearest neighbor (first tuple field) and the nearest neighbor with lower free energy, i.\-e. higher density (second tuple field). 
+
+Definition at line 220 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_a448fe4bc43047910281875c4e0e78b13}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!neighbor\-\_\-box@{neighbor\-\_\-box}}
+\index{neighbor\-\_\-box@{neighbor\-\_\-box}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{neighbor\-\_\-box}]{\setlength{\rightskip}{0pt plus 5cm}constexpr {\bf Box} Clustering\-::\-Density\-::neighbor\-\_\-box (
+\begin{DoxyParamCaption}
+\item[{const Box}]{center, }
+\item[{const int}]{i\-\_\-neighbor}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_a448fe4bc43047910281875c4e0e78b13}
+returns neighbor box given by neighbor index (in 3\-D\-: 27 different neighbors, including center itself) and the given center box. 
+
+Definition at line 89 of file density\-\_\-clustering.\-cpp.
+
+\hypertarget{namespaceClustering_1_1Density_ab6c5ac7778d09db1fbd759e35338c7a4}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!sorted\-\_\-free\-\_\-energies@{sorted\-\_\-free\-\_\-energies}}
+\index{sorted\-\_\-free\-\_\-energies@{sorted\-\_\-free\-\_\-energies}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{sorted\-\_\-free\-\_\-energies}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ {\bf Free\-Energy} $>$ Clustering\-::\-Density\-::sorted\-\_\-free\-\_\-energies (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ float $>$ \&}]{fe}
+\end{DoxyParamCaption}
+)}}\label{namespaceClustering_1_1Density_ab6c5ac7778d09db1fbd759e35338c7a4}
+returns the given free energies sorted lowest to highest. original indices are retained. 
+
+Definition at line 207 of file density\-\_\-clustering.\-cpp.
+
+
+
+\subsection{Variable Documentation}
+\hypertarget{namespaceClustering_1_1Density_ab8f90ad24e04bd119fe67c47dee26bf9}{\index{Clustering\-::\-Density@{Clustering\-::\-Density}!B\-O\-X\-\_\-\-D\-I\-F\-F@{B\-O\-X\-\_\-\-D\-I\-F\-F}}
+\index{B\-O\-X\-\_\-\-D\-I\-F\-F@{B\-O\-X\-\_\-\-D\-I\-F\-F}!Clustering::Density@{Clustering\-::\-Density}}
+\subsubsection[{B\-O\-X\-\_\-\-D\-I\-F\-F}]{\setlength{\rightskip}{0pt plus 5cm}constexpr int Clustering\-::\-Density\-::\-B\-O\-X\-\_\-\-D\-I\-F\-F\mbox{[}9\mbox{]}\mbox{[}2\mbox{]}}}\label{namespaceClustering_1_1Density_ab8f90ad24e04bd119fe67c47dee26bf9}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+= \{\{-1, 1\}, \{ 0, 1\}, \{ 1, 1\}
+                                  , \{-1, 0\}, \{ 0, 0\}, \{ 1, 0\}
+                                  , \{-1,-1\}, \{ 0,-1\}, \{ 1,-1\}\}
+\end{DoxyCode}
+encodes box differences in 2\-D, i.\-e. if you are at the center box, the 9 different tuples hold the steppings to the 9 spacial neighbors (including the center box itself). 
+
+Definition at line 54 of file density\-\_\-clustering.\-hpp.
+

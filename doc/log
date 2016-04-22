@@ -1,0 +1,105 @@
+/u1/fs172/devel/Clustering/network_builder.cpp:62: warning: Compound anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/clustering.cpp:54: warning: Member main(int argc, char *argv[]) (function) of file clustering.cpp is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:80: warning: Member fuzzy_equal(float a, float b, float prec) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:86: warning: Member operator<<(std::ostream &os, const Node &n) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:182: warning: Member save_network_links(std::string fname, std::map< std::size_t, std::size_t > network) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:197: warning: Member save_node_info(std::string fname, std::map< std::size_t, float > free_energies, std::map< std::size_t, std::size_t > pops) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:214: warning: Member compute_and_save_leaves(std::string fname, std::map< std::size_t, std::size_t > network) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:242: warning: Member save_traj_of_leaves(std::string fname, std::set< std::size_t > leaves, float d_min, float d_max, float d_step, std::string remapped_name, std::size_t n_rows) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:273: warning: Member save_network_to_html(std::string fname, std::map< std::size_t, std::size_t > network, std::map< std::size_t, float > free_energies, std::map< std::size_t, std::size_t > pops) (function) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:46: warning: Member HORIZONTAL_SPACING (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:47: warning: Member VERTICAL_SPACING (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:56: warning: Member POP_MIN (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:57: warning: Member POP_MAX (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:58: warning: Member FE_MIN (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:59: warning: Member FE_MAX (variable) of namespace anonymous_namespace{network_builder.cpp} is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:72: warning: Member Node(std::size_t _id, float _fe, std::size_t _pop) (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:73: warning: Member find_parent_of(std::size_t search_id) (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:74: warning: Member set_pos(int x, int y) (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:75: warning: Member subtree_width() (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:76: warning: Member print_subtree(std::ostream &os) (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:77: warning: Member print_node_and_subtree(std::ostream &os) (function) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:63: warning: Member id (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:64: warning: Member fe (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:65: warning: Member pop (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:66: warning: Member children (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:67: warning: Member pos_x (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:68: warning: Member pos_y (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/network_builder.cpp:69: warning: Member _subtree_width (variable) of class anonymous_namespace{network_builder.cpp}::Node is not documented.
+/u1/fs172/devel/Clustering/state_filter.cpp:37: warning: Member io_error(std::string fname) (function) of namespace anonymous_namespace{state_filter.cpp} is not documented.
+/u1/fs172/devel/Clustering/logger.cpp:30: warning: Member devnull(0) (function) of namespace Clustering is not documented.
+/u1/fs172/devel/Clustering/logger.hpp:34: warning: parameters of member Clustering::logger are not (all) documented
+/u1/fs172/devel/Clustering/logger.hpp:34: warning: return type of member Clustering::logger is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:143: warning: parameters of member Clustering::Density::assign_low_density_frames are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:143: warning: return type of member Clustering::Density::assign_low_density_frames is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:114: warning: Found unknown command `\Delta'
+/u1/fs172/devel/Clustering/density_clustering.hpp:113: warning: parameters of member Clustering::Density::calculate_free_energies are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:113: warning: return type of member Clustering::Density::calculate_free_energies is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:105: warning: parameters of member Clustering::Density::calculate_populations are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:105: warning: return type of member Clustering::Density::calculate_populations is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:87: warning: parameters of member Clustering::Density::compute_box_grid are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:87: warning: return type of member Clustering::Density::compute_box_grid is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:138: warning: parameters of member Clustering::Density::compute_sigma2 are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:138: warning: return type of member Clustering::Density::compute_sigma2 is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:128: warning: parameters of member Clustering::Density::high_density_neighborhood are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:128: warning: return type of member Clustering::Density::high_density_neighborhood is not documented
+/u1/fs172/devel/Clustering/density_clustering_common.hpp:38: warning: parameters of member Clustering::Density::initial_density_clustering are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_common.hpp:38: warning: return type of member Clustering::Density::initial_density_clustering is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:94: warning: parameters of member Clustering::Density::is_valid_box are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:94: warning: return type of member Clustering::Density::is_valid_box is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:153: warning: parameters of member Clustering::Density::main are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:121: warning: parameters of member Clustering::Density::nearest_neighbors are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:121: warning: return type of member Clustering::Density::nearest_neighbors is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:83: warning: parameters of member Clustering::Density::neighbor_box are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:83: warning: return type of member Clustering::Density::neighbor_box is not documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:117: warning: parameters of member Clustering::Density::sorted_free_energies are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering.hpp:117: warning: return type of member Clustering::Density::sorted_free_energies is not documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:42: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:40: warning: parameters of member Clustering::Density::MPI::calculate_populations are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:40: warning: return type of member Clustering::Density::MPI::calculate_populations is not documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:51: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:49: warning: parameters of member Clustering::Density::MPI::calculate_populations are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:49: warning: return type of member Clustering::Density::MPI::calculate_populations is not documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:69: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:67: warning: parameters of member Clustering::Density::MPI::high_density_neighborhood are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:67: warning: return type of member Clustering::Density::MPI::high_density_neighborhood is not documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:80: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:78: warning: parameters of member Clustering::Density::MPI::main are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:60: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:58: warning: parameters of member Clustering::Density::MPI::nearest_neighbors are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.hpp:58: warning: return type of member Clustering::Density::MPI::nearest_neighbors is not documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.cpp:41: warning: parameters of member Clustering::Density::MPI::anonymous_namespace{density_clustering_mpi.cpp}::triangular_load_balance are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_mpi.cpp:41: warning: return type of member Clustering::Density::MPI::anonymous_namespace{density_clustering_mpi.cpp}::triangular_load_balance is not documented
+/u1/fs172/devel/Clustering/density_clustering_opencl.hpp:43: warning: Unexpected end of comment while inside link command
+
+/u1/fs172/devel/Clustering/density_clustering_opencl.hpp:39: warning: parameters of member Clustering::Density::OpenCL::calculate_populations are not (all) documented
+/u1/fs172/devel/Clustering/density_clustering_opencl.hpp:39: warning: return type of member Clustering::Density::OpenCL::calculate_populations is not documented
+/u1/fs172/devel/Clustering/state_filter.hpp:33: warning: parameters of member Clustering::Filter::main are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:81: warning: parameters of member Clustering::MPP::lumped_trajectory are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:81: warning: return type of member Clustering::MPP::lumped_trajectory is not documented
+/u1/fs172/devel/Clustering/mpp.hpp:94: warning: parameters of member Clustering::MPP::main are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:66: warning: parameters of member Clustering::MPP::microstate_min_free_energy are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:66: warning: return type of member Clustering::MPP::microstate_min_free_energy is not documented
+/u1/fs172/devel/Clustering/mpp.hpp:59: warning: parameters of member Clustering::MPP::most_probable_path are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:59: warning: return type of member Clustering::MPP::most_probable_path is not documented
+/u1/fs172/devel/Clustering/mpp.hpp:71: warning: parameters of member Clustering::MPP::path_sinks are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:71: warning: return type of member Clustering::MPP::path_sinks is not documented
+/u1/fs172/devel/Clustering/mpp.hpp:52: warning: parameters of member Clustering::MPP::single_step_future_state are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:52: warning: return type of member Clustering::MPP::single_step_future_state is not documented
+/u1/fs172/devel/Clustering/mpp.hpp:45: warning: parameters of member Clustering::MPP::transition_counts are not (all) documented
+/u1/fs172/devel/Clustering/mpp.hpp:45: warning: return type of member Clustering::MPP::transition_counts is not documented
+/u1/fs172/devel/Clustering/network_builder.hpp:36: warning: parameters of member Clustering::NetworkBuilder::main are not (all) documented
+/u1/fs172/devel/Clustering/tools.hpp:96: warning: parameters of member Clustering::Tools::read_coords are not (all) documented
+/u1/fs172/devel/Clustering/tools.hpp:96: warning: return type of member Clustering::Tools::read_coords is not documented
+/u1/fs172/devel/Clustering/tools.hpp:83: warning: parameters of member Clustering::Tools::read_neighborhood are not (all) documented
+/u1/fs172/devel/Clustering/tools.hpp:83: warning: return type of member Clustering::Tools::read_neighborhood is not documented
+/u1/fs172/devel/Clustering/tools.hpp:87: warning: parameters of member Clustering::Tools::write_neighborhood are not (all) documented
+/u1/fs172/devel/Clustering/README.md:109: warning: Unsupported xml/html tag <OPTION> found
+/u1/fs172/devel/Clustering/README.md:110: warning: Unsupported xml/html tag <OPTION> found
+/u1/fs172/devel/Clustering/README.md:109: warning: Unsupported xml/html tag <OPTION> found
+/u1/fs172/devel/Clustering/README.md:110: warning: Unsupported xml/html tag <OPTION> found
