@@ -145,7 +145,6 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("nearest-neighbor-input,B", b_po::value<std::string>()->required(), "input (required): nearest neighbors.")
     ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")

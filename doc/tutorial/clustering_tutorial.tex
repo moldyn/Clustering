@@ -428,6 +428,8 @@ the according basin center.
 \begin{mdframed}[innertopmargin=20pt]
   Again, since we can reuse free energy and neighborhood information, above
   command is not compute intensive and finishes in short time.
+  For our example, it produces a state trajectory 'microstates' with 45
+  distinct microstates.
 \end{mdframed}
 
 
@@ -457,8 +459,7 @@ To run MPP, use the command
 \begin{lstlisting}
   clustering mpp -i microstates
                    -D fe
-                   -B nn
-                   -l 50
+                   -l 25
                    -v
 \end{lstlisting}
 
@@ -479,8 +480,20 @@ single state. All states with a stability less then the given
 $Q_\text{min}$-value will be lumped according to their most probable state-path.
 
 Let's assume from now on that the clustering resolution of choice is given at
-a metastability of 0.98. Thus, the clustered trajectory is in the file
-mpp\_traj\_0.98.
+a metastability of 0.80. Thus, the clustered trajectory is in the file
+mpp\_traj\_0.80.
+
+
+\begin{mdframed}[innertopmargin=20pt]
+  Again, above command is not compute intensive and finishes in short time.
+  The given Aib9 data set was sampled at a rate of 1 frame per 0.2 ps.
+  Interesting dynamics already happen at a timescale of about 5 ps, thus we
+  choose a lagtime of 25 (since $\left(5 \cdot 5\right) \cdot 0.2$ ps $ = 5$ ps).
+  At a metastability of 0.80, we can distinguish between 8 macrostates.
+\end{mdframed}
+
+
+
 
 
 \section{Variable dynamic coring for state boundary corrections}
@@ -503,7 +516,7 @@ The reasoning follows the same logic as before with the cluster radii.
 
 To produce waiting time distribution for different coring windows, write a
 {\ttfamily win} file with the content
-\begin{lstlisting}[language=bash,basicstyle=\ttfamily]
+\begin{lstlisting}
   * WINDOW_SIZE
 \end{lstlisting}
 where {\ttfamily WINDOW\_SIZE} is the window size given as number of frames.
@@ -511,7 +524,7 @@ The star means, that we treat all states with the same window size.
 
 Then run the command
 \begin{lstlisting}
-  clustering coring -s mpp_traj_0.98
+  clustering coring -s mpp_traj_0.80
                       -w win
                       -d wtd
                       -v
@@ -521,10 +534,16 @@ This produces several files of the format {\ttfamily wtd\_STATE\_WINDOW}.
 Repeat this process several times for different choices of window size in the
 {\ttfamily win} file.
 
+After the generation of the waiting time distribution files, plot them (e.g.
+with gnuplot) and select the window size that shows an exponential decay.
+The idea is very similar to the previous step of plotting the populations
+for different hypersphere radii. In this case, however, we need to repeat the
+step for the different macrostates separately.
+
 When you have selected proper windows sizes for all states, rewrite your
-{\ttfamily win} file to reflect these. For the three different states 1, 2
+{\ttfamily win} file to reflect these. For three different states 1, 2
 \& 3, e.g. you could write
-\begin{lstlisting}[basicstyle=\ttfamily]
+\begin{lstlisting}
   1 100
   2 200
   3 75
@@ -534,11 +553,17 @@ frames for state 3.
 
 Finally, to produce the cored cluster trajectory, run
 \begin{lstlisting}
-  clustering coring -s mpp_traj_0.98
+  clustering coring -s mpp_traj_0.80
                       -w win
                       -o clustered_traj
                       -v
 \end{lstlisting}
+
+\begin{mdframed}[innertopmargin=20pt]
+  Coring is quite fast and the last command should produce a result in seconds
+  on a modern computer.
+\end{mdframed}
+
 
 \bibliographystyle{plain}
 \bibliography{ref}
