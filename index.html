@@ -19,8 +19,8 @@
  <p>Robust and stable clustering of molecular dynamics simulation trajectories.</p>
  <p class="view"><a href="https://github.com/lettis/Clustering">View the Project on GitHub <small>lettis/Clustering</small></a></p>
  <ul>
- <li><a href="https://github.com/lettis/Clustering/archive/v0.11.zip">Download v0.11<strong>ZIP File</strong></a></li>
- <li><a href="https://github.com/lettis/Clustering/archive/v0.11.tar.gz">Download v0.11<strong>TAR Ball</strong></a></li>
+ <li><a href="https://github.com/lettis/Clustering/archive/v0.12.zip">Download v0.12<strong>ZIP File</strong></a></li>
+ <li><a href="https://github.com/lettis/Clustering/archive/v0.12.tar.gz">Download v0.12<strong>TAR Ball</strong></a></li>
  <li><a href="https://github.com/lettis/Clustering">View On <strong>GitHub</strong></a></li>
  </ul>
 </header>
@@ -36,9 +36,17 @@ The essential functions are:</p>
 <p>Additionally, the package includes tools to efficiently filter original coordinates or order parameters based on a discrete state definition
 to identify representative structures and variables of clusters.</p>
 
-<p>Computationally demanding functions are parallelized in a hybrid model using OpenMP for SMP parallelization on a single node (multithreading)
-and MPI over different cluster nodes. MPI support, however, is optional and for a modern computer with a high number of fast cores or
-even multiple CPUs, OpenMP parallelization is sufficiently fast.</p>
+<p>Computationally demanding functions are parallelized using OpenMP.</p>
+
+
+<h1>
+<a id="documentation" class="anchor" href="#citations" aria-hidden="true"><span class="octicon octicon-link"></span></a>Documentation</h1>
+<p>All options are well documented and may be viewed by 'clustering -h'.</p>
+
+<p>The 'doc' directory includes an extensive tutorial which describes all technical details in performing a complete clustering run from trajectory to markov state model.</p>
+
+<p>The source code itself is additionally documented via doxygen. Run 'make doc' in the build directory (see below for installation intructions) to compile the source code documentation in html.</p>
+
 
 <h1>
 <a id="citations" class="anchor" href="#citations" aria-hidden="true"><span class="octicon octicon-link"></span></a>Citations</h1>
@@ -48,8 +56,8 @@ even multiple CPUs, OpenMP parallelization is sufficiently fast.</p>
 <ul>
 <li>A. Jain and G. Stock, <em>Hierarchical folding free energy landscape of HP35 revealed by most probable path clustering</em>,
 J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: 10.1021/jp410398a</li>
-<li>F. Sittel and G. Stock, <em>Robust Density-Based Clustering to Identify Metastable Conformational States of Proteins</em>
-(<strong>unpublished draft title</strong>; please re-check <a href="http://www.moldyn.uni-freiburg.de/publications/Publikationen.html">our group website</a> for the published article)</li>
+<li>F. Sittel and G. Stock, <em>Robust Density-Based Clustering to Identify Metastable Conformational States of Proteins</em>,
+Chem. Theory Comput., Article ASAP; DOI: 10.1021/acs.jctc.5b01233</li>
 </ul>
 
 <p>We kindly ask you to cite these articles if you use this software package for published works.</p>
@@ -100,7 +108,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 <p>optional:</p>
 </li>
 <li>doxygen (to build the API docs)</li>
-<li>MPI (for parallelized execution on clusters)</li>
 </ul>
 
 <h2>
@@ -175,17 +182,6 @@ need to set the vectorization option above, even if you use this option).</p>
 
 <p>Unfortunately, the resulting binary will most likely run only on the computer it was compiled on - do <strong>not</strong> use this option if you want
 to distribute the binary, e.g. on a cluster.</p>
-
-<h3>
-<a id="mpi" class="anchor" href="#mpi" aria-hidden="true"><span class="octicon octicon-link"></span></a>MPI</h3>
-
-<p>For MPI support, build your binary with the additional cmake-flag -DDC_USE_MPI=ON.
-Invoke the <em>clustering_mpi</em> binary in the following way to run on several nodes with local multithreading via OpenMP:</p>
-
-<p># /usr/bin/mpirun -n N_NODES -bind-to-core -bynode -cpus-per-proc N_THREADS_PER_NODE -report-bindings  \
-clustering_mpi density -f COORDS_FILE -r RADIUS -p POPS_OUT -d FE_OUT -n N_THREADS_PER_NODE</p>
-
-
 
 
 <h1>
