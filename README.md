@@ -29,7 +29,7 @@ The underlying methods are based on the following articles:
     J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: 10.1021/jp410398a
   - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
     Metastable Conformational States of Proteins*,
-    J. Chem. Theory Comput., Just Accepted Manuscript; DOI: 10.1021/acs.jctc.5b01233
+    J. Chem. Theory Comput., Article ASAP; DOI: 10.1021/acs.jctc.5b01233
 
 We kindly ask you to cite these articles if you use this software package for
 published works.
