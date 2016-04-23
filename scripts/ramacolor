@@ -90,16 +90,16 @@ def plot_state_differences(classification_tuples, export_img=None):
   n_states = len(state_names)
   # compute diff. img
   diff_img = []
-  for i_res in xrange(n_residues):
+  for i_res in range(n_residues):
     diff_img.append([])
     i_state1 = 0
-    for i_state2 in xrange(i_state1, n_states):
+    for i_state2 in range(i_state1, n_states):
       if i_state1 != i_state2:
         diff_img[-1].append(np.abs(img_data[i_res][i_state1] - img_data[i_res][i_state2]))
   # state labels
   x_ticks_names = []
   i_state1 = 0
-  for i_state2 in xrange(i_state1, n_states):
+  for i_state2 in range(i_state1, n_states):
     if i_state1 != i_state2:
       x_ticks_names.append("(%s, %s)" % (state_names[i_state1], state_names[i_state2]))
   n_states = len(x_ticks_names)
@@ -130,7 +130,7 @@ def compute_state_classification(filename_dih, filename_states, selected_states=
   if not selected_states:
     selected_states = np.unique(states)
   dih = open(filename_dih, 'r')
-  n_res = len(dih.readline().split()) / 2
+  n_res = int(len(dih.readline().split()) / 2)
   # reset file to first line
   dih.seek(0)
   img = {}
@@ -138,24 +138,24 @@ def compute_state_classification(filename_dih, filename_states, selected_states=
   for state in selected_states:
     n_state_elems[state] = 0
     img[state] = []
-    for i in xrange(n_res):
+    for i in range(n_res):
       img[state].append(np.array([0, 0, 0], dtype=float))
   # parse dihedrals and accumulate colors for the different states
   for state in states:
     dih_frame = np.array([float(f) for f in dih.readline().split()], dtype=float)
     if state in selected_states:
       n_state_elems[state] += 1
-      for i_res in xrange(n_res):
+      for i_res in range(n_res):
         img[state][i_res] += rama2rgb(dih_frame[2*i_res], dih_frame[2*i_res+1])
   # normalize color code
   for state in selected_states:
-    for i_res in xrange(n_res):
+    for i_res in range(n_res):
       img[state][i_res] /= n_state_elems[state]
   # transform img to numpy array
   n_states = len(selected_states)
   img_array = [x[:] for x in [[0]*n_states]*n_res]
-  for i_res in xrange(n_res):
-    for i_state in xrange(n_states):
+  for i_res in range(n_res):
+    for i_state in range(n_states):
       img_array[i_res][i_state] = img[selected_states[i_state]][i_res]
   return img_array, [str(k) for k in selected_states], n_res
 
@@ -216,18 +216,18 @@ if __name__ == "__main__":
       sys.exit(1)
     classification_tuple = compute_state_classification(args.dihedrals, args.states, selected_states)
     if args.store:
-      pickle.dump(classification_tuple, open(args.store, 'w'))
+      pickle.dump(classification_tuple, open(args.store, 'wb'))
     else:
       plot_state_classification([classification_tuple], export_img=args.export_img)
   elif args.load:
     classifications = []
     for fname in args.load:
-      classifications.append(pickle.load(open(fname, 'r')))
+      classifications.append(pickle.load(open(fname, 'rb')))
     plot_state_classification(classifications, export_img=args.export_img)
   elif args.difference:
     classifications = []
     for fname in args.difference:
-      classifications.append(pickle.load(open(fname, 'r')))
+      classifications.append(pickle.load(open(fname, 'rb')))
     plot_state_differences(classifications, export_img=args.export_img)
   else:
     parser.print_help()
