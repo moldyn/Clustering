@@ -83,14 +83,40 @@ else()
 endif()
 
 
-## OpenCL was never fully supported.
-## The OpenCL code included in this project was
-## for testing purposes only.
 
-#if (USE_OPENCL)
-#  message(SEND_ERROR "OpenCL support is not yet fully implemented. Sorry.")
-#endif(USE_OPENCL)
+configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
+include_directories(${CMAKE_BINARY_DIR}/generated/)
 
+find_package (Boost 1.49 COMPONENTS program_options system filesystem REQUIRED)
+include_directories (${Boost_INCLUDE_DIR})
+
+add_subdirectory(coords_file)
+
+
+set(CLUSTERING_SRCS clustering.cpp
+                    density_clustering.cpp
+                    density_clustering_common.cpp
+                    mpp.cpp
+                    network_builder.cpp
+                    state_filter.cpp
+                    coring.cpp
+                    tools.cpp
+                    logger.cpp)
+
+set(CLUSTERING_LIBS ${Boost_LIBRARIES} coords_file)
+
+if(${USE_CUDA})
+  message(STATUS "using CUDA")
+  find_package(CUDA REQUIRED)
+  set(CUDA_PROPAGATE_HOST_FLAGS OFF)
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE")
+
+  #set (CLUSTERING_SRCS ${CLUSTERING_SRC} densities_cuda.cu)
+
+  set (CLUSTERING_LIBS ${CLUSTERING_LIBS} ${CUDA_LIBRARIES})
+  include_directories (${CUDA_INCLUDE_DIRS})
+  add_definitions(-DUSE_CUDA)
+endif()
 
 ## MPI has a small, systematic error in density computation.
 ## Actually negligable, but deactivated nevertheless.
@@ -106,51 +132,35 @@ endif()
 #  endif()
 #endif()
 
-configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
-include_directories(${CMAKE_BINARY_DIR}/generated/)
-
-
-find_package (Boost 1.49 COMPONENTS program_options system filesystem REQUIRED)
-include_directories (${Boost_INCLUDE_DIR})
-
-add_subdirectory(coords_file)
-
-set(CLUSTERING_SRCS clustering.cpp
-                    density_clustering.cpp
-                    density_clustering_common.cpp
-                    mpp.cpp
-                    network_builder.cpp
-                    state_filter.cpp
-                    coring.cpp
-                    tools.cpp
-                    logger.cpp)
-
 #if(USE_MPI)
 #  include_directories("${MPI_CXX_INCLUDE_PATH}")
 #  add_executable(clustering_mpi ${CLUSTERING_SRCS} density_clustering_mpi.cpp)
 #  target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES} coords_file)
 #  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_mpi)
-#elseif(USE_OPENCL)
-#  include_directories(${OPENCL_INCLUDE_DIRS})
-#  include_directories(${CMAKE_SOURCE_DIR})
-#  add_executable(clustering_gpu ${CLUSTERING_SRCS} density_clustering_opencl.cpp)
-#  target_link_libraries(clustering_gpu ${Boost_LIBRARIES} coords_file)
-#  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_gpu)
 #else()
-  add_executable(clustering ${CLUSTERING_SRCS})
-  target_link_libraries(clustering ${Boost_LIBRARIES} coords_file)
-  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering)
-#endif()
+
+set (PROGNAME clustering)
+
+
+if (${USE_CUDA})
+  set (PROGNAME ${PROGNAME}.cuda)
+  cuda_add_executable(${PROGNAME} ${CLUSTERING_SRCS})
+else()
+  add_executable(${PROGNAME} ${CLUSTERING_SRCS})
+endif()
+
+target_link_libraries(${PROGNAME} ${CLUSTERING_LIBS})
+
 
 # set -static, when STATIC_LINKING is TRUE and set LINK_SEARCH_END_STATIC
 # to remove the additional -bdynamic from the linker line.
 if(STATIC_LINKING)
     set(CMAKE_EXE_LINKER_FLAGS "-static")
-    set_target_properties(clustering PROPERTIES LINK_SEARCH_END_STATIC 1)
+    set_target_properties(${PROGNAME} PROPERTIES LINK_SEARCH_END_STATIC 1)
 endif(STATIC_LINKING)
 
 
-install(TARGETS ${CLUSTERING_BINARIES} RUNTIME DESTINATION .)
+install(TARGETS ${PROGNAME} RUNTIME DESTINATION .)
 
 # create source-doc with doxygen
 add_custom_target(doc
