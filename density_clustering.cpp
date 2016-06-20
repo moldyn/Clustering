@@ -149,10 +149,11 @@ namespace Clustering {
       Box center;
       int i_neighbor;
       std::vector<int> box_buffer;
-      #pragma omp parallel for default(none) private(i,box,box_buffer,center,i_neighbor,ib,dist,j,k,l,c) \
-                               firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES) \
-                               shared(coords,pops,grid) \
-                               schedule(dynamic,1024)
+      #pragma omp parallel for default(none)\
+        private(i,box,box_buffer,center,i_neighbor,ib,dist,j,k,l,c)\
+        firstprivate(n_rows,n_cols,n_radii,radii,rad2,N_NEIGHBOR_BOXES)\
+        shared(coords,pops,grid)\
+        schedule(dynamic,1024)
       for (i=0; i < n_rows; ++i) {
         center = grid.assigned_box[i];
         // loop over surrounding boxes to find neighbor candidates
@@ -194,9 +195,13 @@ namespace Clustering {
     calculate_free_energies(const std::vector<std::size_t>& pops) {
       std::size_t i;
       const std::size_t n_frames = pops.size();
-      const float max_pop = (float) ( * std::max_element(pops.begin(), pops.end()));
+      const float max_pop = (float) (*std::max_element(pops.begin()
+                                                     , pops.end()));
       std::vector<float> fe(n_frames);
-      #pragma omp parallel for default(none) private(i) firstprivate(max_pop, n_frames) shared(fe, pops)
+      #pragma omp parallel for default(none)\
+                               private(i)\
+                               firstprivate(max_pop, n_frames)\
+                               shared(fe, pops)
       for (i=0; i < n_frames; ++i) {
         fe[i] = (float) -1 * log(pops[i]/max_pop);
       }
@@ -209,10 +214,13 @@ namespace Clustering {
       for (std::size_t i=0; i < fe.size(); ++i) {
         fe_sorted.push_back(FreeEnergy(i, fe[i]));
       }
-      // sort for free energy: lowest to highest (low free energy = high density)
+      // sort for free energy: lowest to highest
+      // (low free energy = high density)
       std::sort(fe_sorted.begin(),
                 fe_sorted.end(),
-                [] (const FreeEnergy& d1, const FreeEnergy& d2) -> bool {return d1.second < d2.second;});
+                [] (const FreeEnergy& d1, const FreeEnergy& d2) -> bool {
+                  return d1.second < d2.second;
+                });
       return fe_sorted;
     }
   
@@ -225,18 +233,20 @@ namespace Clustering {
       Neighborhood nh_high_dens;
       // initialize neighborhood
       for (std::size_t i=0; i < n_rows; ++i) {
-        nh[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
-        nh_high_dens[i] = Neighbor(n_rows+1, std::numeric_limits<float>::max());
+        nh[i] = Neighbor(n_rows+1
+                       , std::numeric_limits<float>::max());
+        nh_high_dens[i] = Neighbor(n_rows+1
+                                 , std::numeric_limits<float>::max());
       }
       // calculate nearest neighbors with distances
       std::size_t i, j, c, min_j, min_j_high_dens;
       float dist, d, mindist, mindist_high_dens;
       ASSUME_ALIGNED(coords);
       #pragma omp parallel for default(none) \
-                      private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens) \
-                      firstprivate(n_rows,n_cols) \
-                      shared(coords,nh,nh_high_dens,free_energy) \
-                      schedule(dynamic, 2048)
+        private(i,j,c,dist,d,mindist,mindist_high_dens,min_j,min_j_high_dens)\
+        firstprivate(n_rows,n_cols) \
+        shared(coords,nh,nh_high_dens,free_energy) \
+        schedule(dynamic, 2048)
       for (i=0; i < n_rows; ++i) {
         mindist = std::numeric_limits<float>::max();
         mindist_high_dens = std::numeric_limits<float>::max();
@@ -256,14 +266,17 @@ namespace Clustering {
               min_j = j;
             }
             // next neighbor with higher density / lower free energy
-            if (free_energy[j] < free_energy[i] && dist < mindist_high_dens) {
+            if (free_energy[j] < free_energy[i]
+             && dist < mindist_high_dens) {
               mindist_high_dens = dist;
               min_j_high_dens = j;
             }
           }
         }
-        nh[i] = Neighbor(min_j, mindist);
-        nh_high_dens[i] = Neighbor(min_j_high_dens, mindist_high_dens);
+        nh[i] = Neighbor(min_j
+                       , mindist);
+        nh_high_dens[i] = Neighbor(min_j_high_dens
+                                 , mindist_high_dens);
       }
       return std::make_tuple(nh, nh_high_dens);
     }
@@ -285,9 +298,10 @@ namespace Clustering {
       const std::size_t i_frame_sorted = sorted_fe[i_frame].first * n_cols;
       float d,dist2;
       ASSUME_ALIGNED(coords);
-      #pragma omp parallel for default(none) private(j,c,d,dist2) \
-                               firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols) \
-                               shared(coords,sorted_fe,frame_in_nh)
+      #pragma omp parallel for default(none)\
+        private(j,c,d,dist2)\
+        firstprivate(i_frame,i_frame_sorted,limit,max_dist,n_cols)\
+        shared(coords,sorted_fe,frame_in_nh)
       for (j=0; j < limit; ++j) {
         if (i_frame != j) {
           dist2 = 0.0f;
