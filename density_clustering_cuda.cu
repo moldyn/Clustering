@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <cuda.h>
+#include <omp.h>
 
 
 #define WGSIZE 128
@@ -67,10 +68,14 @@ namespace CUDA {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
       exit(EXIT_FAILURE);
     }
-
-    //TODO separate n_rows into equal chunks
-    //TODO run chunks on different GPUs
+    int gpu_range = n_rows / n_gpus;
+    //TODO OMP threads
+    for (int i=0; i < n_gpus; ++i) {
+      //TODO separate n_rows into equal chunks
+      //TODO run chunks on different GPUs
+    }
     //TODO combine pops
+
 
     return pops;
   }
