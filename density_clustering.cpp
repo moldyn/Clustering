@@ -27,8 +27,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "logger.hpp"
 #include "density_clustering.hpp"
 #include "density_clustering_common.hpp"
-#ifdef DC_USE_OPENCL
-  #include "density_clustering_opencl.hpp"
+#ifdef USE_CUDA
+  #include "density_clustering_cuda.hpp"
 #endif
 
 #include <algorithm>
@@ -107,12 +107,12 @@ namespace Clustering {
                           const std::size_t n_cols,
                           const float radius) {
       std::vector<float> radii = {radius};
-#ifdef DC_USE_OPENCL
+#ifdef USE_CUDA
       std::map<float, std::vector<std::size_t>> pop_map =
-        Clustering::Density::OpenCL::calculate_populations(coords
-                                                         , n_rows
-                                                         , n_cols
-                                                         , radii);
+        Clustering::Density::CUDA::calculate_populations(coords
+                                                       , n_rows
+                                                       , n_cols
+                                                       , radii);
 #else
       std::map<float, std::vector<std::size_t>> pop_map =
         calculate_populations(coords, n_rows, n_cols, radii);

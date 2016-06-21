@@ -105,6 +105,26 @@ namespace Tools {
   template <typename NUM>
   void
   free_coords(NUM* coords);
+  //! return std::vector with coords sorted along first dimension.
+  //! uses col-based addressing (col*n_rows+row).
+  template <typename NUM>
+  std::vector<NUM>
+  dim1_sorted_coords(const NUM* coords
+                   , std::size_t n_rows
+                   , std::size_t n_cols);
+  //! separate into equally sized boxes and return min values of
+  //! first dimension for given box.
+  template <typename NUM>
+  std::vector<NUM>
+  boxlimits(const std::vector<NUM>& xs
+          , std::size_t boxsize
+          , std::size_t n_dim);
+  //! return indices of min and max boxes around value for given radius.
+  template <typename NUM>
+  std::pair<std::size_t, std::size_t>
+  min_max_box(const std::vector<NUM>& limits
+            , NUM val
+            , NUM radius);
   //! printf-version for std::string
   std::string
   stringprintf(const std::string& str, ...);

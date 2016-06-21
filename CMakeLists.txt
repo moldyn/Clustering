@@ -111,7 +111,7 @@ if(${USE_CUDA})
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE")
 
-  #set (CLUSTERING_SRCS ${CLUSTERING_SRC} densities_cuda.cu)
+  set (CLUSTERING_SRCS ${CLUSTERING_SRCS} density_clustering_cuda.cu)
 
   set (CLUSTERING_LIBS ${CLUSTERING_LIBS} ${CUDA_LIBRARIES})
   include_directories (${CUDA_INCLUDE_DIRS})
