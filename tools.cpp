@@ -30,6 +30,12 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace Clustering {
 namespace Tools {
 
+unsigned int
+min_multiplicator(unsigned int orig
+                , unsigned int mult) {
+  return (unsigned int) std::ceil(orig / ((float) mult));
+};
+
 void
 write_fes(std::string fname, std::vector<float> fes) {
   std::ofstream ofs(fname);

@@ -125,6 +125,10 @@ namespace Tools {
   min_max_box(const std::vector<NUM>& limits
             , NUM val
             , NUM radius);
+  //! return minimum multiplicator to fulfill result * mult >= orig
+  unsigned int
+  min_multiplicator(unsigned int orig
+                  , unsigned int mult);
   //! printf-version for std::string
   std::string
   stringprintf(const std::string& str, ...);
