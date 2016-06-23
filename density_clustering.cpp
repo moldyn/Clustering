@@ -382,10 +382,16 @@ namespace Clustering {
             exit(EXIT_FAILURE);
           }
           std::vector<float> radii = args["radii"].as<std::vector<float>>();
-#ifdef DC_USE_OPENCL
-          std::map<float, std::vector<std::size_t>> pops = Clustering::Density::OpenCL::calculate_populations(coords, n_rows, n_cols, radii);
+#ifdef USE_CUDA
+          Pops pops = Clustering::Density::CUDA::calculate_populations(coords
+                                                                     , n_rows
+                                                                     , n_cols
+                                                                     , radii);
 #else
-          std::map<float, std::vector<std::size_t>> pops = calculate_populations(coords, n_rows, n_cols, radii);
+          Pops pops = calculate_populations(coords
+                                          , n_rows
+                                          , n_cols
+                                          , radii);
 #endif
           for (auto radius_pops: pops) {
             if (args.count("population")) {

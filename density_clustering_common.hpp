@@ -34,7 +34,10 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 namespace Clustering {
-  namespace Density {
+namespace Density {
+    //              radius  ->   pops
+    typedef std::map<float, std::vector<std::size_t>> Pops;
+
     //! returns state trajectory for clusters given by a free energy threshold.
     //! frames with a local free energy estimate higher than the given threshold
     //! will not be clustered and remain in 'state 0'.
@@ -51,6 +54,5 @@ namespace Clustering {
                              , const int mpi_node_id
 #endif
                                );
-  } // end namespace Density
-} // end namespace Clustering
+}} // end namespace Clustering::Density
 

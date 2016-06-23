@@ -18,7 +18,8 @@ namespace Density {
 namespace CUDA {
 
   __global__ void
-  in_radius(float* coords
+  in_radius(unsigned int offset
+          , float* coords
           , float* coords_ref
           , unsigned int n_rows
           , unsigned int n_cols
@@ -34,7 +35,7 @@ namespace CUDA {
     if (gid < n_rows) {
       // compute rad2
       for (j=0; j < n_cols; ++j) {
-        c = coords_ref[j] - coords[j*n_rows + gid];
+        c = coords_ref[j] - coords[j*n_rows + gid + offset];
         rad2 = fma(c, c, rad2);
       }
       // write results: 1.0 if in radius, 0.0 if not
@@ -47,9 +48,6 @@ namespace CUDA {
       }
     }
   }
-
-  //              radius  ->   pops
-  typedef std::map<float, std::vector<std::size_t>> Pops;
 
   Pops
   calculate_populations_partial(const float* coords
@@ -64,16 +62,13 @@ namespace CUDA {
     unsigned int n_rows_ext = Tools::min_multiplicator(n_rows, BSIZE) * BSIZE;
     unsigned int n_radii = radii.size();
     // make sure radii are in descending order
-    std::sort(radii.begin()
-            , radii.end()
-            , [](float lhs, float rhs) -> bool {
-                return lhs > rhs;
-              });
+    std::sort(radii.begin(), radii.end(), std::greater<float>());
     // setup device & streams
+std::cerr << "running on GPU " << i_gpu << std::endl; 
     cudaSetDevice(i_gpu);
     cudaStream_t streams[N_STREAMS];
     for (unsigned int s=0; s < N_STREAMS; ++s) {
-      cudaStreamCreate(&streams[i]);
+      cudaStreamCreate(&streams[s]);
     }
     // copy coords to device
     float* d_sorted_coords;
@@ -115,12 +110,17 @@ namespace CUDA {
         coords_ref[j] = coords[j*n_rows+i];
       }
       unsigned int i_stream = i % N_STREAMS;
+      //  initialize d_in_radius to 0 -> per default not in hypersphere
+      cudaMemset(d_in_radius[i_stream]
+               , 0.0f
+               , sizeof(float) * n_rows * n_radii);
+      // set reference coordinates on GPU
       cudaMemcpy(d_coords_ref[i_stream]
                , coords_ref.data()
                , sizeof(float) * n_cols
                , cudaMemcpyHostToDevice);
       // prune range for faster computation
-      auto min_max_box = Tools::Clustering::min_max_box(blimits
+      auto min_max_box = Clustering::Tools::min_max_box(blimits
                                                       , coords_ref[0]
                                                       , radii[0]);
       unsigned int offset = min_max_box.first * BSIZE;
@@ -130,21 +130,22 @@ namespace CUDA {
                   , 0
                   , streams[i_stream] >>> (offset
                                          , d_sorted_coords
-                                         , d_coords_ref
+                                         , d_coords_ref[i_stream]
                                          , n_rows
                                          , n_cols
                                          , d_radii2
                                          , n_radii
-                                         , d_in_radius);
+                                         , d_in_radius[i_stream]);
       // compute pops per radius
       for (unsigned int r=0; r < n_radii; ++r) {
         // pops stored col-wise -> just set an offset ...
         offset = r*n_rows;
+        //TODO stupid: don't run over all rows for reduction, use boxlimits!
         reduce_sum<BSIZE> <<< n_rows_ext
                             , BSIZE
                             , 0
                             , streams[i_stream] >>> (offset
-                                                   , d_in_radius
+                                                   , d_in_radius[i_stream]
                                                    , n_rows
                                                    , d_pops
                                                    , r*n_rows + i);
@@ -160,9 +161,10 @@ namespace CUDA {
     // sort tmp_pops into pops
     Pops pops;
     for (unsigned int j=0; j < n_radii; ++j) {
-      pops[radii[j]].resize(n_rows);
-      for (unsigned int i=0; i < n_rows; ++i) {
+      pops[radii[j]].resize(n_rows, 0);
+      for (unsigned int i=i_from; i < i_to; ++i) {
         pops[radii[j]][i] = tmp_pops[j*n_rows+i];
+      }
     }
     cudaFree(d_sorted_coords);
     cudaFree(d_radii2);
@@ -180,10 +182,6 @@ namespace CUDA {
                       , const std::size_t n_cols
                       , std::vector<float> radii) {
     ASSUME_ALIGNED(coords);
-    using namespace Clustering::Tools;
-    for (float rad: radii) {
-      pops[rad].resize(n_rows, 1);
-    }
     std::sort(radii.begin(), radii.end(), std::greater<float>());
     std::size_t n_radii = radii.size();
     std::vector<float> rad2(n_radii);
@@ -191,13 +189,13 @@ namespace CUDA {
       rad2[i] = radii[i]*radii[i];
     }
     // sort coordinates on first dimension for neighbor pruning
-    std::vector<float> sorted_coords = dim1_sorted_coords(coords
-                                                        , n_rows
-                                                        , n_cols);
+    std::vector<float> sorted_coords = Clustering::Tools::dim1_sorted_coords(coords
+                                                                           , n_rows
+                                                                           , n_cols);
     // box limits for pruning
-    std::vector<float> blimits = Tools::boxlimits(sorted_coords
-                                                , BSIZE
-                                                , n_cols);
+    std::vector<float> blimits = Clustering::Tools::boxlimits(sorted_coords
+                                                            , BSIZE
+                                                            , n_cols);
     int n_gpus;
     cudaGetDeviceCount(&n_gpus);
     if (n_gpus == 0) {
@@ -207,11 +205,13 @@ namespace CUDA {
     int gpu_range = n_rows / n_gpus;
     int i,j;
     std::vector<Pops> partial_pops(n_gpus);
+
+std::cerr << "n_gpus: " << n_gpus << std::endl;
+
     #pragma omp parallel for default(none)\
                              private(i)\
                              firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
-                             shared(radii,coords,sorted_coords)\
-                             num_threads(n_gpus)
+                             shared(radii,coords,sorted_coords)
     for (i=0; i < n_gpus; ++i) {
       // compute partial populations in parallel
       // on all available GPUs
