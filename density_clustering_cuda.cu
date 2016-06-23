@@ -63,6 +63,12 @@ namespace CUDA {
                               , int i_gpu) {
     unsigned int n_rows_ext = Tools::min_multiplicator(n_rows, BSIZE) * BSIZE;
     unsigned int n_radii = radii.size();
+    // make sure radii are in descending order
+    std::sort(radii.begin()
+            , radii.end()
+            , [](float lhs, float rhs) -> bool {
+                return lhs > rhs;
+              });
     // setup device & streams
     cudaSetDevice(i_gpu);
     cudaStream_t streams[N_STREAMS];
@@ -81,11 +87,12 @@ namespace CUDA {
     float* d_radii2;
     cudaMalloc((void**) &d_radii2
              , sizeof(float) * n_radii);
-    for (float& r: radii) {
+    std::vector<float> radii2(radii);
+    for (float& r: radii2) {
       r *= r;
     }
     cudaMemcpy(d_radii2
-             , radii.data()
+             , radii2.data()
              , sizeof(float) * n_radii
              , cudaMemcpyHostToDevice);
     // tmp buffer for in/out info & reference coords (per stream)
@@ -112,7 +119,12 @@ namespace CUDA {
                , coords_ref.data()
                , sizeof(float) * n_cols
                , cudaMemcpyHostToDevice);
-      //TODO honor boxlimits (-> rng & offset)
+      // prune range for faster computation
+      auto min_max_box = Tools::Clustering::min_max_box(blimits
+                                                      , coords_ref[0]
+                                                      , radii[0]);
+      unsigned int offset = min_max_box.first * BSIZE;
+      unsigned int rng = (min_max_box.second-min_max_box.first+1) * BSIZE;
       in_radius <<< rng
                   , BSIZE
                   , 0
@@ -124,10 +136,11 @@ namespace CUDA {
                                          , d_radii2
                                          , n_radii
                                          , d_in_radius);
-      // compute pops / radius
+      // compute pops per radius
       for (unsigned int r=0; r < n_radii; ++r) {
-        //TODO define range / offset
-        reduce_sum<BSIZE> <<< rng
+        // pops stored col-wise -> just set an offset ...
+        offset = r*n_rows;
+        reduce_sum<BSIZE> <<< n_rows_ext
                             , BSIZE
                             , 0
                             , streams[i_stream] >>> (offset
@@ -144,9 +157,13 @@ namespace CUDA {
              , d_pops
              , sizeof(float) * n_rows * n_radii
              , cudaMemcpyDeviceToHost);
-
-    //TODO sort tmp_pops into pops
-
+    // sort tmp_pops into pops
+    Pops pops;
+    for (unsigned int j=0; j < n_radii; ++j) {
+      pops[radii[j]].resize(n_rows);
+      for (unsigned int i=0; i < n_rows; ++i) {
+        pops[radii[j]][i] = tmp_pops[j*n_rows+i];
+    }
     cudaFree(d_sorted_coords);
     cudaFree(d_radii2);
     cudaFree(d_pops);
@@ -154,6 +171,7 @@ namespace CUDA {
       cudaFree(d_in_radius[s]);
       cudaFree(d_coords_ref[s]);
     }
+    return pops;
   }
 
   Pops
