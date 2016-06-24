@@ -114,6 +114,7 @@ std::vector<NUM>
 dim1_sorted_coords(const NUM* coords
                  , std::size_t n_rows
                  , std::size_t n_cols) {
+//TODO check row vs col oriented coords
   std::vector<NUM> sorted_coords(n_rows*n_cols);
   if (n_cols == 1) {
     // directly sort on data if just one column

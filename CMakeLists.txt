@@ -35,6 +35,8 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   message("using Gnu compiler")
   # use C++ 2011 standard
   set (CMAKE_CXX_FLAGS "-std=c++11")
+  # profiling
+  #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
   # optimization
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftree-vectorize")
@@ -109,7 +111,7 @@ if(${USE_CUDA})
   message(STATUS "using CUDA")
   find_package(CUDA REQUIRED)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE;-Xcompiler -fopenmp")
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE")
 
   set (CLUSTERING_SRCS ${CLUSTERING_SRCS} density_clustering_cuda.cu)
 
