@@ -106,7 +106,7 @@ namespace Tools {
   void
   free_coords(NUM* coords);
   //! return std::vector with coords sorted along first dimension.
-  //! uses col-based addressing (col*n_rows+row).
+  //! uses row-based addressing (row*n_cols+col).
   template <typename NUM>
   std::vector<NUM>
   dim1_sorted_coords(const NUM* coords
@@ -114,11 +114,13 @@ namespace Tools {
                    , std::size_t n_cols);
   //! separate into equally sized boxes and return min values of
   //! first dimension for given box.
+  //! used for pruning in CUDA-accelerated code.
   template <typename NUM>
   std::vector<NUM>
   boxlimits(const std::vector<NUM>& xs
           , std::size_t boxsize
-          , std::size_t n_dim);
+          , std::size_t n_rows
+          , std::size_t n_cols);
   //! return indices of min and max boxes around value for given radius.
   template <typename NUM>
   std::pair<std::size_t, std::size_t>

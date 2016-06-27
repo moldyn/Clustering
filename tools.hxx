@@ -114,7 +114,6 @@ std::vector<NUM>
 dim1_sorted_coords(const NUM* coords
                  , std::size_t n_rows
                  , std::size_t n_cols) {
-//TODO check row vs col oriented coords
   std::vector<NUM> sorted_coords(n_rows*n_cols);
   if (n_cols == 1) {
     // directly sort on data if just one column
@@ -127,7 +126,7 @@ dim1_sorted_coords(const NUM* coords
                                       , std::vector<float>(n_cols));
     for (std::size_t i=0; i < n_rows; ++i) {
       for (std::size_t j=0; j < n_cols; ++j) {
-        c_tmp[i][j] = coords[j*n_rows+i];
+        c_tmp[i][j] = coords[i*n_cols+j];
       }
     }
     // sort on first index
@@ -140,7 +139,7 @@ dim1_sorted_coords(const NUM* coords
     // feed sorted data into 1D-array
     for (std::size_t i=0; i < n_rows; ++i) {
       for (std::size_t j=0; j < n_cols; ++j) {
-        sorted_coords[j*n_rows+i] = c_tmp[i][j];
+        sorted_coords[i*n_cols+j] = c_tmp[i][j];
       }
     }
   }
@@ -151,17 +150,18 @@ template <typename NUM>
 std::vector<NUM>
 boxlimits(const std::vector<NUM>& xs
         , std::size_t boxsize
-        , std::size_t n_dim) {
-  std::size_t n_xs = xs.size() / n_dim;
-  std::size_t n_boxes = n_xs / boxsize;
-  if (n_boxes * boxsize < n_xs) {
+        , std::size_t n_rows
+        , std::size_t n_cols) {
+  //std::size_t n_xs = xs.size() / n_dim;
+  std::size_t n_boxes = n_rows / boxsize;
+  if (n_boxes * boxsize < n_rows) {
     ++n_boxes;
   }
   std::vector<NUM> boxlimits(n_boxes);
   for (std::size_t i=0; i < n_boxes; ++i) {
     // split into boxes on 1st dimension
     // (i.e. col-index == 0)
-    boxlimits[i] = xs[i*boxsize];
+    boxlimits[i] = xs[i*boxsize*n_cols];
   }
   return boxlimits;
 }

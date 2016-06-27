@@ -42,24 +42,21 @@ namespace CUDA {
     float c;
     float dist2 = 0.0f;
     unsigned int j,r;
-if (gid == 0) {
-  for (j=0; j < n_cols; ++j){
-    printf("### %f\n", sorted_coords[j*n_rows+i_ref]);
-  }
-}
     if (gid+offset < n_rows) {
       // compute squared dist
       for (j=0; j < n_cols; ++j) {
-        c = coords[j*n_rows+i_ref] - sorted_coords[j*n_rows + gid + offset];
-        dist2 = fma(c, c, dist2);
+        c = coords[i_ref*n_cols+j] - sorted_coords[(gid + offset)*n_cols+j];
+//        dist2 = fma(c, c, dist2);
+        dist2 += c*c;
       }
       // write results: 1.0 if in radius, 0.0 if not
       for (r=0; r < n_radii; ++r) {
-//TODO
         if (dist2 <= radii2[j]) {
           in_radius[r*n_rows + gid] = dist2;
+//          in_radius[r*n_rows + gid] = 1.0f;
         } else {
-          in_radius[r*n_rows + gid] = dist2;
+          in_radius[r*n_rows + gid] = -dist2;
+//          in_radius[r*n_rows + gid] = 0.0f;
         }
       }
     }
@@ -76,13 +73,6 @@ if (gid == 0) {
                               , std::size_t i_to
                               , int i_gpu) {
     ASSUME_ALIGNED(coords);
-
-    for (int ii=0; ii < n_cols; ++ii) {
-      std::cerr << "@ " << coords[ii*n_rows] << std::endl;
-      std::cerr << "@s " << sorted_coords[ii*n_rows] << std::endl;
-    }
-
-
     unsigned int n_rows_ext = Tools::min_multiplicator(n_rows, BSIZE) * BSIZE;
     unsigned int n_radii = radii.size();
     // make sure radii are in descending order
@@ -142,18 +132,11 @@ if (gid == 0) {
                , sizeof(float) * n_rows * n_radii);
       // prune range for faster computation
       // (using largest radius in first dimension)
-//      auto min_max_box = Clustering::Tools::min_max_box(blimits
-//                                                      , coords[i]
-//                                                      , radii[0]);
-//
-//      unsigned int offset = min_max_box.first * BSIZE;
-//      unsigned int rng = (min_max_box.second-min_max_box.first+1);
-
-
-      //TODO
-      unsigned int offset = 0;
-      unsigned int rng = n_rows_ext/BSIZE;
-
+      auto min_max_box = Clustering::Tools::min_max_box(blimits
+                                                      , coords[i*n_cols]
+                                                      , radii[0]);
+      unsigned int offset = min_max_box.first * BSIZE;
+      unsigned int rng = (min_max_box.second-min_max_box.first+1);
       in_radius <<< rng
                   , BSIZE
                   , 0
@@ -168,7 +151,7 @@ if (gid == 0) {
                                          , d_in_radius[i_stream]);
       //TODO
       check_error();
-
+//TODO debugging
       cudaDeviceSynchronize();
       if (i == 0) {
         std::vector<float> tmp_in_rad(n_radii*n_rows);
@@ -177,15 +160,14 @@ if (gid == 0) {
                  , sizeof(float) * n_rows * n_radii
                  , cudaMemcpyDeviceToHost);
         for (auto f: tmp_in_rad) {
-          std::cout << f << std::endl;
+          if (f < 0) {
+            std::cout << "# " << -1.0 * f << std::endl;
+          } else {
+            std::cout << "@  " << f << std::endl;
+          }
         }
         exit(EXIT_FAILURE);
       }
-
-
-
-
-
       // compute pops per radius
       for (unsigned int r=0; r < n_radii; ++r) {
         // pops stored col-wise -> just set an offset ...
@@ -232,14 +214,9 @@ if (gid == 0) {
                       , const std::size_t n_rows
                       , const std::size_t n_cols
                       , std::vector<float> radii) {
-//    ASSUME_ALIGNED(coords);
-    for (int ii=0; ii < n_cols; ++ii) {
-      std::cerr << "@@ " << coords[ii*n_rows] << std::endl;
-    }
-
-
-
-
+    using Clustering::Tools::dim1_sorted_coords;
+    using Clustering::Tools::boxlimits;
+    ASSUME_ALIGNED(coords);
     std::sort(radii.begin(), radii.end(), std::greater<float>());
     std::size_t n_radii = radii.size();
     std::vector<float> rad2(n_radii);
@@ -247,32 +224,31 @@ if (gid == 0) {
       rad2[i] = radii[i]*radii[i];
     }
     // sort coordinates on first dimension for neighbor pruning
-    std::vector<float> sorted_coords = Clustering::Tools::dim1_sorted_coords(coords
-                                                                           , n_rows
-                                                                           , n_cols);
+    std::vector<float> sorted_coords = dim1_sorted_coords(coords
+                                                        , n_rows
+                                                        , n_cols);
     // box limits for pruning
-    std::vector<float> blimits = Clustering::Tools::boxlimits(sorted_coords
-                                                            , BSIZE
-                                                            , n_cols);
+    std::vector<float> blimits = boxlimits(sorted_coords
+                                         , BSIZE
+                                         , n_rows
+                                         , n_cols);
     int n_gpus;
     cudaGetDeviceCount(&n_gpus);
+//TODO
+    n_gpus = 1;
+
     if (n_gpus == 0) {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
       exit(EXIT_FAILURE);
     }
-
-//TODO
-    n_gpus = 1;
-
-
     int gpu_range = n_rows / n_gpus;
     int i;
     std::vector<Pops> partial_pops(n_gpus);
     #pragma omp parallel for default(none)\
-                             private(i)\
-                             firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
-                             shared(partial_pops,radii,coords,sorted_coords,blimits)\
-                             num_threads(1)
+      private(i)\
+      firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
+      shared(partial_pops,radii,coords,sorted_coords,blimits)\
+      num_threads(n_gpus)
     for (i=0; i < n_gpus; ++i) {
       // compute partial populations in parallel
       // on all available GPUs
