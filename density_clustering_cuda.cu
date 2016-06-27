@@ -11,7 +11,7 @@
 
 
 #define BSIZE 128
-#define N_STREAMS 1
+#define N_STREAMS 2
 
 namespace Clustering {
 namespace Density {
@@ -46,17 +46,20 @@ namespace CUDA {
       // compute squared dist
       for (j=0; j < n_cols; ++j) {
         c = coords[i_ref*n_cols+j] - sorted_coords[(gid + offset)*n_cols+j];
-//        dist2 = fma(c, c, dist2);
-        dist2 += c*c;
+//TODO: is there a difference?
+        dist2 = fma(c, c, dist2);
+//        dist2 += c*c;
       }
       // write results: 1.0 if in radius, 0.0 if not
       for (r=0; r < n_radii; ++r) {
-        if (dist2 <= radii2[j]) {
-          in_radius[r*n_rows + gid] = dist2;
-//          in_radius[r*n_rows + gid] = 1.0f;
+        if (dist2 <= radii2[r]) {
+//          in_radius[r*n_rows + gid] = dist2;
+          in_radius[r*n_rows + gid] = 1.0f;
+//printf("%f < %f\n", dist2, radii2[r]);
         } else {
-          in_radius[r*n_rows + gid] = -dist2;
-//          in_radius[r*n_rows + gid] = 0.0f;
+//          in_radius[r*n_rows + gid] = -dist2;
+          in_radius[r*n_rows + gid] = 0.0f;
+//printf("%f > %f\n", dist2, radii2[r]);
         }
       }
     }
@@ -73,7 +76,6 @@ namespace CUDA {
                               , std::size_t i_to
                               , int i_gpu) {
     ASSUME_ALIGNED(coords);
-    unsigned int n_rows_ext = Tools::min_multiplicator(n_rows, BSIZE) * BSIZE;
     unsigned int n_radii = radii.size();
     // make sure radii are in descending order
     std::sort(radii.begin(), radii.end(), std::greater<float>());
@@ -130,13 +132,16 @@ namespace CUDA {
       cudaMemset(d_in_radius[i_stream]
                , 0
                , sizeof(float) * n_rows * n_radii);
+//TODO
       // prune range for faster computation
       // (using largest radius in first dimension)
-      auto min_max_box = Clustering::Tools::min_max_box(blimits
-                                                      , coords[i*n_cols]
-                                                      , radii[0]);
-      unsigned int offset = min_max_box.first * BSIZE;
-      unsigned int rng = (min_max_box.second-min_max_box.first+1);
+//      auto min_max_box = Clustering::Tools::min_max_box(blimits
+//                                                      , coords[i*n_cols]
+//                                                      , radii[0]);
+//      unsigned int offset = min_max_box.first * BSIZE;
+//      unsigned int rng = (min_max_box.second-min_max_box.first+1);
+      unsigned int rng = Tools::min_multiplicator(n_rows, BSIZE);
+      unsigned int offset = 0;
       in_radius <<< rng
                   , BSIZE
                   , 0
@@ -149,31 +154,30 @@ namespace CUDA {
                                          , d_radii2
                                          , n_radii
                                          , d_in_radius[i_stream]);
-      //TODO
-      check_error();
 //TODO debugging
-      cudaDeviceSynchronize();
-      if (i == 0) {
-        std::vector<float> tmp_in_rad(n_radii*n_rows);
-        cudaMemcpy(tmp_in_rad.data()
-                 , d_in_radius[i_stream]
-                 , sizeof(float) * n_rows * n_radii
-                 , cudaMemcpyDeviceToHost);
-        for (auto f: tmp_in_rad) {
-          if (f < 0) {
-            std::cout << "# " << -1.0 * f << std::endl;
-          } else {
-            std::cout << "@  " << f << std::endl;
-          }
-        }
-        exit(EXIT_FAILURE);
-      }
+//      check_error();
+//      cudaDeviceSynchronize();
+//      if (i == 0) {
+//        std::vector<float> tmp_in_rad(n_radii*n_rows);
+//        cudaMemcpy(tmp_in_rad.data()
+//                 , d_in_radius[i_stream]
+//                 , sizeof(float) * n_rows * n_radii
+//                 , cudaMemcpyDeviceToHost);
+//        for (auto f: tmp_in_rad) {
+//          if (f < 0) {
+//            std::cout << "# " << -1.0 * f << std::endl;
+//          } else {
+//            std::cout << "@  " << f << std::endl;
+//          }
+//        }
+//        exit(EXIT_FAILURE);
+//      }
       // compute pops per radius
       for (unsigned int r=0; r < n_radii; ++r) {
         // pops stored col-wise -> just set an offset ...
         offset = r*n_rows;
         //TODO stupid: don't run over all rows for reduction, use boxlimits!
-        reduce_sum<BSIZE> <<< n_rows_ext/BSIZE
+        reduce_sum<BSIZE> <<< Tools::min_multiplicator(n_rows, BSIZE)
                             , BSIZE
                             , 0
                             , streams[i_stream] >>> (offset
@@ -235,7 +239,7 @@ namespace CUDA {
     int n_gpus;
     cudaGetDeviceCount(&n_gpus);
 //TODO
-    n_gpus = 1;
+//    n_gpus = 1;
 
     if (n_gpus == 0) {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
