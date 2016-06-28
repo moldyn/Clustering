@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cuda.h>
+
 /**
  * perform reduction (sum) on given values.
  * stores result to results-array at index i_result.
  *
- * implicit first reduction on call, so run with half the range
- * (i.e. n_rows/2).
+ * implicit first reduction on call, so run with half the total range
  *
  * begin reduction at offset.
  */
@@ -31,21 +32,28 @@ reduce_sum(unsigned int offset
   } else {
     sum_block[tid] = 0.0f;
   }
-  for (stride=_BLOCKSIZE/2; stride > 32; stride /= 2) {
+//TODO ifdef to set intrinsic sync mode for specific architectures (e.g. Tesla K40)
+//  for (stride=_BLOCKSIZE/2; stride > 32; stride /= 2) {
+//    __syncthreads();
+//    if (tid < stride) {
+//      sum_block[tid] += sum_block[tid+stride];
+//    }
+//  }
+//  // unroll loop inside warp (intrinsic sync!)
+//  __syncthreads();
+//  if (tid < 32) {
+//    sum_block[tid] += sum_block[tid+32];
+//    sum_block[tid] += sum_block[tid+16];
+//    sum_block[tid] += sum_block[tid+8];
+//    sum_block[tid] += sum_block[tid+4];
+//    sum_block[tid] += sum_block[tid+2];
+//    sum_block[tid] += sum_block[tid+1];
+//  }
+  for (stride=_BLOCKSIZE/2; stride > 0; stride /= 2) {
     __syncthreads();
     if (tid < stride) {
       sum_block[tid] += sum_block[tid+stride];
     }
-  }
-  // unroll loop inside warp (intrinsic sync!)
-  __syncthreads();
-  if (tid < 32) {
-    sum_block[tid] += sum_block[tid+32];
-    sum_block[tid] += sum_block[tid+16];
-    sum_block[tid] += sum_block[tid+8];
-    sum_block[tid] += sum_block[tid+4];
-    sum_block[tid] += sum_block[tid+2];
-    sum_block[tid] += sum_block[tid+1];
   }
   if (tid == 0) {
     atomicAdd(&results[i_result], sum_block[0]);

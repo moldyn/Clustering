@@ -10,6 +10,8 @@ namespace Clustering {
 namespace Density {
 namespace CUDA {
 
+  using Neighborhood = Clustering::Tools::Neighborhood;
+
   Pops
   calculate_populations_partial(const float* coords
                               , const std::vector<float>& sorted_coords
@@ -26,6 +28,12 @@ namespace CUDA {
                       , const std::size_t n_rows
                       , const std::size_t n_cols
                       , std::vector<float> radii);
+
+  std::tuple<Neighborhood, Neighborhood>
+  nearest_neighbors(const float* coords,
+                    const std::size_t n_rows,
+                    const std::size_t n_cols,
+                    const std::vector<float>& free_energy);
 
 }}} // end Clustering::Density::CUDA
 

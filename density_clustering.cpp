@@ -223,7 +223,8 @@ namespace Clustering {
                 });
       return fe_sorted;
     }
-  
+ 
+    //TODO CUDA-version
     std::tuple<Neighborhood, Neighborhood>
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
@@ -359,7 +360,6 @@ namespace Clustering {
       using namespace Clustering::Tools;
       const std::string input_file = args["file"].as<std::string>();
       // setup coords
-      // TODO: use a simple 'Coords'-struct for these three
       float* coords;
       std::size_t n_rows;
       std::size_t n_cols;
