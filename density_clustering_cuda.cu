@@ -9,20 +9,13 @@
 
 #include "lts_cuda_kernels.cuh"
 
-#define BSIZE 128
+#define BSIZE 64
 #define N_STREAMS 8
+#define N_STREAMS_NH 1
 
 namespace Clustering {
 namespace Density {
 namespace CUDA {
-
-  void check_error() {
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-      std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl;
-      exit(EXIT_FAILURE);
-    }
-  }
 
   __global__ void
   in_radius(unsigned int offset
@@ -34,17 +27,22 @@ namespace CUDA {
           , float* radii2
           , unsigned int n_radii
           , float* in_radius) {
-    //TODO store ref in local group?
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int gid = bid*BSIZE+tid;
     float c;
     float dist2 = 0.0f;
     unsigned int j,r;
+    // load reference coordinates into shared buffer
+    extern __shared__ float ref_coords[];
+    if (tid < n_cols) {
+      ref_coords[tid] = coords[i_ref*n_cols+tid];
+    }
+    __syncthreads();
     if (gid+offset < n_rows) {
-      // compute squared dist
+      // compute squared euclidean distance
       for (j=0; j < n_cols; ++j) {
-        c = coords[i_ref*n_cols+j] - sorted_coords[(gid + offset)*n_cols+j];
+        c = ref_coords[j] - sorted_coords[(gid + offset)*n_cols+j];
         dist2 = fma(c, c, dist2);
       }
       // write results: 1.0 if in radius, 0.0 if not
@@ -55,6 +53,68 @@ namespace CUDA {
           in_radius[r*n_rows + gid] = 0.0f;
         }
       }
+    }
+  }
+
+  __global__ void
+  nearest_neighbor_search(unsigned int offset
+                        , float* coords
+                        , unsigned int n_rows
+                        , unsigned int n_cols
+                        , float* fe
+                        , float* nh_dist_ndx
+                        , float* nhhd_dist_ndx
+                        , unsigned int i_from
+                        , unsigned int i_to) {
+    extern __shared__ smem[];
+    unsigned int bid = blockIdx.x;
+    unsigned int tid = threadIdx.x;
+    unsigned int bsize = blockDim.x;
+    unsigned int gid = bid * bsize + tid;
+    if (gid + offset < n_rows) {
+      // load frames to compare with into shared memory
+      for (unsigned int j=0; j < n_cols; ++j) {
+        smem[tid*n_cols+j] = coords[(gid+offset)*n_cols+j];
+      }
+    }
+    __syncthreads();
+    gid += i_from;
+    if (gid < i_to) {
+      unsigned int ref_id = (tid+bsize/2);
+      // load reference coordinates for re-use into shared memory
+      for (unsigned int j=0; j < n_cols; ++j) {
+        smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
+      }
+      // load current best mindists into private mem
+      float nh_mindist = nh_dist_ndx[gid];
+      float nhhd_mindist = nh_dist_ndx[gid];
+      float nh_minndx = nh_dist_ndx[n_rows+gid];
+      float nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
+
+      //TODO run over comp frames and compare dist -> result
+      for (unsigned int i=0; i < bsize/2; ++i) {
+        float dist2=0.0f;
+        for (unsigned int j=0; j < n_cols; ++j) {
+          float c = smem[ref_id*n_cols+j] - smem[(i+bsize/2)*n_cols+j];
+          dist2 = fma(c, c, dist2);
+        }
+
+        //TODO
+        //float mindist = min(dist2, nh_mindist);
+        //if mindist == 0 take max else min
+
+
+      }
+    }
+  }
+
+  ////
+
+  void check_error() {
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+      std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl;
+      exit(EXIT_FAILURE);
     }
   }
 
@@ -131,7 +191,8 @@ namespace CUDA {
       // +1 for subsequent reduction over otherwise uninitialized range
       in_radius <<< rng+1
                   , BSIZE
-                  , 0
+                  // shared mem for reference coords
+                  , sizeof(float) * n_cols
                   , streams[i_stream] >>> (offset
                                          , d_sorted_coords
                                          , d_coords
@@ -250,11 +311,91 @@ namespace CUDA {
   }
 
   std::tuple<Neighborhood, Neighborhood>
-  nearest_neighbors(const float* coords,
-                    const std::size_t n_rows,
-                    const std::size_t n_cols,
-                    const std::vector<float>& free_energy) {
-    //TODO implement nearest neighbor search in CUDA
+  nearest_neighbors_per_gpu(const float* coords
+                          , const std::size_t n_rows
+                          , const std::size_t n_cols
+                          , const std::vector<float>& free_energy
+                          , std::size_t i_from
+                          , std::size_t i_to
+                          , int i_gpu) {
+    ASSUME_ALIGNED(coords);
+    // device buffers
+    float* d_coords;
+    float* d_fe;
+    float* d_nh[N_STREAMS_NH];
+    float* d_nhhd[N_STREAMS_NH];
+    cudaMalloc((void**) &d_coords
+             , sizeof(float) * n_rows * n_cols);
+    cudaMalloc((void**) &d_fe
+             , sizeof(float) * n_rows);
+    for (unsigned int i=0; i < N_STREAMS_NH; ++i) {
+      cudaMalloc((void**) &d_nh[i];
+               , sizeof(float) * n_rows * 2);
+      cudaMalloc((void**) &d_nhhd[i];
+               , sizeof(float) * n_rows * 2);
+      cudaMemset(d_nh
+               , 0
+               , sizeof(float) * n_rows * 2);
+      cudaMemset(d_nhhd
+               , 0
+               , sizeof(float) * n_rows * 2);
+    }
+    cudaMemcpy(d_coords
+             , coords
+             , sizeof(float) * n_rows * n_cols
+             , cudaMemcpyHostToDevice);
+    cudaMemcpy(d_fe
+             , free_energy.data()
+             , sizeof(float) * n_rows
+             , cudaMemcpyHostToDevice);
+    // determine optimal block size for nearest neighbor search kernel
+    int max_shared_mem;
+    cudaDeviceGetAttribute(&max_shared_mem
+                         , cudaDevAttrMaxSharedMemoryPerBlock
+                         , i_gpu);
+    check_error();
+    // max block size B x warp-size (32) given max shared mem M:
+    //   M / (2 * 32 * n_cols * sizeof(float)) = B
+    // -> chosen blocksize = 32*B = M / (2*n_cols*sizeof(float))
+    unsigned int block_size = max_shared_mem / (32*2*n_cols*sizeof(float));
+    // have to do this to get rid of remainder ...
+    block_size *= 32;
+    using Clustering::Tools::min_multiplicator;
+    unsigned int n_rows_ext = min_multiplicator(n_rows
+                                              , block_size)
+                            * block_size;
+    unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
+    unsigned int rng = min_multiplicator(i_to-i_from, block_size)
+                     * block_size;
+    for (unsigned int i=0; i*block_size < n_rows_ext; ++i) {
+      unsigned int i_stream = i % N_STREAMS_NH;
+      nearest_neighbor_search <<< rng
+                                , block_size
+                                , shared_mem >>> (i*block_size
+                                                , d_coords
+                                                , n_rows
+                                                , n_cols
+                                                , d_fe
+                                                , d_nh[i_stream]
+                                                , d_nhhd[i_stream]
+                                                , i_from
+                                                , i_to);
+    }
+    //TODO get nh, nhhd and combine
+    //TODO return neighborhood
+  }
+
+  std::tuple<Neighborhood, Neighborhood>
+  nearest_neighbors(const float* coords
+                  , const std::size_t n_rows
+                  , const std::size_t n_cols
+                  , const std::vector<float>& free_energy) {
+
+
+    //TODO separate work for multiple GPUs
+
+
+
   }
 
 }}} // end Clustering::Density::CUDA

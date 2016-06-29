@@ -224,7 +224,6 @@ namespace Clustering {
       return fe_sorted;
     }
  
-    //TODO CUDA-version
     std::tuple<Neighborhood, Neighborhood>
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
@@ -434,7 +433,14 @@ namespace Clustering {
         if ( ! args.count("radius")) {
           std::cerr << "error: radius (-r) is required!" << std::endl;
         }
+#ifdef USE_CUDA
+        auto nh_tuple = Clustering::Density::CUDA::nearest_neighbors(coords
+                                                                   , n_rows
+                                                                   , n_cols
+                                                                   , free_energies);
+#else
         auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+#endif
         nh = std::get<0>(nh_tuple);
         nh_high_dens = std::get<1>(nh_tuple);
         if (args.count("nearest-neighbors")) {
