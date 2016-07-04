@@ -66,13 +66,13 @@ namespace CUDA {
                         , float* nhhd_dist_ndx
                         , unsigned int i_from
                         , unsigned int i_to) {
-    extern __shared__ smem[];
+    extern __shared__ float smem[];
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
     unsigned int gid = bid * bsize + tid;
     if (gid + offset < n_rows) {
-      // load frames to compare with into shared memory
+      // load frames for comparison into shared memory
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[tid*n_cols+j] = coords[(gid+offset)*n_cols+j];
       }
@@ -85,26 +85,37 @@ namespace CUDA {
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
-      // load current best mindists into private mem
+      // load current best mindists into registers
       float nh_mindist = nh_dist_ndx[gid];
       float nhhd_mindist = nh_dist_ndx[gid];
       float nh_minndx = nh_dist_ndx[n_rows+gid];
       float nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
-
-      //TODO run over comp frames and compare dist -> result
+      // compare squared distances of reference
+      // to (other) frames in shared mem
       for (unsigned int i=0; i < bsize/2; ++i) {
         float dist2=0.0f;
         for (unsigned int j=0; j < n_cols; ++j) {
           float c = smem[ref_id*n_cols+j] - smem[(i+bsize/2)*n_cols+j];
           dist2 = fma(c, c, dist2);
         }
-
-        //TODO
-        //float mindist = min(dist2, nh_mindist);
-        //if mindist == 0 take max else min
-
-
+        // frame with min distance (i.e. nearest neighbor)
+        if ((nh_mindist == 0)
+         || (dist2 != 0 && dist2 < nh_mindist)) {
+          nh_mindist = dist2;
+          nh_minndx = i+offset;
+        }
+        // frame with min distance and lower energy
+        if ((nhhd_mindist == 0)
+         || (dist2 != 0 && dist2 < nhhd_mindist)) {
+          nhhd_mindist = dist2;
+          nhhd_minndx = i+offset;
+        }
       }
+      // write results (dist & ndx) to global buffers
+      nh_dist_ndx[gid] = nh_mindist;
+      nh_dist_ndx[n_rows+gid] = nh_minndx;
+      nhhd_dist_ndx[gid] = nhhd_mindist;
+      nhhd_dist_ndx[n_rows+gid] = nhhd_minndx;
     }
   }
 
@@ -281,7 +292,8 @@ namespace CUDA {
       private(i)\
       firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
       shared(partial_pops,radii,coords,sorted_coords,blimits)\
-      num_threads(n_gpus)
+      num_threads(n_gpus)\
+      schedule(dynamic,1)
     for (i=0; i < n_gpus; ++i) {
       // compute partial populations in parallel
       // on all available GPUs
@@ -329,14 +341,14 @@ namespace CUDA {
     cudaMalloc((void**) &d_fe
              , sizeof(float) * n_rows);
     for (unsigned int i=0; i < N_STREAMS_NH; ++i) {
-      cudaMalloc((void**) &d_nh[i];
+      cudaMalloc((void**) &d_nh[i]
                , sizeof(float) * n_rows * 2);
-      cudaMalloc((void**) &d_nhhd[i];
+      cudaMalloc((void**) &d_nhhd[i]
                , sizeof(float) * n_rows * 2);
-      cudaMemset(d_nh
+      cudaMemset(&d_nh[i]
                , 0
                , sizeof(float) * n_rows * 2);
-      cudaMemset(d_nhhd
+      cudaMemset(&d_nhhd[i]
                , 0
                , sizeof(float) * n_rows * 2);
     }
@@ -381,8 +393,43 @@ namespace CUDA {
                                                 , i_from
                                                 , i_to);
     }
-    //TODO get nh, nhhd and combine
-    //TODO return neighborhood
+    Neighborhood nh;
+    Neighborhood nhhd;
+    // initialize neighborhoods
+    for (unsigned int i=0; i < n_rows; ++i) {
+      nh[i] = {i, std::numeric_limits<float>::max()};
+      nhhd[i] = {i, std::numeric_limits<float>::max()};
+    }
+    // collect partial results from streams
+    for (unsigned int i_stream=0; i_stream < N_STREAMS_NH; ++i_stream) {
+      std::vector<float> dist_ndx(n_rows * 2);
+      auto update_nh = [&dist_ndx,n_rows] (Neighborhood& nh) -> void {
+        for (unsigned int i=0; i < n_rows; ++i) {
+          if (dist_ndx[i] < nh[i].second) {
+            nh[i] = {(unsigned int) dist_ndx[2*n_rows+i]
+                   , dist_ndx[i]};
+          }
+        }
+      };
+      cudaMemcpy(dist_ndx.data()
+               , d_nh[i_stream]
+               , sizeof(float) * n_rows * 2
+               , cudaMemcpyDeviceToHost);
+      update_nh(nh);
+      cudaMemcpy(dist_ndx.data()
+               , d_nhhd[i_stream]
+               , sizeof(float) * n_rows * 2
+               , cudaMemcpyDeviceToHost);
+      update_nh(nhhd);
+    }
+    // device cleanup
+    cudaFree(d_coords);
+    cudaFree(d_fe);
+    for (unsigned int i=0; i < N_STREAMS_NH; ++i) {
+      cudaFree(d_nh[i]);
+      cudaFree(d_nhhd[i]);
+    }
+    return std::make_tuple(nh, nhhd);
   }
 
   std::tuple<Neighborhood, Neighborhood>
@@ -390,12 +437,50 @@ namespace CUDA {
                   , const std::size_t n_rows
                   , const std::size_t n_cols
                   , const std::vector<float>& free_energy) {
-
-
-    //TODO separate work for multiple GPUs
-
-
-
+    int n_gpus;
+    cudaGetDeviceCount(&n_gpus);
+    if (n_gpus == 0) {
+      std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    std::vector<std::tuple<Neighborhood, Neighborhood>> partials(n_gpus);
+    unsigned int gpu_range = n_rows / n_gpus;
+    unsigned int i_gpu;
+    #pragma omp parallel for default(none)\
+      private(i_gpu)\
+      firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
+      shared(partials,coords,free_energy)\
+      num_threads(n_gpus)\
+      schedule(dynamic,1)
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      partials[i_gpu] = nearest_neighbors_per_gpu(coords
+                                                , n_rows
+                                                , n_cols
+                                                , free_energy
+                                                , i_gpu*gpu_range
+                                                , i_gpu == (n_gpus-1)
+                                                        ? n_rows
+                                                        : (i_gpu+1)*gpu_range
+                                                , i_gpu);
+    }
+    // combine partial neighborhood results from different gpus
+    Neighborhood nh;
+    Neighborhood nhhd;
+    std::tie(nh, nhhd) = partials[0];
+    for (i_gpu=1; i_gpu < n_gpus; ++i_gpu) {
+      Neighborhood partial_nh;
+      Neighborhood partial_nhhd;
+      std::tie(partial_nh, partial_nhhd) = partials[i_gpu];
+      for (unsigned int i=0; i < n_rows; ++i) {
+        if (partial_nh[i].second < nh[i].second) {
+          nh[i] = partial_nh[i];
+        }
+        if (partial_nhhd[i].second < nhhd[i].second) {
+          nhhd[i] = partial_nhhd[i];
+        }
+      }
+    }
+    return std::make_tuple(nh, nhhd);
   }
 
 }}} // end Clustering::Density::CUDA
