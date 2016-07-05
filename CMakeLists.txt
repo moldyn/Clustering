@@ -112,6 +112,8 @@ if(${USE_CUDA})
   find_package(CUDA REQUIRED)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE;-Xcompiler -fopenmp")
+  # debugging
+  #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-g -G")
 
   set (CLUSTERING_SRCS ${CLUSTERING_SRCS} density_clustering_cuda.cu)
 

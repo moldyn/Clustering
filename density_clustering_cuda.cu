@@ -345,10 +345,10 @@ namespace CUDA {
                , sizeof(float) * n_rows * 2);
       cudaMalloc((void**) &d_nhhd[i]
                , sizeof(float) * n_rows * 2);
-      cudaMemset(&d_nh[i]
+      cudaMemset(d_nh[i]
                , 0
                , sizeof(float) * n_rows * 2);
-      cudaMemset(&d_nhhd[i]
+      cudaMemset(d_nhhd[i]
                , 0
                , sizeof(float) * n_rows * 2);
     }
@@ -379,8 +379,12 @@ namespace CUDA {
     unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
     unsigned int rng = min_multiplicator(i_to-i_from, block_size)
                      * block_size;
+    std::cout << "running kernels"  << std::endl;
     for (unsigned int i=0; i*block_size < n_rows_ext; ++i) {
       unsigned int i_stream = i % N_STREAMS_NH;
+
+      std::cout << i_from << " " << i_to << " " << rng << std::endl;
+
       nearest_neighbor_search <<< rng
                                 , block_size
                                 , shared_mem >>> (i*block_size
@@ -393,35 +397,50 @@ namespace CUDA {
                                                 , i_from
                                                 , i_to);
     }
+    cudaDeviceSynchronize();
+    std::cout << "finished kernels" << std::endl;
+
+    std::vector<float> dist_ndx(n_rows * 2);
+    cudaMemcpy(dist_ndx.data()
+             , d_nh[0]
+             , sizeof(float) * n_rows * 2
+             , cudaMemcpyDeviceToHost);
+
+    for (unsigned int i=0; i < n_rows; ++i) {
+      std::cout << dist_ndx[2*n_rows+i] << " " << dist_ndx[i] << std::endl;
+    }
+
+
+
     Neighborhood nh;
     Neighborhood nhhd;
     // initialize neighborhoods
-    for (unsigned int i=0; i < n_rows; ++i) {
-      nh[i] = {i, std::numeric_limits<float>::max()};
-      nhhd[i] = {i, std::numeric_limits<float>::max()};
-    }
-    // collect partial results from streams
-    for (unsigned int i_stream=0; i_stream < N_STREAMS_NH; ++i_stream) {
-      std::vector<float> dist_ndx(n_rows * 2);
-      auto update_nh = [&dist_ndx,n_rows] (Neighborhood& nh) -> void {
-        for (unsigned int i=0; i < n_rows; ++i) {
-          if (dist_ndx[i] < nh[i].second) {
-            nh[i] = {(unsigned int) dist_ndx[2*n_rows+i]
-                   , dist_ndx[i]};
-          }
-        }
-      };
-      cudaMemcpy(dist_ndx.data()
-               , d_nh[i_stream]
-               , sizeof(float) * n_rows * 2
-               , cudaMemcpyDeviceToHost);
-      update_nh(nh);
-      cudaMemcpy(dist_ndx.data()
-               , d_nhhd[i_stream]
-               , sizeof(float) * n_rows * 2
-               , cudaMemcpyDeviceToHost);
-      update_nh(nhhd);
-    }
+//    for (unsigned int i=0; i < n_rows; ++i) {
+//      nh[i] = {i, std::numeric_limits<float>::max()};
+//      nhhd[i] = {i, std::numeric_limits<float>::max()};
+//    }
+//    // collect partial results from streams
+//    for (unsigned int i_stream=0; i_stream < N_STREAMS_NH; ++i_stream) {
+//      std::vector<float> dist_ndx(n_rows * 2);
+//      auto update_nh = [&dist_ndx,n_rows] (Neighborhood& nh) -> void {
+//        for (unsigned int i=0; i < n_rows; ++i) {
+//          if (dist_ndx[i] < nh[i].second) {
+//            nh[i] = {(unsigned int) dist_ndx[2*n_rows+i]
+//                   , dist_ndx[i]};
+//          }
+//        }
+//      };
+//      cudaMemcpy(dist_ndx.data()
+//               , d_nh[i_stream]
+//               , sizeof(float) * n_rows * 2
+//               , cudaMemcpyDeviceToHost);
+//      update_nh(nh);
+//      cudaMemcpy(dist_ndx.data()
+//               , d_nhhd[i_stream]
+//               , sizeof(float) * n_rows * 2
+//               , cudaMemcpyDeviceToHost);
+//      update_nh(nhhd);
+//    }
     // device cleanup
     cudaFree(d_coords);
     cudaFree(d_fe);
