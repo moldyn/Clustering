@@ -70,32 +70,39 @@ namespace CUDA {
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
-    unsigned int gid = bid * bsize + tid;
-//TODO debugging: still errors in some cases (but mostly right...)
-    if (gid + offset < n_rows) {
-      // load frames for comparison into shared memory
+    unsigned int gid = bid * bsize + tid + i_from;
+
+    float nh_mindist;
+    float nh_minndx;
+    float nhhd_mindist;
+    float nhhd_minndx;
+    float ref_fe;
+    unsigned int ref_id;
+
+    // load frames for comparison into shared memory
+    int comp_size = min(bsize, n_rows - offset);
+    if (tid < comp_size) {
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
       }
     }
-    //TODO what happens with smem if gid+offset > n_rows?
     __syncthreads();
-    gid += i_from;
+
     if (gid < i_to) {
-      unsigned int ref_id = tid+bsize;
+      ref_id = tid+bsize;
       // load reference coordinates for re-use into shared memory
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
-      float ref_fe = fe[gid];
+      ref_fe = fe[gid];
       // load current best mindists into registers
-      float nh_mindist = nh_dist_ndx[gid];
-      float nh_minndx = nh_dist_ndx[n_rows+gid];
-      float nhhd_mindist = nhhd_dist_ndx[gid];
-      float nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
+      nh_mindist = nh_dist_ndx[gid];
+      nh_minndx = nh_dist_ndx[n_rows+gid];
+      nhhd_mindist = nhhd_dist_ndx[gid];
+      nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
       // compare squared distances of reference
       // to (other) frames in shared mem
-      for (unsigned int i=0; i < bsize; ++i) {
+      for (unsigned int i=0; i < comp_size; ++i) {
         float dist2=0.0f;
         for (unsigned int j=0; j < n_cols; ++j) {
           float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
@@ -108,9 +115,10 @@ namespace CUDA {
           nh_minndx = i+offset;
         }
         // frame with min distance and lower energy
-        if ((nhhd_mindist == 0)
+        if ((nhhd_mindist == 0 && fe[i+offset] < ref_fe)
          || (dist2 < nhhd_mindist && fe[i+offset] < ref_fe && dist2 != 0)) {
           nhhd_mindist = dist2;
+          //TODO: still error with indices: some results are > n_rows !
           nhhd_minndx = i+offset;
         }
       }
@@ -375,6 +383,7 @@ namespace CUDA {
       std::cerr << "error: max. shared mem per block too small on this GPU.\n"
                 << "       either reduce block_size for NN search or get a "
                 <<        "better GPU." << std::endl;
+      exit(EXIT_FAILURE);
     }
     unsigned int n_rows_ext = min_multiplicator(n_rows
                                               , block_size)
@@ -408,7 +417,7 @@ namespace CUDA {
       std::vector<float> dist_ndx(n_rows * 2);
       auto update_nh = [&dist_ndx,n_rows] (Neighborhood& _nh) -> void {
         for (unsigned int i=0; i < n_rows; ++i) {
-          if (dist_ndx[i] < _nh[i].second) {
+          if (dist_ndx[i] < _nh[i].second && dist_ndx[i] != 0) {
             _nh[i] = {(unsigned int) dist_ndx[n_rows+i]
                     , dist_ndx[i]};
           }
@@ -446,6 +455,10 @@ namespace CUDA {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
       exit(EXIT_FAILURE);
     }
+
+//TODO 
+std::cout << "n_gpus: " << n_gpus << std::endl;
+
     std::vector<std::tuple<Neighborhood, Neighborhood>> partials(n_gpus);
     unsigned int gpu_range = n_rows / n_gpus;
     unsigned int i_gpu;
