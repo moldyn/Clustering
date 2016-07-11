@@ -1,6 +1,7 @@
 
 #include "tools.hpp"
 #include "density_clustering_cuda.hpp"
+#include "logger.hpp"
 
 #include <algorithm>
 
@@ -9,13 +10,50 @@
 
 #include "lts_cuda_kernels.cuh"
 
+// for pops
 #define BSIZE 64
 #define N_STREAMS 8
+
+// for neighborhood search
+#define BSIZE_NH 128
 #define N_STREAMS_NH 1
 
 namespace Clustering {
 namespace Density {
 namespace CUDA {
+
+  template <unsigned int _BLOCKSIZE>
+  __global__ void
+  reduce_sum_uint(unsigned int offset
+                , unsigned int* vals
+                , unsigned int n_vals
+                , unsigned int* results
+                , unsigned int i_result) {
+    __shared__ unsigned int sum_block[_BLOCKSIZE];
+    unsigned int stride;
+    unsigned int bid = blockIdx.x;
+    unsigned int tid = threadIdx.x;
+    unsigned int gid = bid*_BLOCKSIZE+tid;
+    unsigned int gid2 = gid + _BLOCKSIZE*gridDim.x;
+    // store probs locally for reduction
+    if (gid2 < n_vals) {
+      // initial double load and first reduction
+      sum_block[tid] = vals[gid+offset] + vals[gid2+offset];
+    } else if (gid < n_vals) {
+      sum_block[tid] = vals[gid+offset];
+    } else {
+      sum_block[tid] = 0;
+    }
+    for (stride=_BLOCKSIZE/2; stride > 0; stride /= 2) {
+      __syncthreads();
+      if (tid < stride) {
+        sum_block[tid] += sum_block[tid+stride];
+      }
+    }
+    if (tid == 0) {
+      atomicAdd(&results[i_result], sum_block[0]);
+    }
+  }
 
   __global__ void
   in_radius(unsigned int offset
@@ -26,7 +64,7 @@ namespace CUDA {
           , unsigned int n_cols
           , float* radii2
           , unsigned int n_radii
-          , float* in_radius) {
+          , unsigned int* in_radius) {
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int gid = bid*BSIZE+tid;
@@ -48,9 +86,9 @@ namespace CUDA {
       // write results: 1.0 if in radius, 0.0 if not
       for (r=0; r < n_radii; ++r) {
         if (dist2 <= radii2[r]) {
-          in_radius[r*n_rows + gid] = 1.0f;
+          in_radius[r*n_rows + gid] = 1;
         } else {
-          in_radius[r*n_rows + gid] = 0.0f;
+          in_radius[r*n_rows + gid] = 0;
         }
       }
     }
@@ -118,7 +156,6 @@ namespace CUDA {
         if ((nhhd_mindist == 0 && fe[i+offset] < ref_fe)
          || (dist2 < nhhd_mindist && fe[i+offset] < ref_fe && dist2 != 0)) {
           nhhd_mindist = dist2;
-          //TODO: still error with indices: some results are > n_rows !
           nhhd_minndx = i+offset;
         }
       }
@@ -188,18 +225,18 @@ namespace CUDA {
              , sizeof(float) * n_radii
              , cudaMemcpyHostToDevice);
     // tmp buffer for in/out info & reference coords (per stream)
-    float* d_in_radius[N_STREAMS];
+    unsigned int* d_in_radius[N_STREAMS];
     for (unsigned int s=0; s < N_STREAMS; ++s) {
       cudaMalloc((void**) &d_in_radius[s]
-               , sizeof(float) * n_rows * n_radii);
+               , sizeof(unsigned int) * n_rows * n_radii);
     }
     // result buffer
-    float* d_pops;
+    unsigned int* d_pops;
     cudaMalloc((void**) &d_pops
-             , sizeof(float) * n_rows * n_radii);
+             , sizeof(unsigned int) * n_rows * n_radii);
     cudaMemset(d_pops
              , 0
-             , sizeof(float) * n_rows * n_radii);
+             , sizeof(unsigned int) * n_rows * n_radii);
     // populations per frame
     for (std::size_t i=i_from; i < i_to; ++i) {
       unsigned int i_stream = i % N_STREAMS;
@@ -233,22 +270,22 @@ namespace CUDA {
       for (unsigned int r=0; r < n_radii; ++r) {
         // pops stored col-wise -> just set an offset ...
         offset = r*n_rows;
-        reduce_sum<BSIZE> <<< rng
-                            , BSIZE
-                            , 0
-                            , streams[i_stream] >>> (offset
-                                                   , d_in_radius[i_stream]
-                                                   , n_rows
-                                                   , d_pops
-                                                   , r*n_rows + i);
+        reduce_sum_uint<BSIZE> <<< rng
+                                 , BSIZE
+                                 , 0
+                                 , streams[i_stream] >>> (offset
+                                                        , d_in_radius[i_stream]
+                                                        , n_rows
+                                                        , d_pops
+                                                        , r*n_rows + i);
       }
     }
     cudaThreadSynchronize();
     // retrieve pops
-    std::vector<float> tmp_pops(n_rows*n_radii);
+    std::vector<unsigned int> tmp_pops(n_rows*n_radii);
     cudaMemcpy(tmp_pops.data()
              , d_pops
-             , sizeof(float) * n_rows * n_radii
+             , sizeof(unsigned int) * n_rows * n_radii
              , cudaMemcpyDeviceToHost);
     // sort tmp_pops into pops
     Pops pops;
@@ -343,7 +380,9 @@ namespace CUDA {
                           , int i_gpu) {
     using Clustering::Tools::min_multiplicator;
     ASSUME_ALIGNED(coords);
-    // device buffers
+    // GPU setup
+    cudaSetDevice(i_gpu);
+    cudaStream_t streams[N_STREAMS_NH];
     float* d_coords;
     float* d_fe;
     float* d_nh[N_STREAMS_NH];
@@ -363,6 +402,7 @@ namespace CUDA {
       cudaMemset(d_nhhd[i]
                , 0
                , sizeof(float) * n_rows * 2);
+      cudaStreamCreate(&streams[i]);
     }
     cudaMemcpy(d_coords
              , coords
@@ -377,7 +417,7 @@ namespace CUDA {
                          , cudaDevAttrMaxSharedMemoryPerBlock
                          , i_gpu);
     check_error();
-    unsigned int block_size = 128;
+    unsigned int block_size = BSIZE_NH;
     unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
     if (shared_mem > max_shared_mem) {
       std::cerr << "error: max. shared mem per block too small on this GPU.\n"
@@ -385,23 +425,21 @@ namespace CUDA {
                 <<        "better GPU." << std::endl;
       exit(EXIT_FAILURE);
     }
-    unsigned int n_rows_ext = min_multiplicator(n_rows
-                                              , block_size)
-                            * block_size;
     unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
-    for (unsigned int i=0; i*block_size <= n_rows_ext; ++i) {
+    for (unsigned int i=0; i*block_size < n_rows; ++i) {
       unsigned int i_stream = i % N_STREAMS_NH;
       nearest_neighbor_search <<< block_rng
                                 , block_size
-                                , shared_mem >>> (i*block_size
-                                                , d_coords
-                                                , n_rows
-                                                , n_cols
-                                                , d_fe
-                                                , d_nh[i_stream]
-                                                , d_nhhd[i_stream]
-                                                , i_from
-                                                , i_to);
+                                , shared_mem
+                                , streams[i_stream] >>> (i*block_size
+                                                       , d_coords
+                                                       , n_rows
+                                                       , n_cols
+                                                       , d_fe
+                                                       , d_nh[i_stream]
+                                                       , d_nhhd[i_stream]
+                                                       , i_from
+                                                       , i_to);
     }
     cudaDeviceSynchronize();
     check_error();
@@ -454,11 +492,10 @@ namespace CUDA {
     if (n_gpus == 0) {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
       exit(EXIT_FAILURE);
+    } else {
+      Clustering::logger(std::cout) << "running nearest neighbor search on "
+                                    << n_gpus << " GPUS" << std::endl;
     }
-
-//TODO 
-std::cout << "n_gpus: " << n_gpus << std::endl;
-
     std::vector<std::tuple<Neighborhood, Neighborhood>> partials(n_gpus);
     unsigned int gpu_range = n_rows / n_gpus;
     unsigned int i_gpu;
@@ -466,8 +503,7 @@ std::cout << "n_gpus: " << n_gpus << std::endl;
       private(i_gpu)\
       firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
       shared(partials,coords,free_energy)\
-      num_threads(n_gpus)\
-      schedule(dynamic,1)
+      num_threads(n_gpus)
     for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       partials[i_gpu] = nearest_neighbors_per_gpu(coords
                                                 , n_rows

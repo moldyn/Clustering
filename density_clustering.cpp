@@ -229,6 +229,11 @@ namespace Clustering {
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy) {
+
+//TODO: there is a small error somewhere that misclassifies frames as
+//      nearest neighbors. compare to results with CUDA-driven code
+//      (whose output was manually checked for correctness)
+//
       Neighborhood nh;
       Neighborhood nh_high_dens;
       // initialize neighborhood
