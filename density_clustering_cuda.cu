@@ -22,6 +22,7 @@ namespace Clustering {
 namespace Density {
 namespace CUDA {
 
+/*
   template <unsigned int _BLOCKSIZE>
   __global__ void
   reduce_sum_uint(unsigned int offset
@@ -93,6 +94,7 @@ namespace CUDA {
       }
     }
   }
+*/
 
   __global__ void
   population_count(unsigned int offset
@@ -252,7 +254,7 @@ namespace CUDA {
              , sizeof(float) * n_radii);
     cudaMemset(d_pops
              , 0
-             , sizeof(float) * n_rows * n_radii);
+             , sizeof(unsigned int) * n_rows * n_radii);
     cudaMemcpy(d_coords
              , coords
              , sizeof(float) * n_rows * n_cols
@@ -290,12 +292,24 @@ namespace CUDA {
     }
     cudaDeviceSynchronize();
     check_error();
-    //TODO get partial results
-
-
-
-
-
+    // get partial results from GPU
+    std::vector<unsigned int> partial_pops(n_rows*n_radii);
+    cudaMemcpy(partial_pops.data()
+             , d_pops
+             , sizeof(unsigned int) * n_rows * n_radii
+             , cudaMemcpyDeviceToHost);
+    // sort into resulting pops
+    Pops pops;
+    for (unsigned int r=0; r < n_radii; ++r) {
+      pops[radii[r]].resize(n_rows, 0);
+      for (unsigned int i=i_from; i < i_to; ++i) {
+        pops[radii[r]][i] = partial_pops[r*n_rows+i];
+      }
+    }
+    cudaFree(d_coords);
+    cudaFree(d_radii2);
+    cudaFree(d_pops);
+    return pops;
   }
 
 
