@@ -11,8 +11,8 @@
 #include "lts_cuda_kernels.cuh"
 
 // for pops
-#define BSIZE 64
-#define N_STREAMS 8
+#define BSIZE_POPS 64
+//#define N_STREAMS 8
 
 // for neighborhood search
 #define BSIZE_NH 128
@@ -90,6 +90,52 @@ namespace CUDA {
         } else {
           in_radius[r*n_rows + gid] = 0;
         }
+      }
+    }
+  }
+
+  __global__ void
+  population_count(unsigned int offset
+                 , float* coords
+                 , unsigned int n_rows
+                 , unsigned int n_cols
+                 , float* radii2
+                 , unsigned int n_radii
+                 , unsigned int* pops
+                 , unsigned int i_from
+                 , unsigned int i_to) {
+    extern __shared__ float smem[];
+    unsigned int bid = blockIdx.x;
+    unsigned int tid = threadIdx.x;
+    unsigned int bsize = blockDim.x;
+    unsigned int gid = bid * bsize + tid + i_from;
+    // load frames for comparison into shared memory
+    int comp_size = min(bsize, n_rows - offset);
+    if (tid < comp_size) {
+      for (unsigned int j=0; j < n_cols; ++j) {
+        smem[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
+      }
+    }
+    __syncthreads();
+    // count neighbors
+    if (gid < i_to) {
+      unsigned int ref_id = tid+bsize;
+      // load reference coordinates for re-use into shared memory
+      for (unsigned int j=0; j < n_cols; ++j) {
+        smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
+      }
+      for (unsigned int r=0; r < n_radii; ++r) {
+        unsigned int local_pop = 0;
+        float rad2 = radii2[r];
+        for (unsigned int i=0; i < comp_size; ++i) {
+          float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
+          dist2 = fma(c, c, dist2);
+          if (dist2 <= rad2) {
+            ++local_pop;
+          }
+        }
+        // update frame populations (per radius)
+        pops[r*n_rows+gid] += local_pop;
       }
     }
   }
@@ -177,6 +223,83 @@ namespace CUDA {
     }
   }
 
+
+  Pops
+  calculate_populations_per_gpu(const float* coords
+                              , std::size_t n_rows
+                              , std::size_t n_cols
+                              , std::vector<float> radii
+                              , std::size_t i_from
+                              , std::size_t i_to
+                              , int i_gpu) {
+    using Clustering::Tools::min_multiplicator;
+    ASSUME_ALIGNED(coords);
+    unsigned int n_radii = radii.size();
+    // square radii
+    for (float& r: radii) {
+      r *= r;
+    }
+    // GPU setup
+    cudaSetDevice(i_gpu);
+    float* d_coords;
+    float* d_radii2;
+    unsigned int* d_pops;
+    cudaMalloc((void**) &d_coords
+             , sizeof(float) * n_rows * n_cols);
+    cudaMalloc((void**) &d_pops
+             , sizeof(unsigned int) * n_rows * n_radii);
+    cudaMalloc((void**) &d_radii2
+             , sizeof(float) * n_radii);
+    cudaMemset(d_pops
+             , 0
+             , sizeof(float) * n_rows * n_radii);
+    cudaMemcpy(d_coords
+             , coords
+             , sizeof(float) * n_rows * n_cols
+             , cudaMemcpyHostToDevice);
+    cudaMemcpy(d_radii2
+             , radii.data()
+             , sizeof(float) * n_radii
+             , cudaMemcpyHostToDevice);
+    int max_shared_mem;
+    cudaDeviceGetAttribute(&max_shared_mem
+                         , cudaDevAttrMaxSharedMemoryPerBlock
+                         , i_gpu);
+    check_error();
+    unsigned int block_size = BSIZE_POPS;
+    unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
+    if (shared_mem > max_shared_mem) {
+      std::cerr << "error: max. shared mem per block too small on this GPU.\n"
+                << "       either reduce BSIZE_POPS or get a better GPU."
+                << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
+    for (unsigned int i=0; i*block_size < n_rows; ++i) {
+      population_count <<< block_rng
+                         , block_size
+                         , shared_mem >>> (i*block_size
+                                         , d_coords
+                                         , n_rows
+                                         , n_cols
+                                         , d_radii2
+                                         , n_radii
+                                         , d_pops
+                                         , i_from
+                                         , i_to);
+    }
+    cudaDeviceSynchronize();
+    check_error();
+    //TODO get partial results
+
+
+
+
+
+  }
+
+
+/*
   Pops
   calculate_populations_partial(const float* coords
                               , const std::vector<float>& sorted_coords
@@ -303,6 +426,7 @@ namespace CUDA {
     }
     return pops;
   }
+*/
 
   Pops
   calculate_populations(const float* coords
