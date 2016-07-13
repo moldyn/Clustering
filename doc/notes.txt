@@ -1,0 +1,5 @@
+
+# custom boost & CUDA
+
+cmake .. -DCMAKE_INSTALL_PREFIX=~/bin/euler -DBOOST_ROOT=~/lib/euler/boost_1.60.0_gcc4.9/ -DCPU_ACCELERATION=AVX -DUSE_CUDA=1
+

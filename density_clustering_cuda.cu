@@ -130,8 +130,11 @@ namespace CUDA {
         unsigned int local_pop = 0;
         float rad2 = radii2[r];
         for (unsigned int i=0; i < comp_size; ++i) {
-          float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
-          dist2 = fma(c, c, dist2);
+          float dist2 = 0.0f;
+          for (unsigned int j=0; j < n_cols; ++j) {
+            float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
+            dist2 = fma(c, c, dist2);
+          }
           if (dist2 <= rad2) {
             ++local_pop;
           }
@@ -462,7 +465,7 @@ namespace CUDA {
                                                         , n_cols);
     // box limits for pruning
     std::vector<float> blimits = boxlimits(sorted_coords
-                                         , BSIZE
+                                         , BSIZE_POPS
                                          , n_rows
                                          , n_cols);
     int n_gpus;
@@ -483,9 +486,7 @@ namespace CUDA {
     for (i=0; i < n_gpus; ++i) {
       // compute partial populations in parallel
       // on all available GPUs
-      partial_pops[i] = calculate_populations_partial(coords
-                                                    , sorted_coords
-                                                    , blimits
+      partial_pops[i] = calculate_populations_per_gpu(coords
                                                     , n_rows
                                                     , n_cols
                                                     , radii
