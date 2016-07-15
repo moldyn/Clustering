@@ -11,7 +11,8 @@
 #include "lts_cuda_kernels.cuh"
 
 // for pops
-#define BSIZE_POPS 64
+//#define BSIZE_POPS 128
+#define BSIZE_POPS 1024
 
 // for neighborhood search
 #define BSIZE_NH 128
@@ -145,10 +146,12 @@ namespace CUDA {
 
   ////
 
-  void check_error() {
+  void check_error(std::string msg="") {
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
-      std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl;
+      std::cerr << "CUDA error: "
+                << msg << "\n"
+                << cudaGetErrorString(err) << std::endl;
       exit(EXIT_FAILURE);
     }
   }
@@ -180,9 +183,11 @@ namespace CUDA {
              , sizeof(unsigned int) * n_rows * n_radii);
     cudaMalloc((void**) &d_rad2
              , sizeof(float) * n_radii);
+    check_error("pop-calc device mallocs");
     cudaMemset(d_pops
              , 0
              , sizeof(unsigned int) * n_rows * n_radii);
+    check_error("pop-calc memset");
     cudaMemcpy(d_coords
              , coords
              , sizeof(float) * n_rows * n_cols
@@ -191,11 +196,12 @@ namespace CUDA {
              , rad2.data()
              , sizeof(float) * n_radii
              , cudaMemcpyHostToDevice);
+    check_error("pop-calc mem copies");
     int max_shared_mem;
     cudaDeviceGetAttribute(&max_shared_mem
                          , cudaDevAttrMaxSharedMemoryPerBlock
                          , i_gpu);
-    check_error();
+    check_error("getting # of GPUs");
     unsigned int block_size = BSIZE_POPS;
     unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
     if (shared_mem > max_shared_mem) {
@@ -205,6 +211,8 @@ namespace CUDA {
       exit(EXIT_FAILURE);
     }
     unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
+    Clustering::logger(std::cout) << "# blocks needed: "
+                                  << block_rng << std::endl;
     for (unsigned int i=0; i*block_size < n_rows; ++i) {
       population_count <<< block_rng
                          , block_size
@@ -219,7 +227,7 @@ namespace CUDA {
                                          , i_to);
     }
     cudaDeviceSynchronize();
-    check_error();
+    check_error("after kernel loop");
     // get partial results from GPU
     std::vector<unsigned int> partial_pops(n_rows*n_radii);
     cudaMemcpy(partial_pops.data()
@@ -336,7 +344,7 @@ namespace CUDA {
     cudaDeviceGetAttribute(&max_shared_mem
                          , cudaDevAttrMaxSharedMemoryPerBlock
                          , i_gpu);
-    check_error();
+    check_error("retrieving max shared mem");
     unsigned int block_size = BSIZE_NH;
     unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
     if (shared_mem > max_shared_mem) {
@@ -362,7 +370,7 @@ namespace CUDA {
                                                        , i_to);
     }
     cudaDeviceSynchronize();
-    check_error();
+    check_error("after kernel loop");
     // initialize neighborhoods
     Neighborhood nh;
     Neighborhood nhhd;
