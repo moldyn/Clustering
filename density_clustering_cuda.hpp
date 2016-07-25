@@ -35,5 +35,13 @@ namespace CUDA {
                     const std::size_t n_cols,
                     const std::vector<float>& free_energy);
 
+  std::set<std::size_t>
+  high_density_neighborhood(const float* coords,
+                            const std::size_t n_cols,
+                            const std::vector<FreeEnergy>& sorted_fe,
+                            const std::size_t i_frame,
+                            const std::size_t limit,
+                            const float max_dist);
+
 }}} // end Clustering::Density::CUDA
 

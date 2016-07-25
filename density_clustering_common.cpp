@@ -110,14 +110,15 @@ namespace Density {
           visited_frames.insert(i);
           // all frames/clusters in local neighborhood should be merged ...
 #ifdef DC_USE_MPI
-          std::set<std::size_t> local_nh = Clustering::Density::MPI::high_density_neighborhood(coords,
-                                                                                               n_cols,
-                                                                                               fe_sorted,
-                                                                                               i,
-                                                                                               first_frame_above_threshold,
-                                                                                               4*sigma2,
-                                                                                               mpi_n_nodes,
-                                                                                               mpi_node_id);
+          using hdn_mpi = Clustering::Density::MPI::high_density_neighborhood;
+          std::set<std::size_t> local_nh = hdn_mpi(coords,
+                                                   n_cols,
+                                                   fe_sorted,
+                                                   i,
+                                                   first_frame_above_threshold,
+                                                   4*sigma2,
+                                                   mpi_n_nodes,
+                                                   mpi_node_id);
 #else
           std::set<std::size_t> local_nh = high_density_neighborhood(coords,
                                                                      n_cols,

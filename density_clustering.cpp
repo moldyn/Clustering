@@ -26,9 +26,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tools.hpp"
 #include "logger.hpp"
 #include "density_clustering.hpp"
-#include "density_clustering_common.hpp"
+
 #ifdef USE_CUDA
   #include "density_clustering_cuda.hpp"
+#else
+  #include "density_clustering_common.hpp"
 #endif
 
 #include <algorithm>
@@ -229,11 +231,9 @@ namespace Clustering {
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy) {
-
 //TODO: there is a small error somewhere that misclassifies frames as
 //      nearest neighbors. compare to results with CUDA-driven code
 //      (whose output was manually checked for correctness)
-//
       Neighborhood nh;
       Neighborhood nh_high_dens;
       // initialize neighborhood
@@ -454,6 +454,9 @@ namespace Clustering {
       }
       //// clustering
       if (args.count("output")) {
+#ifdef USE_CUDA
+        using Clustering::Density::CUDA::initial_density_clustering;
+#endif
         const std::string output_file = args["output"].as<std::string>();
         std::vector<std::size_t> clustering;
         if (args.count("input")) {
@@ -479,16 +482,20 @@ namespace Clustering {
             t_to = threshold_params[2];
           }
           std::vector<std::size_t> clustering(n_rows);
-//TODO what about 'fuzzy_equal' function?
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
           float t_to_low = t_to - t_step/10.0f + t_step;
           float t_to_high = t_to + t_step/10.0f + t_step;
           for (float t=t_from; (t < t_to_low) && !(t_to_high < t); t += t_step) {
             // compute clusters, re-using old results from previous step
-            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, clustering);
-  //TODO why is there an empty 'clust' file?
-//            clustering = initial_density_clustering(free_energies, nh, t, coords, n_rows, n_cols, {});
+            clustering = initial_density_clustering(free_energies
+                                                  , nh
+                                                  , t
+                                                  , coords
+                                                  , n_rows
+                                                  , n_cols
+                                                  , clustering);
+//TODO why is there an empty 'clust' file?
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
           }
@@ -499,11 +506,19 @@ namespace Clustering {
             exit(EXIT_FAILURE);
           }
           float threshold = args["threshold"].as<float>();
-          clustering = initial_density_clustering(free_energies, nh, threshold, coords, n_rows, n_cols, {});
+          clustering = initial_density_clustering(free_energies
+                                                , nh
+                                                , threshold
+                                                , coords
+                                                , n_rows
+                                                , n_cols
+                                                , {});
         }
         if ( ! args["only-initial"].as<bool>() && ( ! args.count("threshold-screening"))) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
-          clustering = assign_low_density_frames(clustering, nh_high_dens, free_energies);
+          clustering = assign_low_density_frames(clustering
+                                               , nh_high_dens
+                                               , free_energies);
         }
         Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
         write_single_column<std::size_t>(output_file, clustering);

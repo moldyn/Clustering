@@ -156,6 +156,17 @@ namespace CUDA {
     }
   }
 
+  int
+  get_num_gpus() {
+    int n_gpus;
+    cudaGetDeviceCount(&n_gpus);
+    if (n_gpus == 0) {
+      std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      return n_gpus;
+    }
+  }
 
   Pops
   calculate_populations_per_gpu(const float* coords
@@ -257,12 +268,7 @@ namespace CUDA {
     using Clustering::Tools::boxlimits;
     ASSUME_ALIGNED(coords);
     std::sort(radii.begin(), radii.end(), std::greater<float>());
-    int n_gpus;
-    cudaGetDeviceCount(&n_gpus);
-    if (n_gpus == 0) {
-      std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
-      exit(EXIT_FAILURE);
-    }
+    int n_gpus = get_num_gpus();
     int gpu_range = n_rows / n_gpus;
     int i;
     std::vector<Pops> partial_pops(n_gpus);
@@ -415,15 +421,7 @@ namespace CUDA {
                   , const std::size_t n_rows
                   , const std::size_t n_cols
                   , const std::vector<float>& free_energy) {
-    int n_gpus;
-    cudaGetDeviceCount(&n_gpus);
-    if (n_gpus == 0) {
-      std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      Clustering::logger(std::cout) << "running nearest neighbor search on "
-                                    << n_gpus << " GPUS" << std::endl;
-    }
+    int n_gpus = get_num_gpus();
     std::vector<std::tuple<Neighborhood, Neighborhood>> partials(n_gpus);
     unsigned int gpu_range = n_rows / n_gpus;
     unsigned int i_gpu;
@@ -461,6 +459,27 @@ namespace CUDA {
       }
     }
     return std::make_tuple(nh, nhhd);
+  }
+
+
+
+  //TODO: implement initial_density_clustering
+
+
+
+  std::set<std::size_t>
+  high_density_neighborhood(const float* coords,
+                            const std::size_t n_cols,
+                            const std::vector<FreeEnergy>& sorted_fe,
+                            const std::size_t i_frame,
+                            const std::size_t limit,
+                            const float max_dist) {
+    int n_gpus = get_num_gpus();
+    if (coords != nullptr) {
+      // TODO: copy data to every GPU
+    }
+    //TODO: do not copy again if coords == nullptr
+    //
   }
 
 }}} // end Clustering::Density::CUDA
