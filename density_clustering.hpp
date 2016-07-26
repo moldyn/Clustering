@@ -125,6 +125,36 @@ namespace Clustering {
                       const std::size_t n_rows,
                       const std::size_t n_cols,
                       const std::vector<float>& free_energy);
+    //! log output for screening steps
+    void
+    screening_log(const double sigma2
+                , const std::size_t first_frame_above_threshold
+                , const std::vector<FreeEnergy>& fe_sorted);
+    //! prepare data for initial density clustering as used
+    //! in the screening process
+    std::tuple<std::vector<std::size_t>
+             , std::size_t
+             , double
+             , std::vector<FreeEnergy>
+             , std::set<std::size_t>
+             , std::size_t>
+    prepare_initial_clustering(const std::vector<float>& free_energy
+                             , const Neighborhood& nh
+                             , const float free_energy_threshold
+                             , const std::size_t n_rows
+                             , const std::vector<std::size_t> initial_clusters);
+    //! return clustered trajectory with new, distinct cluster names.
+    std::vector<std::size_t>
+    normalized_cluster_names(std::size_t first_frame_above_threshold
+                           , std::vector<std::size_t> clustering
+                           , std::vector<FreeEnergy>& fe_sorted);
+    //! lump clusters based on distance threshold in screening process
+    bool
+    lump_initial_clusters(const std::set<std::size_t>& local_nh
+                        , std::size_t& distinct_name
+                        , std::vector<std::size_t>& clustering
+                        , const std::vector<FreeEnergy>& fe_sorted
+                        , std::size_t first_frame_above_threshold);
     //! compute local neighborhood of a given frame.
     //! neighbor candidates are all frames below a given limit,
     //! effectively limiting the frames to the ones below a free energy cutoff.
