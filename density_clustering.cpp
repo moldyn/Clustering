@@ -460,16 +460,11 @@ namespace Clustering {
                         , const std::vector<FreeEnergy>& fe_sorted
                         , std::size_t first_frame_above_threshold) {
       bool neighboring_clusters_merged = true;
-      bool use_unsorted_indices = (fe_sorted.size() == 0);
       // ... let's see if at least some of them already have a
       // designated cluster assignment
       std::set<std::size_t> cluster_names;
       for (auto j: local_nh) {
-        if (use_unsorted_indices) {
-          cluster_names.insert(cluster_names[j]);
-        } else {
-          cluster_names.insert(clustering[fe_sorted[j].first]);
-        }
+        cluster_names.insert(clustering[fe_sorted[j].first]);
       }
       if ( ! (cluster_names.size() == 1
            && cluster_names.count(0) != 1)) {
@@ -491,22 +486,16 @@ namespace Clustering {
           common_name = ++distinct_name;
         }
         for (auto j: local_nh) {
-          if (use_unsorted_indices) {
-            clustering[j] = common_name;
-          } else {
-            clustering[fe_sorted[j].first] = common_name;
-          }
+          clustering[fe_sorted[j].first] = common_name;
         }
         std::size_t j,ndx;
         #pragma omp parallel for default(none) private(j,ndx)\
-                                 firstprivate(common_name,first_frame_above_threshold,cluster_names) \
+                                 firstprivate(common_name,\
+                                              first_frame_above_threshold,\
+                                              cluster_names)\
                                  shared(clustering,fe_sorted)
         for (j=0; j < first_frame_above_threshold; ++j) {
-          if (use_unsorted_indices) {
-            ndx = j;
-          } else {
-            ndx = fe_sorted[j].first;
-          }
+          ndx = fe_sorted[j].first;
           if (cluster_names.count(clustering[ndx]) == 1) {
             clustering[ndx] = common_name;
           }
@@ -680,6 +669,7 @@ namespace Clustering {
                                                , nh_high_dens
                                                , free_energies);
         }
+//TODO: culprit of empty 'clust' file?
         Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
         write_single_column<std::size_t>(output_file, clustering);
       }

@@ -18,6 +18,9 @@
 #define BSIZE_NH 128
 #define N_STREAMS_NH 1
 
+// for screening
+#define BSIZE_SCR 256
+
 namespace Clustering {
 namespace Density {
 namespace CUDA {
@@ -462,20 +465,90 @@ namespace CUDA {
   }
 
 
-
-  std::set<std::size_t>
-  high_density_neighborhood(std::vector<float*> d_coords
-                          , const std::size_t n_rows
-                          , const std::size_t n_cols
-                          , std::vector<float*> d_fe
-                          , std::vector<int*> d_local_nh
-                          , const float free_energy_threshold
-                          , std::size_t i_ref
-                          , const float max_dist2
-                          , int n_gpus) {
-    //TODO: finish
+  __global__ void
+  high_density_neighborhood_krnl(std::size_t offset
+                               , float* d_coords_sorted
+                               , std::size_t first_frame_above_threshold
+                               , std::size_t n_cols
+                               , std::size_t i_ref
+                               , float max_dist2
+                               , int* d_local_nh) {
+    extern __shared__ float smem[];
+    unsigned int bid = blockIdx.x;
+    unsigned int tid = threadIdx.x;
+    unsigned int bsize = blockDim.x;
+    unsigned int gid = bid * bsize + tid + offset;
+    // load reference coords into shared memory
+    if (tid < n_cols) {
+      smem[tid] = d_coords_sorted[i_ref*n_cols+tid];
+    }
+    // check if in neighborhood
+    if (gid < first_frame_above_threshold) {
+      float dist2 = 0.0f;
+      for (int j=0; j < n_cols; ++j) {
+        float c = smem[j] - d_coords_sorted[gid*n_cols+j];
+        dist2 = fma(c, c, dist2);
+      }
+      if (dist2 < max_dist2) {
+        d_local_nh[gid] = 1;
+      }
+    }
   }
 
+  std::set<std::size_t>
+  high_density_neighborhood(std::vector<float*> d_coords_sorted
+                          , const std::size_t n_rows
+                          , const std::size_t n_cols
+                          , std::vector<int*> d_local_nh
+                          , const std::size_t first_frame_above_threshold
+                          , const std::size_t i_ref
+                          , const float max_dist2
+                          , const int n_gpus) {
+    int i_gpu;
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      cudaMemset(d_local_nh[i_gpu]
+               , 0
+               , sizeof(int) * n_rows);
+    }
+    std::size_t rng = first_frame_above_threshold / n_gpus;
+    #pragma omp parallel for default(none)\
+      private(i_gpu)\
+      firstprivate(n_gpus,rng,first_frame_above_threshold,i_ref,max_dist2)\
+      shared(d_coords_sorted,d_local_nh)\
+      num_threads(n_gpus)\
+      schedule(dynamic,1)
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      cudaSetDevice(i_gpu);
+      high_density_neighborhood_krnl
+        <<< (rng / BSIZE_SCR) + 1
+          , BSIZE_SCR
+          , sizeof(float) * n_cols >>>
+        (i_gpu * rng
+       , d_coords_sorted[i_gpu]
+       , first_frame_above_threshold
+       , n_cols
+       , i_ref
+       , max_dist2
+       , d_local_nh[i_gpu]);
+    }
+    cudaDeviceSynchronize();
+    // collect results from GPUs
+    std::set<std::size_t> local_nh;
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      std::vector<int> tmp_local_nh(n_rows);
+      cudaMemcpy(tmp_local_nh.data()
+               , d_local_nh[i_gpu]
+               , sizeof(int) * n_rows
+               , cudaMemcpyDeviceToHost);
+      for (std::size_t i=0; i < n_rows; ++i) {
+        if (tmp_local_nh[i] == 1) {
+          local_nh.insert(i);
+        }
+      }
+    }
+    local_nh.insert(i_ref);
+    return local_nh;
+  }
 
   std::vector<std::size_t>
   initial_density_clustering(const std::vector<float>& free_energy
@@ -488,13 +561,14 @@ namespace CUDA {
     std::vector<std::size_t> clustering;
     std::size_t first_frame_above_threshold;
     double sigma2;
+    std::vector<FreeEnergy> fe_sorted;
     std::set<std::size_t> visited_frames;
     std::size_t distinct_name;
     // data preparation
     std::tie(clustering
            , first_frame_above_threshold
            , sigma2
-           , std::ignore
+           , fe_sorted
            , visited_frames
            , distinct_name) = prepare_initial_clustering(free_energy
                                                        , nh
@@ -507,24 +581,27 @@ namespace CUDA {
                 , fe_sorted);
     // prepare CUDA environment
     int n_gpus = get_num_gpus();
-    std::vector<float*> d_coords(n_gpus);
-    std::vector<float*> d_fe(n_gpus);
+    std::vector<float*> d_coords_sorted(n_gpus);
     std::vector<int*> d_local_nh(n_gpus);
-    for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaMalloc((void**) &d_coords[i_gpu]
-               , sizeof(float) * n_rows * n_cols);
-      cudaMalloc((void**) &d_fe[i_gpu]
-               , sizeof(float) * n_rows);
-      cudaMalloc((void**) &d_local_nh[i_gpu]
-               , sizeof(int) * n_rows);
-      cudaMemcpy(d_coords[i_gpu]
-               , coords
-               , sizeof(float) * n_rows * n_cols
-               , cudaMemcpyHostToDevice);
-      cudaMemcpy(d_fe[i_gpu]
-               , free_energy.data()
-               , sizeof(float) * n_rows
-               , cudaMemcpyHostToDevice);
+    {
+      // sort coords according to free energies
+      std::vector<float> tmp_coords_sorted(n_rows * n_cols);
+      for (unsigned int i=0; i < n_rows; ++i) {
+        for (unsigned int j=0; j < n_cols; ++j) {
+          tmp_coords_sorted[i*n_cols+j] = coords[fe_sorted[i].first*n_cols+j];
+        }
+      }
+      // allocate memory and copy sorted coords to GPUs
+      for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+        cudaMalloc((void**) &d_coords_sorted[i_gpu]
+                 , sizeof(float) * n_rows * n_cols);
+        cudaMalloc((void**) &d_local_nh[i_gpu]
+                 , sizeof(int) * n_rows);
+        cudaMemcpy(d_coords_sorted[i_gpu]
+                 , tmp_coords_sorted.data()
+                 , sizeof(float) * n_rows * n_cols
+                 , cudaMemcpyHostToDevice);
+      }
     }
     // indices inside this loop are in order of sorted(!) free energies
     bool neighboring_clusters_merged = false;
@@ -533,38 +610,38 @@ namespace CUDA {
       neighboring_clusters_merged = true;
       logger(std::cout) << "initial merge iteration" << std::endl;
       for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
-        if (visited_frames.count(i) == 0) {
-          visited_frames.insert(i);
+//        if (visited_frames.count(i) == 0) {
+//          visited_frames.insert(i);
+std::cout << i << " / " << first_frame_above_threshold-1 << std::endl;
+std::cout << "  high_density_neighborhood" << std::endl;
           // all frames/clusters in local neighborhood should be merged ...
-          local_nh = high_density_neighborhood(d_coords
+          local_nh = high_density_neighborhood(d_coords_sorted
                                              , n_rows
                                              , n_cols
-                                             , d_fe
                                              , d_local_nh
-                                             , free_energy_threshold
+                                             , first_frame_above_threshold
                                              , i
                                              , 4*sigma2
                                              , n_gpus);
           //TODO: profiling!
           //      if this needs lots of time: use OMP parallel sections with
           //      pre-calculated local_nh.
+std::cout << "  lump_initial_clusters" << std::endl;
           neighboring_clusters_merged = lump_initial_clusters(local_nh
                                                             , distinct_name
                                                             , clustering
-                                                            // CUDA-based high-dens nh
-                                                            // uses unsorted indices
-                                                            , {}
+                                                            , fe_sorted
                                                             , first_frame_above_threshold)
                                      && neighboring_clusters_merged;
-        }
+//        }
       }
     }
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaFree(d_coords[i_gpu]);
-      cudaFree(d_fe[i_gpu]);
+      cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_local_nh[i_gpu]);
     }
+std::cout << "normalize cluster names" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);
