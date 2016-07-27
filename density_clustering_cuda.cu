@@ -610,8 +610,8 @@ namespace CUDA {
       neighboring_clusters_merged = true;
       logger(std::cout) << "initial merge iteration" << std::endl;
       for (std::size_t i=0; i < first_frame_above_threshold; ++i) {
-//        if (visited_frames.count(i) == 0) {
-//          visited_frames.insert(i);
+        if (visited_frames.count(i) == 0) {
+          visited_frames.insert(i);
 std::cout << i << " / " << first_frame_above_threshold-1 << std::endl;
 std::cout << "  high_density_neighborhood" << std::endl;
           // all frames/clusters in local neighborhood should be merged ...
@@ -633,7 +633,7 @@ std::cout << "  lump_initial_clusters" << std::endl;
                                                             , fe_sorted
                                                             , first_frame_above_threshold)
                                      && neighboring_clusters_merged;
-//        }
+        }
       }
     }
     // cleanup CUDA environment
