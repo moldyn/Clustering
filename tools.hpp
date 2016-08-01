@@ -138,6 +138,10 @@ namespace Tools {
   template <typename NUM>
   NUM
   string_to_num(const std::string &s);
+  //! return distinct elements of vector
+  template <typename T>
+  std::vector<T>
+  unique_elements(std::vector<T> xs);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
 

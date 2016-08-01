@@ -255,6 +255,19 @@ string_to_num(const std::string &s) {
   return buf;
 }
 
+template <typename T>
+std::vector<T>
+unique_elements(std::vector<T> xs) {
+  std::sort(xs.begin()
+          , xs.end());
+  auto last = std::unique(xs.begin()
+                        , xs.end());
+  xs.erase(last
+         , xs.end());
+  return xs;
+}
+
+
 } // end namespace Tools
 } // end namespace Clustering
 

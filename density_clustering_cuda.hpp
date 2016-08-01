@@ -35,6 +35,8 @@ namespace CUDA {
                     const std::size_t n_cols,
                     const std::vector<float>& free_energy);
 
+  std::vector<std::size_t>
+  sanitize_state_names(std::vector<std::size_t> clustering);
 
   std::vector<std::size_t>
   initial_density_clustering(const std::vector<float>& free_energy
