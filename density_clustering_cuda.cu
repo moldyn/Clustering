@@ -554,10 +554,11 @@ namespace CUDA {
 
   __global__ void
   init_indices_krnl(unsigned int* d_clustering
+                  , unsigned int prev_last_frame
                   , unsigned int first_frame_above_threshold) {
-    unsigned int gid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int gid = blockIdx.x * blockDim.x + threadIdx.x + prev_last_frame;
     if (gid < first_frame_above_threshold) {
-      d_clustering[gid] = gid+1;
+      d_clustering[gid] = gid + 1;
     }
   }
 
@@ -616,8 +617,8 @@ namespace CUDA {
         // state trajectory is strictly ordered in distance,
         // thus this will always terminate as ids are always
         // smaller or equal to own id
-        while (clustering[u] != u) {
-          u = clustering[u];
+        while (clustering[u-1] != u) {
+          u = clustering[u-1];
         }
       }
       end_points[u_orig] = u;
@@ -643,6 +644,7 @@ namespace CUDA {
     std::vector<FreeEnergy> fe_sorted;
     std::vector<std::size_t> prev_clustering;
     std::size_t prev_max_state;
+std::cout << "data prep" << std::endl;
     // data preparation
     std::tie(prev_clustering
            , first_frame_above_threshold
@@ -664,6 +666,7 @@ namespace CUDA {
     std::vector<float*> d_coords_sorted(n_gpus);
     std::vector<unsigned int*> d_clustering(n_gpus);
     {
+std::cout << "coord sorting" << std::endl;
       // sort coords (and previous clustering results)
       // according to free energies
       std::vector<float> tmp_coords_sorted(n_rows * n_cols);
@@ -680,16 +683,19 @@ namespace CUDA {
       unsigned int i;
       // re-use initial clustering results
       unsigned int prev_last_frame = 0;
-      for (i=1; i < n_rows; ++i) {
-        if (prev_clustering_sorted[i] == 0) {
-          prev_last_frame = i-1;
-          break;
+      if (prev_clustering_sorted[0] != 0) {
+        for (i=1; i < n_rows; ++i) {
+          if (prev_clustering_sorted[i] == 0) {
+            prev_last_frame = i;
+            break;
+          }
         }
       }
       int i_gpu;
-      //TODO finish result reusage
-      unsigned int gpu_rng = min_multiplicator(first_frame_above_threshold
-                                             , n_gpus);
+std::cout << "compute gpu range" << std::endl;
+      unsigned int gpu_rng =
+        min_multiplicator(first_frame_above_threshold - prev_last_frame
+                        , n_gpus);
       int max_shared_mem;
       // assuming GPUs are of same type with same amount of memory
       cudaDeviceGetAttribute(&max_shared_mem
@@ -697,12 +703,15 @@ namespace CUDA {
                            , 0);
       check_error("getting max shared mem size");
       unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
+std::cout << "running kernels" << std::endl;
       #pragma omp parallel for\
         default(none)\
         private(i,i_gpu,block_rng,i_from,i_to)\
         firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
+                     prev_last_frame,prev_max_state,\
                      shared_mem,first_frame_above_threshold)\
-        shared(d_coords_sorted,d_clustering,tmp_coords_sorted)\
+        shared(d_coords_sorted,d_clustering,\
+               tmp_coords_sorted,prev_clustering_sorted)\
         num_threads(n_gpus)
       for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
         // allocate memory and copy sorted coords to GPUs
@@ -715,21 +724,28 @@ namespace CUDA {
                  , tmp_coords_sorted.data()
                  , sizeof(float) * n_rows * n_cols
                  , cudaMemcpyHostToDevice);
-        // initialize state traj with frame ids (up to threshold, above that 0)
+        // copy prev results to GPU-buffer (and set the rest to zero)
         cudaMemset(d_clustering[i_gpu]
                  , 0
                  , sizeof(unsigned int) * n_rows);
+        cudaMemcpy(d_clustering[i_gpu]
+                 , prev_clustering_sorted.data()
+                 , sizeof(unsigned int) * prev_last_frame
+                 , cudaMemcpyHostToDevice);
+        // initialize unclustered frames with distinct names
+        // (up to threshold, above that set to zero)
         init_indices_krnl
-          <<< min_multiplicator(first_frame_above_threshold
+          <<< min_multiplicator(first_frame_above_threshold - prev_last_frame
                               , BSIZE_SCR)
             , BSIZE_SCR >>>
           (d_clustering[i_gpu]
+         , prev_last_frame
          , first_frame_above_threshold);
-        // pairwise dist-comparison -> initial clustering
-        i_from = i_gpu * gpu_rng;
+        // perform initial clustering on yet unclustered frames
+        i_from = prev_last_frame + i_gpu * gpu_rng;
         i_to = (i_gpu == (n_gpus-1))
              ? first_frame_above_threshold
-             : (i_gpu+1) * gpu_rng;
+             : prev_last_frame + (i_gpu+1) * gpu_rng;
         block_rng = min_multiplicator(i_to-i_from
                                     , BSIZE_SCR);
         for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
@@ -750,8 +766,10 @@ namespace CUDA {
         check_error("after kernel loop");
       }
     }
+std::cout << "kernels finished, now: collect and merge" << std::endl;
     // collect & merge clustering results from GPUs
     std::vector<unsigned int> clustering_sorted(n_rows, 0);
+//TODO: something is rotten here
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       std::vector<unsigned int> tmp_clust(n_rows, 0);
       cudaMemcpy(tmp_clust.data()
@@ -759,10 +777,14 @@ namespace CUDA {
                , sizeof(unsigned int) * first_frame_above_threshold
                , cudaMemcpyDeviceToHost);
       for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-        clustering_sorted[i] = std::max(clustering_sorted[i]
+        clustering_sorted[i] = std::min(clustering_sorted[i]
                                       , tmp_clust[i]);
       }
     }
+std::cerr << "###" << std::endl;
+for(auto s: clustering_sorted) {
+  std::cerr << s << std::endl;
+}
     // reduce clustering to min number of ids
     clustering_sorted = sanitize_state_names(clustering_sorted);
     // convert state trajectory from
@@ -776,6 +798,7 @@ namespace CUDA {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
     }
+std::cout << "normalizing names" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);

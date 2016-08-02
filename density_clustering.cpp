@@ -644,6 +644,7 @@ namespace Clustering {
                                                   , n_rows
                                                   , n_cols
                                                   , clustering);
+std::cout << "normalizing finished" << std::endl;
 //TODO why is there an empty 'clust' file?
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
