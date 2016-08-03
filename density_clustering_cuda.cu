@@ -19,7 +19,7 @@
 #define N_STREAMS_NH 1
 
 // for screening
-#define BSIZE_SCR 256
+#define BSIZE_SCR 512
 
 namespace Clustering {
 namespace Density {
@@ -599,6 +599,13 @@ namespace CUDA {
     unsigned int gpu_rng =
       min_multiplicator(first_frame_above_threshold - prev_last_frame
                       , n_gpus);
+    if (gpu_rng == 0) {
+      // nothing to do, since all frames below threshold were already
+      // below previous threshold
+      return initial_clusters;
+    }
+std::cout << "prev_last, first_above, gpu_rng: ";
+std::cout << prev_last_frame << ", " << first_frame_above_threshold << ", " << gpu_rng << std::endl;
     int max_shared_mem;
     // assuming GPUs are of same type with same amount of memory
     cudaDeviceGetAttribute(&max_shared_mem
