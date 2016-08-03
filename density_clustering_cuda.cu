@@ -465,103 +465,6 @@ namespace CUDA {
   }
 
 
-/*
-  __global__ void
-  high_density_neighborhood_krnl(std::size_t offset
-                               , float* d_coords_sorted
-                               , std::size_t first_frame_above_threshold
-                               , std::size_t n_cols
-                               , std::size_t i_ref
-                               , float max_dist2
-                               , int* d_local_nh) {
-    extern __shared__ float smem[];
-    unsigned int bid = blockIdx.x;
-    unsigned int tid = threadIdx.x;
-    unsigned int bsize = blockDim.x;
-    unsigned int gid = bid * bsize + tid + offset;
-    // load reference coords into shared memory
-    if (tid < n_cols) {
-      smem[tid] = d_coords_sorted[i_ref*n_cols+tid];
-    }
-    // check if in neighborhood
-    if (gid < first_frame_above_threshold) {
-      float dist2 = 0.0f;
-      for (int j=0; j < n_cols; ++j) {
-        float c = smem[j] - d_coords_sorted[gid*n_cols+j];
-        dist2 = fma(c, c, dist2);
-      }
-      if (dist2 < max_dist2) {
-        d_local_nh[gid] = 1;
-      }
-    }
-  }
-
-  std::set<std::size_t>
-  high_density_neighborhood(std::vector<float*> d_coords_sorted
-                          , const std::size_t n_rows
-                          , const std::size_t n_cols
-                          , std::vector<int*> d_local_nh
-                          , const std::size_t first_frame_above_threshold
-                          , const std::size_t i_ref
-                          , const float max_dist2
-                          , const int n_gpus) {
-    int i_gpu;
-    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaMemset(d_local_nh[i_gpu]
-               , 0
-               , sizeof(int) * n_rows);
-    }
-    std::size_t rng = first_frame_above_threshold / n_gpus;
-    #pragma omp parallel for default(none)\
-      private(i_gpu)\
-      firstprivate(n_gpus,rng,first_frame_above_threshold,i_ref,max_dist2)\
-      shared(d_coords_sorted,d_local_nh)\
-      num_threads(n_gpus)\
-      schedule(dynamic,1)
-    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaSetDevice(i_gpu);
-      high_density_neighborhood_krnl
-        <<< (rng / BSIZE_SCR) + 1
-          , BSIZE_SCR
-          , sizeof(float) * n_cols >>>
-        (i_gpu * rng
-       , d_coords_sorted[i_gpu]
-       , first_frame_above_threshold
-       , n_cols
-       , i_ref
-       , max_dist2
-       , d_local_nh[i_gpu]);
-    }
-    cudaDeviceSynchronize();
-    // collect results from GPUs
-    std::set<std::size_t> local_nh;
-    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      std::vector<int> tmp_local_nh(n_rows);
-      cudaMemcpy(tmp_local_nh.data()
-               , d_local_nh[i_gpu]
-               , sizeof(int) * n_rows
-               , cudaMemcpyDeviceToHost);
-      for (std::size_t i=0; i < n_rows; ++i) {
-        if (tmp_local_nh[i] == 1) {
-          local_nh.insert(i);
-        }
-      }
-    }
-    local_nh.insert(i_ref);
-    return local_nh;
-  }
-*/
-
-  __global__ void
-  init_indices_krnl(unsigned int* d_clustering
-                  , unsigned int prev_last_frame
-                  , unsigned int first_frame_above_threshold) {
-    unsigned int gid = blockIdx.x * blockDim.x + threadIdx.x + prev_last_frame;
-    if (gid < first_frame_above_threshold) {
-      d_clustering[gid] = gid + 1;
-    }
-  }
-
   __global__ void
   initial_density_clustering_krnl(unsigned int offset
                                 , float* sorted_coords
@@ -586,6 +489,9 @@ namespace CUDA {
     __syncthreads();
     if (gid < i_to) {
       unsigned int cluster_id = clustering[gid];
+      if (cluster_id == 0) {
+        cluster_id = gid + 1;
+      }
       unsigned int ref_id = tid+bsize;
       // load reference coordinates for re-use into shared memory
       for (unsigned int j=0; j < n_cols; ++j) {
@@ -597,7 +503,7 @@ namespace CUDA {
           float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
           dist2 = fma(c, c, dist2);
         }
-        if (dist2 <= max_dist2) {
+        if (dist2 < max_dist2) {
           cluster_id = min(cluster_id, i+offset+1);
         }
       }
@@ -607,7 +513,8 @@ namespace CUDA {
 
 
   std::vector<unsigned int>
-  sanitize_state_names(std::vector<unsigned int> clustering) {
+  sanitize_state_names(std::vector<unsigned int> clustering
+                     , unsigned int prev_max_state) {
     std::vector<unsigned int> unique_names =
       Clustering::Tools::unique_elements(clustering);
     std::map<unsigned int, unsigned int> end_points;
@@ -617,7 +524,7 @@ namespace CUDA {
         // state trajectory is strictly ordered in distance,
         // thus this will always terminate as ids are always
         // smaller or equal to own id
-        while (clustering[u-1] != u) {
+        while (u > prev_max_state && clustering[u-1] != u) {
           u = clustering[u-1];
         }
       }
@@ -644,7 +551,6 @@ namespace CUDA {
     std::vector<FreeEnergy> fe_sorted;
     std::vector<std::size_t> prev_clustering;
     std::size_t prev_max_state;
-std::cout << "data prep" << std::endl;
     // data preparation
     std::tie(prev_clustering
            , first_frame_above_threshold
@@ -665,128 +571,109 @@ std::cout << "data prep" << std::endl;
     int n_gpus = get_num_gpus();
     std::vector<float*> d_coords_sorted(n_gpus);
     std::vector<unsigned int*> d_clustering(n_gpus);
-    {
-std::cout << "coord sorting" << std::endl;
-      // sort coords (and previous clustering results)
-      // according to free energies
-      std::vector<float> tmp_coords_sorted(n_rows * n_cols);
-      std::vector<unsigned int> prev_clustering_sorted(n_rows);
-      for (unsigned int i=0; i < n_rows; ++i) {
-        for (unsigned int j=0; j < n_cols; ++j) {
-          tmp_coords_sorted[i*n_cols+j] = coords[fe_sorted[i].first*n_cols+j];
-        }
-        prev_clustering_sorted[i] = prev_clustering[fe_sorted[i].first];
+    // sort coords (and previous clustering results)
+    // according to free energies
+    std::vector<float> tmp_coords_sorted(n_rows * n_cols);
+    std::vector<unsigned int> prev_clustering_sorted(n_rows);
+    for (unsigned int i=0; i < n_rows; ++i) {
+      for (unsigned int j=0; j < n_cols; ++j) {
+        tmp_coords_sorted[i*n_cols+j] = coords[fe_sorted[i].first*n_cols+j];
       }
-      unsigned int block_rng;
-      unsigned int i_from;
-      unsigned int i_to;
-      unsigned int i;
-      // re-use initial clustering results
-      unsigned int prev_last_frame = 0;
-      if (prev_clustering_sorted[0] != 0) {
-        for (i=1; i < n_rows; ++i) {
-          if (prev_clustering_sorted[i] == 0) {
-            prev_last_frame = i;
-            break;
-          }
+      prev_clustering_sorted[i] = prev_clustering[fe_sorted[i].first];
+    }
+    unsigned int block_rng;
+    unsigned int i_from;
+    unsigned int i_to;
+    unsigned int i;
+    // re-use initial clustering results
+    unsigned int prev_last_frame = 0;
+    if (prev_clustering_sorted[0] != 0) {
+      for (i=1; i < n_rows; ++i) {
+        if (prev_clustering_sorted[i] == 0) {
+          prev_last_frame = i;
+          break;
         }
-      }
-      int i_gpu;
-std::cout << "compute gpu range" << std::endl;
-      unsigned int gpu_rng =
-        min_multiplicator(first_frame_above_threshold - prev_last_frame
-                        , n_gpus);
-      int max_shared_mem;
-      // assuming GPUs are of same type with same amount of memory
-      cudaDeviceGetAttribute(&max_shared_mem
-                           , cudaDevAttrMaxSharedMemoryPerBlock
-                           , 0);
-      check_error("getting max shared mem size");
-      unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
-std::cout << "running kernels" << std::endl;
-      #pragma omp parallel for\
-        default(none)\
-        private(i,i_gpu,block_rng,i_from,i_to)\
-        firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
-                     prev_last_frame,prev_max_state,\
-                     shared_mem,first_frame_above_threshold)\
-        shared(d_coords_sorted,d_clustering,\
-               tmp_coords_sorted,prev_clustering_sorted)\
-        num_threads(n_gpus)
-      for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-        // allocate memory and copy sorted coords to GPUs
-        cudaSetDevice(i_gpu);
-        cudaMalloc((void**) &d_coords_sorted[i_gpu]
-                 , sizeof(float) * n_rows * n_cols);
-        cudaMalloc((void**) &d_clustering[i_gpu]
-                 , sizeof(unsigned int) * n_rows);
-        cudaMemcpy(d_coords_sorted[i_gpu]
-                 , tmp_coords_sorted.data()
-                 , sizeof(float) * n_rows * n_cols
-                 , cudaMemcpyHostToDevice);
-        // copy prev results to GPU-buffer (and set the rest to zero)
-        cudaMemset(d_clustering[i_gpu]
-                 , 0
-                 , sizeof(unsigned int) * n_rows);
-        cudaMemcpy(d_clustering[i_gpu]
-                 , prev_clustering_sorted.data()
-                 , sizeof(unsigned int) * prev_last_frame
-                 , cudaMemcpyHostToDevice);
-        // initialize unclustered frames with distinct names
-        // (up to threshold, above that set to zero)
-        init_indices_krnl
-          <<< min_multiplicator(first_frame_above_threshold - prev_last_frame
-                              , BSIZE_SCR)
-            , BSIZE_SCR >>>
-          (d_clustering[i_gpu]
-         , prev_last_frame
-         , first_frame_above_threshold);
-        // perform initial clustering on yet unclustered frames
-        i_from = prev_last_frame + i_gpu * gpu_rng;
-        i_to = (i_gpu == (n_gpus-1))
-             ? first_frame_above_threshold
-             : prev_last_frame + (i_gpu+1) * gpu_rng;
-        block_rng = min_multiplicator(i_to-i_from
-                                    , BSIZE_SCR);
-        for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
-          initial_density_clustering_krnl
-            <<< block_rng
-              , BSIZE_SCR
-              , shared_mem >>>
-            (i*BSIZE_SCR
-           , d_coords_sorted[i_gpu]
-           , n_rows
-           , n_cols
-           , max_dist2
-           , d_clustering[i_gpu]
-           , i_from
-           , i_to);
-        }
-        cudaDeviceSynchronize();
-        check_error("after kernel loop");
       }
     }
-std::cout << "kernels finished, now: collect and merge" << std::endl;
+    int i_gpu;
+    unsigned int gpu_rng =
+      min_multiplicator(first_frame_above_threshold - prev_last_frame
+                      , n_gpus);
+    int max_shared_mem;
+    // assuming GPUs are of same type with same amount of memory
+    cudaDeviceGetAttribute(&max_shared_mem
+                         , cudaDevAttrMaxSharedMemoryPerBlock
+                         , 0);
+    check_error("getting max shared mem size");
+    unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
+    #pragma omp parallel for\
+      default(none)\
+      private(i,i_gpu,block_rng,i_from,i_to)\
+      firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
+                   prev_last_frame,prev_max_state,\
+                   shared_mem,first_frame_above_threshold)\
+      shared(d_coords_sorted,d_clustering,\
+             tmp_coords_sorted,prev_clustering_sorted)\
+      num_threads(n_gpus)
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      // allocate memory and copy sorted coords to GPUs
+      cudaSetDevice(i_gpu);
+      cudaMalloc((void**) &d_coords_sorted[i_gpu]
+               , sizeof(float) * n_rows * n_cols);
+      cudaMalloc((void**) &d_clustering[i_gpu]
+               , sizeof(unsigned int) * n_rows);
+      cudaMemcpy(d_coords_sorted[i_gpu]
+               , tmp_coords_sorted.data()
+               , sizeof(float) * n_rows * n_cols
+               , cudaMemcpyHostToDevice);
+      // copy prev results to GPU-buffer (and set the rest to zero)
+      cudaMemset(d_clustering[i_gpu]
+               , 0
+               , sizeof(unsigned int) * n_rows);
+      // perform initial clustering on yet unclustered frames
+      i_from = prev_last_frame + i_gpu * gpu_rng;
+      i_to = (i_gpu == (n_gpus-1))
+           ? first_frame_above_threshold
+           : prev_last_frame + (i_gpu+1) * gpu_rng;
+      block_rng = min_multiplicator(i_to-i_from
+                                  , BSIZE_SCR);
+      for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
+        initial_density_clustering_krnl
+          <<< block_rng
+            , BSIZE_SCR
+            , shared_mem >>>
+          (i*BSIZE_SCR
+         , d_coords_sorted[i_gpu]
+         , n_rows
+         , n_cols
+         , max_dist2
+         , d_clustering[i_gpu]
+         , i_from
+         , i_to);
+      }
+      cudaDeviceSynchronize();
+      check_error("after kernel loop");
+    }
     // collect & merge clustering results from GPUs
-    std::vector<unsigned int> clustering_sorted(n_rows, 0);
-//TODO: something is rotten here
+    std::vector<unsigned int> clustering_sorted = prev_clustering_sorted;
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       std::vector<unsigned int> tmp_clust(n_rows, 0);
       cudaMemcpy(tmp_clust.data()
                , d_clustering[i_gpu]
                , sizeof(unsigned int) * first_frame_above_threshold
                , cudaMemcpyDeviceToHost);
-      for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-        clustering_sorted[i] = std::min(clustering_sorted[i]
-                                      , tmp_clust[i]);
+      for (i=prev_last_frame; i < first_frame_above_threshold; ++i) {
+        if (i_gpu == 0) {
+          clustering_sorted[i] = tmp_clust[i];
+        } else {
+          clustering_sorted[i] = std::max(clustering_sorted[i]
+                                        , tmp_clust[i]);
+        }
       }
     }
-std::cerr << "###" << std::endl;
-for(auto s: clustering_sorted) {
-  std::cerr << s << std::endl;
-}
     // reduce clustering to min number of ids
-    clustering_sorted = sanitize_state_names(clustering_sorted);
+    clustering_sorted = sanitize_state_names(clustering_sorted
+                                           , prev_max_state);
     // convert state trajectory from
     // FE-sorted order to original order
     std::vector<std::size_t> clustering(n_rows, 0);
@@ -798,7 +685,6 @@ for(auto s: clustering_sorted) {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
     }
-std::cout << "normalizing names" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);
