@@ -45,7 +45,16 @@ namespace Clustering {
     //! count transitions from one to the other cluster with certain lag
     //! and return as count matrix (row/col := from/to)
     SparseMatrixF
-    transition_counts(std::vector<std::size_t> trajectory, std::vector<std::size_t> concat_limits, std::size_t n_lag_steps);
+    transition_counts(std::vector<std::size_t> trajectory
+                    , std::vector<std::size_t> concat_limits
+                    , std::size_t n_lag_steps
+                    , std::size_t i_max = 0);
+    //! same as 'transition_counts', but with reweighting account for
+    //! differently sized trajectory chunks (as given by concat_limits)
+    SparseMatrixF
+    weighted_transition_counts(std::vector<std::size_t> trajectory
+                             , std::vector<std::size_t> concat_limits
+                             , std::size_t n_lag_steps);
     //! compute transition matrix from counts by normalization of rows
     SparseMatrixF
     row_normalized_transition_probabilities(SparseMatrixF count_matrix, std::set<std::size_t> microstate_names);
@@ -87,6 +96,7 @@ namespace Clustering {
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
                                    std::vector<std::size_t> concat_limits,
+                                   bool diff_size_chunks,
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy);

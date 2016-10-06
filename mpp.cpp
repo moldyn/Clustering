@@ -32,13 +32,18 @@ namespace Clustering {
     SparseMatrixF
     transition_counts(std::vector<std::size_t> trajectory,
                       std::vector<std::size_t> concat_limits,
-                      std::size_t n_lag_steps) {
+                      std::size_t n_lag_steps,
+                      std::size_t i_max) {
       if (n_lag_steps == 0) {
-        std::cerr << "error: lagtime of 0 does not make any sense for MPP clustering" << std::endl;
+        std::cerr << "error: lagtime of 0 does not make any sense for"
+                  << " MPP clustering" << std::endl;
         exit(EXIT_FAILURE);
       }
       std::vector<std::size_t>::iterator next_limit = concat_limits.begin();
-      std::size_t i_max = (*std::max_element(trajectory.begin(), trajectory.end()));
+      if (i_max == 0) {
+        i_max = (*std::max_element(trajectory.begin()
+                                 , trajectory.end()));
+      }
       SparseMatrixF count_matrix(i_max+1, i_max+1);
       for (std::size_t i=0; i < trajectory.size() - n_lag_steps; ++i) {
         std::size_t from = trajectory[i];
@@ -60,8 +65,54 @@ namespace Clustering {
     }
 
     SparseMatrixF
-    row_normalized_transition_probabilities(SparseMatrixF count_matrix,
-                                            std::set<std::size_t> cluster_names) {
+    weighted_transition_counts(std::vector<std::size_t> trajectory
+                             , std::vector<std::size_t> concat_limits
+                             , std::size_t n_lag_steps) {
+      // get max index (max. matrix size == max index+1)
+      std::size_t i_max = (*std::max_element(trajectory.begin()
+                                           , trajectory.end()));
+      SparseMatrixF weighted_counts(i_max+1, i_max+1);
+      std::vector<float> acc_weights(i_max+1);
+      std::size_t lower_lim = 0;
+      for (std::size_t i_chunk=0; i_chunk < concat_limits.size(); ++i_chunk) {
+        // compute count matrix per chunk
+        std::size_t upper_lim = lower_lim + concat_limits[i_chunk];
+        std::vector<std::size_t> chunk = std::vector<std::size_t>(
+                                           concat_limits.begin()+lower_lim
+                                         , concat_limits.begin()+upper_lim);
+        SparseMatrixF counts = transition_counts(chunk
+                                               , {}
+                                               , n_lag_steps
+                                               , i_max);
+        // compute weights for this chunk
+        std::vector<float> weights(i_max+1);
+        for (std::size_t i=0; i < i_max+1; ++i) {
+          for (std::size_t j=0; j < i_max+1; ++j) {
+            weights[i] += counts(i,j);
+          }
+          weights[i] = sqrt(weights[i]);
+          acc_weights[i] += weights[i];
+        }
+        // add weighted counts to end result
+        for (std::size_t i=0; i < i_max+1; ++i) {
+          for (std::size_t j=0; j < i_max+1; ++j) {
+            weighted_counts(i,j) += weights[i]*counts(i,j);
+          }
+        }
+        lower_lim = upper_lim;
+      }
+      // re-weight end result
+      for (std::size_t i=0; i < i_max+1; ++i) {
+        for (std::size_t j=0; j < i_max+1; ++j) {
+          weighted_counts(i,j) /= acc_weights[i];
+        }
+      }
+      return weighted_counts;
+    }
+
+    SparseMatrixF
+    row_normalized_transition_probabilities(SparseMatrixF count_matrix
+                                          , std::set<std::size_t> cluster_names) {
       std::size_t n_rows = count_matrix.size1();
       std::size_t n_cols = count_matrix.size2();
       SparseMatrixF transition_matrix(n_rows, n_cols);
@@ -102,21 +153,23 @@ namespace Clustering {
               if (transition_matrix(i,j) > max_trans_prob) {
                 max_trans_prob = transition_matrix(i,j);
                 candidates = {j};
-              } else if (transition_matrix(i,j) == max_trans_prob && max_trans_prob > 0.0f) {
+              } else if (transition_matrix(i,j) == max_trans_prob
+                      && max_trans_prob > 0.0f) {
                 candidates.push_back(j);
               }
             }
           }
         }
         if (candidates.size() == 0) {
-          std::cerr << "error: state '" << i
-                                        << "' has self-transition probability of "
-                                        << transition_matrix(i,i)
-                                        << " at Qmin " 
-                                        << q_min
-                                        << " and does not find any transition candidates."
-                                        << " please have a look at your trajectory!"
-                                        << std::endl;
+          std::cerr << "error: state '"
+                    << i
+                    << "' has self-transition probability of "
+                    << transition_matrix(i,i)
+                    << " at Qmin " 
+                    << q_min
+                    << " and does not find any transition candidates."
+                    << " please have a look at your trajectory!"
+                    << std::endl;
           exit(EXIT_FAILURE);
         } else if (candidates.size() == 1) {
           future_state[i] = candidates[0];
@@ -125,7 +178,9 @@ namespace Clustering {
           auto min_fe_compare = [&](std::size_t i, std::size_t j) {
             return min_free_energy[i] < min_free_energy[j];
           };
-          future_state[i] = (*std::min_element(candidates.begin(), candidates.end(), min_fe_compare));
+          future_state[i] = (*std::min_element(candidates.begin()
+                                             , candidates.end()
+                                             , min_fe_compare));
         }
       }
       return future_state;
@@ -187,8 +242,10 @@ namespace Clustering {
                std::set<std::size_t> cluster_names,
                float q_min,
                std::vector<float> free_energy) {
-      std::map<std::size_t, std::size_t> pops = microstate_populations(clusters, cluster_names);
-      std::map<std::size_t, float> min_free_energy = microstate_min_free_energy(clusters, free_energy);
+      std::map<std::size_t, std::size_t> pops;
+      pops = microstate_populations(clusters, cluster_names);
+      std::map<std::size_t, float> min_free_energy;
+      min_free_energy = microstate_min_free_energy(clusters, free_energy);
       std::map<std::size_t, std::size_t> sinks;
       for (std::size_t i: cluster_names) {
         std::vector<std::size_t> metastable_states;
@@ -211,22 +268,29 @@ namespace Clustering {
           return min_free_energy[i] < min_free_energy[j];
         };
         // find sink candidate state from lowest free energy
-        auto candidate = std::min_element(metastable_states.begin(), metastable_states.end(), fe_compare);
+        auto candidate = std::min_element(metastable_states.begin()
+                                        , metastable_states.end()
+                                        , fe_compare);
         float min_fe = free_energy[*candidate];
         std::set<std::size_t> sink_candidates;
-        while (candidate != metastable_states.end() && free_energy[*candidate] == min_fe) {
+        while (candidate != metastable_states.end()
+            && free_energy[*candidate] == min_fe) {
           // there may be several states with same (min.) free energy,
           // collect them all into one set
           sink_candidates.insert(*candidate);
           metastable_states.erase(candidate);
-          candidate = std::min_element(metastable_states.begin(), metastable_states.end(), fe_compare);
+          candidate = std::min_element(metastable_states.begin()
+                                     , metastable_states.end()
+                                     , fe_compare);
         }
         // select sink by lowest free energy
         if (sink_candidates.size() == 1) {
           sinks[i] = (*sink_candidates.begin());
         } else {
           // or highest population, if equal
-          sinks[i] = (*std::max_element(sink_candidates.begin(), sink_candidates.end(), pop_compare));
+          sinks[i] = (*std::max_element(sink_candidates.begin()
+                                      , sink_candidates.end()
+                                      , pop_compare));
         }
       }
       return sinks;
@@ -248,6 +312,7 @@ namespace Clustering {
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
                                    std::vector<std::size_t> concat_limits,
+                                   bool diff_size_chunks,
                                    float q_min,
                                    std::size_t lagtime,
                                    std::vector<float> free_energy) {
@@ -262,8 +327,10 @@ namespace Clustering {
         if (microstate_names.count(0)) {
           std::cerr << "\nwarning:\n"
                     << "  there is a state '0' in your trajectory.\n"
-                    << "  are you sure you generated a proper trajectory of microstates\n"
-                    << "  (e.g. by running a final, seeded density-clustering to fill up the FEL)?\n"
+                    << "  are you sure you generated a proper"
+                    << " trajectory of microstates\n"
+                    << "  (e.g. by running a final, seeded"
+                    << " density-clustering to fill up the FEL)?\n"
                     << std::endl;
         }
         logger(std::cout) << "iteration "
@@ -273,18 +340,33 @@ namespace Clustering {
                           << std::endl;
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
-        SparseMatrixF trans_prob = row_normalized_transition_probabilities(
-                                     transition_counts(traj, concat_limits, lagtime),
-                                     microstate_names);
+        SparseMatrixF trans_prob;
+        if (diff_size_chunks) {
+          trans_prob = row_normalized_transition_probabilities(
+                         weighted_transition_counts(traj
+                                                  , concat_limits
+                                                  , lagtime)
+                       , microstate_names);
+        } else {
+          trans_prob = row_normalized_transition_probabilities(
+                         transition_counts(traj
+                                         , concat_limits
+                                         , lagtime)
+                       , microstate_names);
+        }
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
-        std::map<std::size_t, std::size_t> future_state = single_step_future_state(trans_prob,
-                                                                                   microstate_names,
-                                                                                   q_min,
-                                                                                   microstate_min_free_energy(traj, free_energy));
+        std::map<std::size_t, std::size_t> future_state;
+        future_state = single_step_future_state(trans_prob
+                                              , microstate_names
+                                              , q_min
+                                              , microstate_min_free_energy(
+                                                  traj
+                                                , free_energy));
         // compute MPP
         logger(std::cout) << "  calculating most probable path" << std::endl;
-        std::map<std::size_t, std::vector<std::size_t>> mpp = most_probable_path(future_state, microstate_names);
+        std::map<std::size_t, std::vector<std::size_t>> mpp;
+        mpp = most_probable_path(future_state, microstate_names);
         // compute sinks (i.e. states with lowest Free Energy per path)
         logger(std::cout) << "  calculating path sinks" << std::endl;
         std::map<std::size_t, std::size_t> sinks = path_sinks(traj
@@ -310,7 +392,10 @@ namespace Clustering {
         }
       }
       if (iter == MAX_ITER) {
-        throw std::runtime_error(Clustering::Tools::stringprintf("reached max. no. of iterations for Q_min convergence: %d", iter));
+        throw std::runtime_error(Clustering::Tools::stringprintf(
+                                   "reached max. no. of iterations"
+                                   " for Q_min convergence: %d"
+                                 , iter));
       } else {
         return std::make_tuple(traj, lumping);
       }
@@ -318,48 +403,68 @@ namespace Clustering {
 
     void
     main(boost::program_options::variables_map args) {
+      // import IO functions
+      using Clustering::Tools::stringprintf;
+      using Clustering::Tools::read_clustered_trajectory;
+      using Clustering::Tools::read_free_energies;
+      using Clustering::Tools::read_single_column;
+      using Clustering::Tools::write_single_column;
+      using Clustering::Tools::write_map;
+      // load initial trajectory, free energies, etc
       std::string basename = args["basename"].as<std::string>();
-      // load initial trajectory
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
       Clustering::logger(std::cout) << "loading microstates" << std::endl;
-      std::vector<std::size_t> traj = Clustering::Tools::read_clustered_trajectory(args["input"].as<std::string>());
+      std::vector<std::size_t> traj;
+      traj = read_clustered_trajectory(args["input"].as<std::string>());
       Clustering::logger(std::cout) << "loading free energies" << std::endl;
-      std::vector<float> free_energy = Clustering::Tools::read_free_energies(args["free-energy-input"].as<std::string>());
+      std::string fname_fe_in = args["free-energy-input"].as<std::string>();
+      std::vector<float> free_energy = read_free_energies(fname_fe_in);
       float q_min_from = args["qmin-from"].as<float>();
       float q_min_to = args["qmin-to"].as<float>();
       float q_min_step = args["qmin-step"].as<float>();
       int lagtime = args["lagtime"].as<int>();
-      Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
       std::vector<std::size_t> concat_limits;
-      if (args.count("concat-limits")) {
-        concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+      bool diff_sized_chunks = args.count("concat_limits");
+      if (diff_sized_chunks) {
+        std::string fname_climits = args["concat-limits"].as<std::string>();
+        concat_limits = read_single_column<std::size_t>(fname_climits);
       } else if (args.count("concat-nframes")) {
-        std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
-        for (std::size_t i=n_frames_per_subtraj; i < traj.size(); i += n_frames_per_subtraj) {
+        std::size_t n_frames_per_subtraj;
+        n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+        for (std::size_t i=n_frames_per_subtraj
+           ; i < traj.size()
+           ; i += n_frames_per_subtraj) {
           concat_limits.push_back(i);
         }
       }
+      Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
       for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-        auto traj_sinks = fixed_metastability_clustering(traj, concat_limits, q_min, lagtime, free_energy);
+        auto traj_sinks = fixed_metastability_clustering(traj
+                                                       , concat_limits
+                                                       , diff_sized_chunks
+                                                       , q_min
+                                                       , lagtime
+                                                       , free_energy);
         // write trajectory at current Qmin level to file
         traj = std::get<0>(traj_sinks);
-        Clustering::Tools::write_single_column(Clustering::Tools::stringprintf("%s_traj_%0.3f.dat"
-                                                                             , basename.c_str()
-                                                                             , q_min)
-                                             , traj);
+        write_single_column(stringprintf("%s_traj_%0.3f.dat"
+                                       , basename.c_str()
+                                       , q_min)
+                          , traj);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
         for (auto from_to: sinks) {
           transitions[from_to.first] = {from_to.second, q_min};
         }
         // write microstate populations to file
-        std::map<std::size_t, std::size_t> pops = Clustering::Tools::microstate_populations(traj);
-        Clustering::Tools::write_map<std::size_t, std::size_t>(Clustering::Tools::stringprintf("%s_pop_%0.3f.dat"
-                                                                                             , basename.c_str()
-                                                                                             , q_min)
-                                                             , pops);
+        std::map<std::size_t, std::size_t> pops;
+        pops = Clustering::Tools::microstate_populations(traj);
+        write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.3f.dat"
+                                                       , basename.c_str()
+                                                       , q_min)
+                                          , pops);
         // collect max. pops + max. q_min per microstate
         for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
           max_pop[id] = pops[id];
@@ -370,11 +475,16 @@ namespace Clustering {
       {
         std::ofstream ofs(basename + "_transitions.dat");
         for (auto trans: transitions) {
-          ofs << trans.first << " " << trans.second.first << " " << trans.second.second << "\n";
+          ofs << trans.first
+              << " "
+              << trans.second.first
+              << " "
+              << trans.second.second
+              << "\n";
         }
       }
-      Clustering::Tools::write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
-      Clustering::Tools::write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
+      write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
+      write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
     }
   } // end namespace MPP
 } // end namespace Clustering

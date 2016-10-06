@@ -11,8 +11,8 @@
 #include "lts_cuda_kernels.cuh"
 
 // for pops
-//#define BSIZE_POPS 128
-#define BSIZE_POPS 1024
+#define BSIZE_POPS 512
+//#define BSIZE_POPS 1024
 
 // for neighborhood search
 #define BSIZE_NH 128
@@ -163,6 +163,7 @@ namespace CUDA {
   get_num_gpus() {
     int n_gpus;
     cudaGetDeviceCount(&n_gpus);
+    check_error("trying to get number of available GPUs");
     if (n_gpus == 0) {
       std::cerr << "error: no CUDA-compatible GPUs found" << std::endl;
       exit(EXIT_FAILURE);
@@ -275,6 +276,9 @@ namespace CUDA {
     int gpu_range = n_rows / n_gpus;
     int i;
     std::vector<Pops> partial_pops(n_gpus);
+std::cerr << "beginning omp loop on " << n_gpus << " GPUs" << std::endl;
+std::cerr << "total # rows: " << n_rows << std::endl;
+std::cerr << "range per GPU: " << gpu_range << std::endl;
     #pragma omp parallel for default(none)\
       private(i)\
       firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
@@ -294,6 +298,7 @@ namespace CUDA {
                                                         : (i+1)*gpu_range
                                                     , i);
     }
+std::cerr << "partial pops finished" << std::endl;
     Pops pops;
     // combine pops
     for (float r: radii) {
@@ -604,8 +609,6 @@ namespace CUDA {
       // below previous threshold
       return initial_clusters;
     }
-std::cout << "prev_last, first_above, gpu_rng: ";
-std::cout << prev_last_frame << ", " << first_frame_above_threshold << ", " << gpu_rng << std::endl;
     int max_shared_mem;
     // assuming GPUs are of same type with same amount of memory
     cudaDeviceGetAttribute(&max_shared_mem
@@ -661,6 +664,9 @@ std::cout << prev_last_frame << ", " << first_frame_above_threshold << ", " << g
       cudaDeviceSynchronize();
       check_error("after kernel loop");
     }
+
+//TODO: fix lumping errors (i.e. there are currently no lumps at FE barriers)
+
     // collect & merge clustering results from GPUs
     std::vector<unsigned int> clustering_sorted = prev_clustering_sorted;
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {

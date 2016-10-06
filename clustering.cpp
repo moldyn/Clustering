@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (file): file with sizes of individual (not equally sized) sub-trajectories for concatenated trajectory files. e.g.: for a concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
     // defaults
     ("basename", b_po::value<std::string>()->default_value("mpp"), "basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),
