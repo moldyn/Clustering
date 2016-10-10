@@ -149,7 +149,8 @@ namespace CUDA {
 
   ////
 
-  void check_error(std::string msg="") {
+  void
+  check_error(std::string msg) {
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
       std::cerr << "CUDA error: "

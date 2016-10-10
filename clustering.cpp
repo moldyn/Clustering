@@ -37,6 +37,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "config.hpp"
 // sub-modules
 #include "density_clustering.hpp"
+#ifdef USE_CUDA
+  #include "density_clustering_cuda.hpp"
+#endif
 #ifdef DC_USE_MPI
   #include "density_clustering_mpi.hpp"
 #endif
@@ -72,6 +75,11 @@ int main(int argc, char* argv[]) {
   ;
 
   enum {DENSITY, MPP, NETWORK, FILTER, CORING} mode;
+
+#ifdef USE_CUDA
+  // check for CUDA-enabled GPUs (will fail if none found)
+  Clustering::Density::CUDA::get_num_gpus();
+#endif
 
   if (argc <= 2) {
     std::cerr << general_help;

@@ -205,7 +205,7 @@ namespace Clustering {
                                firstprivate(max_pop, n_frames)\
                                shared(fe, pops)
       for (i=0; i < n_frames; ++i) {
-        fe[i] = (float) -1 * log(pops[i]/max_pop);
+        fe[i] = (float) -1.0f * log(pops[i]/max_pop);
       }
       return fe;
     }

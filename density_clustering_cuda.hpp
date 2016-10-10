@@ -10,6 +10,12 @@ namespace Clustering {
 namespace Density {
 namespace CUDA {
 
+  void
+  check_error(std::string msg="");
+
+  int
+  get_num_gpus();
+
   using Neighborhood = Clustering::Tools::Neighborhood;
 
   Pops
