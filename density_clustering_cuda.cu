@@ -55,6 +55,7 @@ namespace CUDA {
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
+      //TODO: local_pop to  private array, then move loop over radii inside
       for (unsigned int r=0; r < n_radii; ++r) {
         unsigned int local_pop = 0;
         float rad2 = radii2[r];
