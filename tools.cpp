@@ -25,6 +25,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tools.hpp"
 
+#include <cmath>
 #include <stdarg.h>
 
 namespace Clustering {
