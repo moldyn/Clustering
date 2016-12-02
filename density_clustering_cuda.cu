@@ -278,9 +278,6 @@ namespace CUDA {
     int gpu_range = n_rows / n_gpus;
     int i;
     std::vector<Pops> partial_pops(n_gpus);
-std::cerr << "beginning omp loop on " << n_gpus << " GPUs" << std::endl;
-std::cerr << "total # rows: " << n_rows << std::endl;
-std::cerr << "range per GPU: " << gpu_range << std::endl;
     #pragma omp parallel for default(none)\
       private(i)\
       firstprivate(n_gpus,n_rows,n_cols,gpu_range)\
@@ -300,7 +297,6 @@ std::cerr << "range per GPU: " << gpu_range << std::endl;
                                                         : (i+1)*gpu_range
                                                     , i);
     }
-std::cerr << "partial pops finished" << std::endl;
     Pops pops;
     // combine pops
     for (float r: radii) {
@@ -528,10 +524,11 @@ std::cerr << "partial pops finished" << std::endl;
     for (unsigned int u: unique_names) {
       unsigned int u_orig = u;
       if (u > 0) {
-        // state trajectory is strictly ordered in distance,
-        // thus this will always terminate as ids are always
-        // smaller or equal to own id
-        while (u > prev_max_state && clustering[u-1] != u) {
+        // state ids are strictly ordered,
+        // thus this will always terminate
+// TODO debugging
+//        while (u > prev_max_state && clustering[u-1] != u) {
+        while (clustering[u-1] != u) {
           u = clustering[u-1];
         }
       }
@@ -642,6 +639,11 @@ std::cerr << "partial pops finished" << std::endl;
       cudaMemset(d_clustering[i_gpu]
                , 0
                , sizeof(unsigned int) * n_rows);
+      //TODO: copy prev clustering
+      cudaMemcpy(d_clustering[i_gpu]
+               , prev_clustering_sorted.data()
+               , sizeof(unsigned int) * n_rows
+               , cudaMemcpyHostToDevice);
       // perform initial clustering on yet unclustered frames
       i_from = prev_last_frame + i_gpu * gpu_rng;
       i_to = (i_gpu == (n_gpus-1))
@@ -666,11 +668,8 @@ std::cerr << "partial pops finished" << std::endl;
       cudaDeviceSynchronize();
       check_error("after kernel loop");
     }
-
-//TODO: fix lumping errors (i.e. there are currently no lumps at FE barriers)
-
     // collect & merge clustering results from GPUs
-    std::vector<unsigned int> clustering_sorted = prev_clustering_sorted;
+    std::vector<unsigned int> clustering_sorted(n_rows);
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       std::vector<unsigned int> tmp_clust(n_rows, 0);
       cudaMemcpy(tmp_clust.data()
