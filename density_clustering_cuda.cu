@@ -55,7 +55,6 @@ namespace CUDA {
       for (unsigned int j=0; j < n_cols; ++j) {
         smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
-      //TODO: local_pop to  private array, then move loop over radii inside
       for (unsigned int r=0; r < n_radii; ++r) {
         unsigned int local_pop = 0;
         float rad2 = radii2[r];
@@ -119,6 +118,7 @@ namespace CUDA {
       nh_minndx = nh_dist_ndx[n_rows+gid];
       nhhd_mindist = nhhd_dist_ndx[gid];
       nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
+      // compare squared distances of reference
       // compare squared distances of reference
       // to (other) frames in shared mem
       for (unsigned int i=0; i < comp_size; ++i) {
@@ -528,7 +528,7 @@ namespace CUDA {
         // thus this will always terminate
 // TODO debugging
 //        while (u > prev_max_state && clustering[u-1] != u) {
-        while (clustering[u-1] != u) {
+        while (u > 1 && clustering[u-1] != u) {
           u = clustering[u-1];
         }
       }
@@ -566,10 +566,14 @@ namespace CUDA {
                                                         , free_energy_threshold
                                                         , n_rows
                                                         , initial_clusters);
+std::cerr << "Threshold:  " << free_energy_threshold << std::endl;
+std::cerr << "prev_max_state: " << prev_max_state << std::endl;
+std::cerr << "first frame over threshold: " << first_frame_above_threshold << std::endl;
+std::cerr << std::endl;
     // write log
-    screening_log(sigma2
-                , first_frame_above_threshold
-                , fe_sorted);
+//    screening_log(sigma2
+//                , first_frame_above_threshold
+//                , fe_sorted);
     float max_dist2 = 4*sigma2;
     // prepare CUDA environment
     int n_gpus = get_num_gpus();
@@ -586,6 +590,7 @@ namespace CUDA {
       prev_clustering_sorted[i] = prev_clustering[fe_sorted[i].first];
     }
     unsigned int block_rng;
+//TODO: check: what happens if no new frames are added compared to prev run?
     unsigned int i_from;
     unsigned int i_to;
     unsigned int i;
