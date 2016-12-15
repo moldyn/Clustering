@@ -541,16 +541,6 @@ namespace CUDA {
 //        // state ids are strictly ordered,
 //        // thus this will always terminate
 //        while (u > prev_max_state && clustering[u-1] != u) {
-<<<<<<< HEAD
-        while (u > 1 && clustering[u-1] != u) {
-          u = clustering[u-1];
-        }
-      }
-      end_points[u_orig] = u;
-    }
-    for (unsigned int& s: clustering) {
-      s = end_points[s];
-=======
 //          u = clustering[u-1];
 //        }
 //      }
@@ -564,7 +554,6 @@ namespace CUDA {
     for (unsigned int i=0; i < clustering.size(); ++i) {
       clustering[i] = follow(clustering
                            , clustering[i]);
->>>>>>> e41895919a50046cd6b59b02753268599a86a61a
     }
     return clustering;
   }
@@ -594,17 +583,9 @@ namespace CUDA {
                                                         , nh
                                                         , free_energy_threshold
                                                         , n_rows
-<<<<<<< HEAD
-                                                        , initial_clusters);
-std::cerr << "Threshold:  " << free_energy_threshold << std::endl;
-std::cerr << "prev_max_state: " << prev_max_state << std::endl;
-std::cerr << "first frame over threshold: " << first_frame_above_threshold << std::endl;
-std::cerr << std::endl;
-=======
                                                         , {});
 //TODO: debug
                                               //          , initial_clusters);
->>>>>>> e41895919a50046cd6b59b02753268599a86a61a
     // write log
 //    screening_log(sigma2
 //                , first_frame_above_threshold
