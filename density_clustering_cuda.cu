@@ -491,9 +491,10 @@ namespace CUDA {
     }
     __syncthreads();
     if (gid < i_to) {
+      unsigned int self_id = gid + 1;
       unsigned int cluster_id = clustering[gid];
       if (cluster_id == 0) {
-        cluster_id = gid + 1;
+        cluster_id = self_id;
       }
       unsigned int ref_id = tid+bsize;
       // load reference coordinates for re-use into shared memory
@@ -507,56 +508,64 @@ namespace CUDA {
           dist2 = fma(c, c, dist2);
         }
         if (dist2 < max_dist2) {
-        //TODO: this must be the error: always taking the smallest id
-        //      may lead to self-loops. we must keep track of all(!) seen
-        //      neighbors...
-          cluster_id = min(cluster_id, i+offset+1);
+          unsigned int min_id = min(cluster_id, i+offset+1);
+          if (min_id == self_id) {
+            cluster_id = max(cluster_id, i+offset+1);
+          } else {
+            cluster_id = min_id;
+          }
         }
       }
       clustering[gid] = cluster_id;
     }
   }
 
-  unsigned int
-  follow(const std::vector<unsigned int>& clustering
-       , unsigned int id) {
-    if (id == 0
-    ||  clustering[id-1] == id) {
-      return id;
-    } else {
-      return follow(clustering
-                  , clustering[id-1]);
-    }
-  }
+//  unsigned int
+//  follow(const std::vector<unsigned int>& clustering
+//       , unsigned int id
+//       , unsigned int min_id = 0) {
+//    if (id == 0
+//     || id == min_id) {
+//      return id;
+//    } else {
+//      return follow(clustering
+//                  , clustering[id-1]
+//                  , (min_id == 0)
+//                      ? id
+//                      : std::min(id, min_id));
+//    }
+//  }
 
   std::vector<unsigned int>
-  sanitize_state_names(std::vector<unsigned int> clustering
-                     , unsigned int prev_max_state) {
-//    std::vector<unsigned int> unique_names =
-//      Clustering::Tools::unique_elements(clustering);
-//    std::map<unsigned int, unsigned int> end_points;
-//    for (unsigned int u: unique_names) {
-//      unsigned int u_orig = u;
-//      if (u > 0) {
-//        // state ids are strictly ordered,
-//        // thus this will always terminate
-//        while (u > prev_max_state && clustering[u-1] != u) {
-//          u = clustering[u-1];
-//        }
-//      }
-//      end_points[u_orig] = u;
-//    }
-//    for (unsigned int& s: clustering) {
-//      s = end_points[s];
-//    }
+  sanitize_state_names(std::vector<unsigned int> clustering) {
 
-//TODO test alternative
-    for (unsigned int i=0; i < clustering.size(); ++i) {
-      clustering[i] = follow(clustering
-                           , clustering[i]);
+    //TODO: lump frames into microstates.
+    //      be careful: cluster ids do not necessarily
+    //                  denote frame ids (especially not with previous
+    //                  clustering)
+
+    // map names to ascending index
+    unsigned int id=0;
+    std::map<unsigned int, unsigned int> name_dict;
+    for (unsigned int name: unique_names) {
+      ++id;
+      name_dict[name] = id;
+    }
+    // relabel states
+    for (unsigned int& i: clustering) {
+      i = name_dict[i];
     }
     return clustering;
   }
+
+
+//TODO remove old code
+//    for (unsigned int i=0; i < clustering.size(); ++i) {
+//      clustering[i] = follow(clustering
+//                           , clustering[i]);
+//    }
+//    return clustering;
+//  }
 
 
   std::vector<std::size_t>
@@ -583,9 +592,7 @@ namespace CUDA {
                                                         , nh
                                                         , free_energy_threshold
                                                         , n_rows
-                                                        , {});
-//TODO: debug
-                                              //          , initial_clusters);
+                                                        , initial_clusters);
     // write log
 //    screening_log(sigma2
 //                , first_frame_above_threshold
@@ -656,11 +663,15 @@ namespace CUDA {
                , tmp_coords_sorted.data()
                , sizeof(float) * n_rows * n_cols
                , cudaMemcpyHostToDevice);
+
+
+      //TODO change kernel to use two lists: own state + min next-neighbor state
+
+
       // copy prev results to GPU-buffer (and set the rest to zero)
       cudaMemset(d_clustering[i_gpu]
                , 0
                , sizeof(unsigned int) * n_rows);
-      //TODO: copy prev clustering
       cudaMemcpy(d_clustering[i_gpu]
                , prev_clustering_sorted.data()
                , sizeof(unsigned int) * n_rows
@@ -690,8 +701,7 @@ namespace CUDA {
       check_error("after kernel loop");
     }
     // collect & merge clustering results from GPUs
-    //TODO debug
-    std::vector<unsigned int> clustering_sorted(n_rows);
+    std::vector<unsigned int> clustering_sorted = prev_clustering_sorted;
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       std::vector<unsigned int> tmp_clust(n_rows, 0);
       cudaMemcpy(tmp_clust.data()
@@ -702,24 +712,21 @@ namespace CUDA {
         if (i_gpu == 0) {
           clustering_sorted[i] = tmp_clust[i];
         } else {
-          clustering_sorted[i] = std::min(clustering_sorted[i]
+          clustering_sorted[i] = std::max(clustering_sorted[i]
                                         , tmp_clust[i]);
-          if (clustering_sorted[i] == 0) {
-            clustering_sorted[i] = std::max(clustering_sorted[i]
-                                          , tmp_clust[i]);
-          }
         }
       }
     }
-//TODO debug
     // reduce clustering to min number of ids
-    clustering_sorted = sanitize_state_names(clustering_sorted
-                                           , prev_max_state);
-//    // convert state trajectory from
-//    // FE-sorted order to original order
+    clustering_sorted = sanitize_state_names(clustering_sorted);
+    //TODO: refined clustering (by rerunning with alternative kernel)
+
+
+
+
+    // convert state trajectory from
+    // FE-sorted order to original order
     std::vector<std::size_t> clustering(n_rows, 0);
-//TODO debugging: write sorted clustering to file under
-//    'free_energy_threshold'-name
     for (unsigned int i=0; i < n_rows; ++i) {
       clustering[fe_sorted[i].first] = clustering_sorted[i];
     }
@@ -728,11 +735,6 @@ namespace CUDA {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
     }
-
-//TODO
-    std::cout << "#  " << clustering_sorted[0] << std::endl;
-
-//    return clustering;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);
