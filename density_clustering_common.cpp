@@ -77,6 +77,9 @@ namespace Density {
 #endif
     // indices inside this loop are in order of sorted(!) free energies
     bool neighboring_clusters_merged = false;
+    //TODO: this while loop shouldn't be necessary, resp.
+    //      will always finish trivially after 2 runs, since nothing will
+    //      happen as all frames will have been visitied...
     while ( ! neighboring_clusters_merged) {
       neighboring_clusters_merged = true;
 #ifdef DC_USE_MPI
@@ -101,6 +104,8 @@ namespace Density {
                                                    mpi_n_nodes,
                                                    mpi_node_id);
 #else
+          //TODO use box-assisted search on
+          //     fe_sorted coords for 'high_density_neighborhood'
           std::set<std::size_t> local_nh = high_density_neighborhood(coords,
                                                                      n_cols,
                                                                      fe_sorted,

@@ -646,7 +646,6 @@ namespace Clustering {
                                                   , n_rows
                                                   , n_cols
                                                   , clustering);
-//TODO why is there an empty 'clust' file?
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
           }
@@ -672,8 +671,9 @@ namespace Clustering {
                                                , free_energies);
         }
 //TODO: culprit of empty 'clust' file?
-        Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
-        write_single_column<std::size_t>(output_file, clustering);
+//      comment this code and test with screening and microstate generation
+//        Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+//        write_single_column<std::size_t>(output_file, clustering);
       }
       Clustering::logger(std::cout) << "freeing coords" << std::endl;
       free_coords(coords);
