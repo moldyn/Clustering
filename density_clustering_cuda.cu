@@ -558,7 +558,6 @@ namespace CUDA {
     return clustering;
   }
 
-
 //TODO remove old code
 //    for (unsigned int i=0; i < clustering.size(); ++i) {
 //      clustering[i] = follow(clustering
