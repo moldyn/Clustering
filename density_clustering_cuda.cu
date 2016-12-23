@@ -4,6 +4,8 @@
 #include "logger.hpp"
 
 #include <algorithm>
+#include <unordered_set>
+#include <unordered_map>
 
 #include <cuda.h>
 #include <omp.h>
@@ -475,9 +477,14 @@ namespace CUDA {
                                 , unsigned int n_cols
                                 , float max_dist2
                                 , unsigned int* clustering
+                                , unsigned int* ref_states
                                 , unsigned int i_from
                                 , unsigned int i_to) {
-    extern __shared__ float smem[];
+    // dynamic shared mem for ref coords
+    extern __shared__ float smem_coords[];
+    // static shared mem for cluster ids
+    __shared__ unsigned int smem_ref_states[BSIZE_SCR];
+    // thread dimensions
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
@@ -486,86 +493,169 @@ namespace CUDA {
     int comp_size = min(bsize, n_rows - offset);
     if (tid < comp_size) {
       for (unsigned int j=0; j < n_cols; ++j) {
-        smem[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
+        smem_coords[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
       }
+      smem_ref_states[tid] = ref_states[(tid+offset)];
     }
     __syncthreads();
     if (gid < i_to) {
-      unsigned int self_id = gid + 1;
-      unsigned int cluster_id = clustering[gid];
-      if (cluster_id == 0) {
-        cluster_id = self_id;
-      }
-      unsigned int ref_id = tid+bsize;
+      unsigned int min_id = clustering[gid];
       // load reference coordinates for re-use into shared memory
+      unsigned int ref_id = tid+bsize;
       for (unsigned int j=0; j < n_cols; ++j) {
-        smem[ref_id*n_cols+j] = sorted_coords[gid*n_cols+j];
+        smem_coords[ref_id*n_cols+j] = sorted_coords[gid*n_cols+j];
       }
+      // check against reference structures: if close enough, they'll be
+      // considered as the same state (choosing min. state id).
+      // state lumping will be done on host.
       for (unsigned int i=0; i < comp_size; ++i) {
-        float dist2 = 0.0f;
-        for (unsigned int j=0; j < n_cols; ++j) {
-          float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
-          dist2 = fma(c, c, dist2);
-        }
-        if (dist2 < max_dist2) {
-          unsigned int min_id = min(cluster_id, i+offset+1);
-          if (min_id == self_id) {
-            cluster_id = max(cluster_id, i+offset+1);
-          } else {
-            cluster_id = min_id;
+        if (min_id != smem_ref_states[i]
+         && smem_ref_states[i] != 0) {
+          float dist2 = 0.0f;
+          for (unsigned int j=0; j < n_cols; ++j) {
+            float c = smem_coords[ref_id*n_cols+j] - smem_coords[i*n_cols+j];
+            dist2 = fma(c, c, dist2);
+          }
+          if (dist2 < max_dist2
+           && smem_ref_states[i] < min_id) {
+            min_id = smem_ref_states[i];
           }
         }
       }
-      clustering[gid] = cluster_id;
+      clustering[gid] = min_id;
     }
   }
 
-//  unsigned int
-//  follow(const std::vector<unsigned int>& clustering
-//       , unsigned int id
-//       , unsigned int min_id = 0) {
-//    if (id == 0
-//     || id == min_id) {
-//      return id;
-//    } else {
-//      return follow(clustering
-//                  , clustering[id-1]
-//                  , (min_id == 0)
-//                      ? id
-//                      : std::min(id, min_id));
-//    }
-//  }
-
   std::vector<unsigned int>
-  sanitize_state_names(std::vector<unsigned int> clustering) {
-
-    //TODO: lump frames into microstates.
-    //      be careful: cluster ids do not necessarily
-    //                  denote frame ids (especially not with previous
-    //                  clustering)
-
-    // map names to ascending index
-    unsigned int id=0;
-    std::map<unsigned int, unsigned int> name_dict;
-    for (unsigned int name: unique_names) {
-      ++id;
-      name_dict[name] = id;
+  lumped_clusters(std::vector<unsigned int> clustering
+                , std::vector<unsigned int> ref_states
+                , unsigned int first_frame_above_threshold) {
+    std::unordered_set<unsigned int> sstates;
+    sstates.insert(clustering.begin()
+                 , clustering.begin() + first_frame_above_threshold);
+    sstates.insert(ref_states.begin()
+                 , ref_states.begin() + first_frame_above_threshold);
+    sstates.erase(0);
+    std::vector<unsigned int> states(sstates.begin(), sstates.end());
+    unsigned int n_states = states.size();
+    // identify lumps
+    unsigned int i, j, s, s1, s2;
+    std::map<unsigned int, unsigned int> state_mapping;
+    for (i=0; i < n_states; ++i) {
+      state_mapping[states[i]] = states[i];
     }
-    // relabel states
-    for (unsigned int& i: clustering) {
-      i = name_dict[i];
+    #pragma omp parallel for\
+      default(none)\
+      private(i,j,s1,s2,s)\
+      firstprivate(n_states,first_frame_above_threshold)\
+      shared(state_mapping,states,clustering,ref_states)
+    for (i=0; i < n_states; ++i) {
+      s = states[i];
+      for (j=0; j < first_frame_above_threshold; ++j) {
+        s1 = clustering[j];
+        s2 = ref_states[j];
+        //TODO: no loop over states, just over frames,
+        //      then select 's' from {s1,s2}, compute min and update
+        //      state_mapping in critical section
+        if (s1 == s || s2 == s) {
+          state_mapping[s] = std::min(state_mapping[s]
+                                    , std::min(s1, s2));
+        }
+      }
+    }
+    // assign new (ordered) names to lumps
+    std::set<unsigned int> distinct_states;
+    for (auto sm: state_mapping) {
+      distinct_states.insert(sm.second);
+    }
+    std::map<unsigned int, unsigned int> remapped_distinct;
+    unsigned int i_state = 0;
+    for (unsigned int s: distinct_states) {
+      remapped_distinct[s] = ++i_state;
+    }
+    for (auto& sm: state_mapping) {
+      sm.second = remapped_distinct[sm.second];
+    }
+    // remap states to lumps
+    #pragma omp parallel for\
+      default(none)\
+      private(i)\
+      firstprivate(first_frame_above_threshold)\
+      shared(clustering,state_mapping)
+    for (i=0; i < first_frame_above_threshold; ++i) {
+      clustering[i] = state_mapping[clustering[i]];
     }
     return clustering;
   }
 
-//TODO remove old code
-//    for (unsigned int i=0; i < clustering.size(); ++i) {
-//      clustering[i] = follow(clustering
-//                           , clustering[i]);
-//    }
-//    return clustering;
-//  }
-
+  std::vector<unsigned int>
+  lumped_clusters__old(std::vector<unsigned int> clustering
+                , std::vector<unsigned int> ref_states
+                , unsigned int first_frame_above_threshold) {
+    unsigned int i_state = 0;
+    std::map<unsigned int, std::unordered_set<unsigned int>> lumps;
+    std::set<std::pair<unsigned int, unsigned int>> pairings;
+    for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
+      unsigned int s1 = clustering[i];
+      unsigned int s2 = ref_states[i];
+      pairings.emplace(s1, s2);
+    }
+    std::unordered_set<unsigned int> seen_states;
+    for (auto p: pairings) {
+      unsigned int s1 = p.first;
+      unsigned int s2 = p.second;
+      if (s1 == s2 && seen_states.count(s1) > 0) {
+        continue;
+      } else {
+        seen_states.insert(s1);
+        seen_states.insert(s2);
+      }
+      unsigned int l1=0, l2=0;
+      // find lumps of states
+      for (auto l: lumps) {
+        if (l.second.count(s1) > 0) {
+          l1 = l.first;
+        }
+        if (l.second.count(s2) > 0) {
+          l2 = l.first;
+        }
+        if (l1 != 0 && l2 != 0) {
+          break;
+        }
+      }
+      if (l1 == 0 && l2 == 0) {
+        // no lump found: make new one
+        lumps[++i_state] = {s1, s2};
+      } else if (l1 == 0 && l2 != 0) {
+        // s2 has lump: add s1
+        lumps[l2].insert(s1);
+      } else if (l1 != 0 && l2 == 0) {
+        // s1 has lump: add s2
+        lumps[l1].insert(s2);
+      } else if (l1 != l2) {
+        // s1 and s2 have different lumps: join them
+        auto mm = std::minmax(l1,l2);
+        lumps[mm.first].insert(lumps[mm.second].begin()
+                             , lumps[mm.second].end());
+        lumps.erase(mm.second);
+      }
+    }
+    // recluster trajectory
+    i_state = 0;
+    std::unordered_map<unsigned int, unsigned int> dict;
+    for (auto l: lumps) {
+      ++i_state;
+      for (auto s: l.second) {
+        dict[s] = i_state;
+      }
+    }
+    for (unsigned int i=0; i < clustering.size(); ++i) {
+      if (clustering[i] > 0) {
+        clustering[i] = dict[clustering[i]];
+      }
+    }
+    return clustering;
+  }
 
   std::vector<std::size_t>
   initial_density_clustering(const std::vector<float>& free_energy
@@ -576,12 +666,12 @@ namespace CUDA {
                            , const std::size_t n_cols
                            , const std::vector<std::size_t> initial_clusters) {
     using Clustering::Tools::min_multiplicator;
+    // data preparation
     std::size_t first_frame_above_threshold;
     double sigma2;
     std::vector<FreeEnergy> fe_sorted;
     std::vector<std::size_t> prev_clustering;
-    std::size_t prev_max_state;
-    // data preparation
+    unsigned int prev_max_state;
     std::tie(prev_clustering
            , first_frame_above_threshold
            , sigma2
@@ -593,40 +683,38 @@ namespace CUDA {
                                                         , n_rows
                                                         , initial_clusters);
     // write log
-//    screening_log(sigma2
-//                , first_frame_above_threshold
-//                , fe_sorted);
+    screening_log(sigma2
+                , first_frame_above_threshold
+                , fe_sorted);
     float max_dist2 = 4*sigma2;
     // prepare CUDA environment
     int n_gpus = get_num_gpus();
     std::vector<float*> d_coords_sorted(n_gpus);
     std::vector<unsigned int*> d_clustering(n_gpus);
+    std::vector<unsigned int*> d_ref_states(n_gpus);
     // sort coords (and previous clustering results)
     // according to free energies
     std::vector<float> tmp_coords_sorted(n_rows * n_cols);
-    std::vector<unsigned int> prev_clustering_sorted(n_rows);
+    std::vector<unsigned int> clustering_sorted(n_rows);
     for (unsigned int i=0; i < n_rows; ++i) {
       for (unsigned int j=0; j < n_cols; ++j) {
         tmp_coords_sorted[i*n_cols+j] = coords[fe_sorted[i].first*n_cols+j];
       }
-      prev_clustering_sorted[i] = prev_clustering[fe_sorted[i].first];
-    }
-    unsigned int block_rng;
-//TODO: check: what happens if no new frames are added compared to prev run?
-    unsigned int i_from;
-    unsigned int i_to;
-    unsigned int i;
-    // re-use initial clustering results
-    unsigned int prev_last_frame = 0;
-    if (prev_clustering_sorted[0] != 0) {
-      for (i=1; i < n_rows; ++i) {
-        if (prev_clustering_sorted[i] == 0) {
-          prev_last_frame = i;
-          break;
-        }
+      // intialize energy-sorted clustering results
+      if (i < first_frame_above_threshold) {
+        clustering_sorted[i] = prev_clustering[fe_sorted[i].first];
       }
     }
-    int i_gpu;
+    // initialize new (unclustered) frames
+    unsigned int prev_last_frame =
+      std::distance(clustering_sorted.begin()
+                  , std::find(clustering_sorted.begin()
+                            , clustering_sorted.end()
+                            , 0));
+    for (unsigned int i=prev_last_frame; i < first_frame_above_threshold; ++i) {
+      clustering_sorted[i] = ++prev_max_state;
+    }
+    // computational range of single gpu
     unsigned int gpu_rng =
       min_multiplicator(first_frame_above_threshold - prev_last_frame
                       , n_gpus);
@@ -642,97 +730,109 @@ namespace CUDA {
                          , 0);
     check_error("getting max shared mem size");
     unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
-    #pragma omp parallel for\
-      default(none)\
-      private(i,i_gpu,block_rng,i_from,i_to)\
-      firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
-                   prev_last_frame,prev_max_state,\
-                   shared_mem,first_frame_above_threshold)\
-      shared(d_coords_sorted,d_clustering,\
-             tmp_coords_sorted,prev_clustering_sorted)\
-      num_threads(n_gpus)
+    unsigned int block_rng, i_from, i_to, i, i_gpu;
+    // lump microstates until nothing changes
+    bool microstates_lumped = true;
+    unsigned int i_loop = 0;
+    // initialize GPUs
     for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      // allocate memory and copy sorted coords to GPUs
       cudaSetDevice(i_gpu);
+      // allocate memory on GPUs
       cudaMalloc((void**) &d_coords_sorted[i_gpu]
                , sizeof(float) * n_rows * n_cols);
       cudaMalloc((void**) &d_clustering[i_gpu]
                , sizeof(unsigned int) * n_rows);
+      cudaMalloc((void**) &d_ref_states[i_gpu]
+               , sizeof(unsigned int) * n_rows);
+      // copy sorted coords and previous clustering results to GPUs
       cudaMemcpy(d_coords_sorted[i_gpu]
                , tmp_coords_sorted.data()
                , sizeof(float) * n_rows * n_cols
                , cudaMemcpyHostToDevice);
-
-
-      //TODO change kernel to use two lists: own state + min next-neighbor state
-
-
-      // copy prev results to GPU-buffer (and set the rest to zero)
-      cudaMemset(d_clustering[i_gpu]
-               , 0
-               , sizeof(unsigned int) * n_rows);
-      cudaMemcpy(d_clustering[i_gpu]
-               , prev_clustering_sorted.data()
-               , sizeof(unsigned int) * n_rows
-               , cudaMemcpyHostToDevice);
-      // perform initial clustering on yet unclustered frames
-      i_from = prev_last_frame + i_gpu * gpu_rng;
-      i_to = (i_gpu == (n_gpus-1))
-           ? first_frame_above_threshold
-           : prev_last_frame + (i_gpu+1) * gpu_rng;
-      block_rng = min_multiplicator(i_to-i_from
-                                  , BSIZE_SCR);
-      for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
-        initial_density_clustering_krnl
-          <<< block_rng
-            , BSIZE_SCR
-            , shared_mem >>>
-          (i*BSIZE_SCR
-         , d_coords_sorted[i_gpu]
-         , n_rows
-         , n_cols
-         , max_dist2
-         , d_clustering[i_gpu]
-         , i_from
-         , i_to);
-      }
-      cudaDeviceSynchronize();
-      check_error("after kernel loop");
     }
-    // collect & merge clustering results from GPUs
-    std::vector<unsigned int> clustering_sorted = prev_clustering_sorted;
-    for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      std::vector<unsigned int> tmp_clust(n_rows, 0);
-      cudaMemcpy(tmp_clust.data()
-               , d_clustering[i_gpu]
-               , sizeof(unsigned int) * first_frame_above_threshold
-               , cudaMemcpyDeviceToHost);
-      for (i=prev_last_frame; i < first_frame_above_threshold; ++i) {
-        if (i_gpu == 0) {
-          clustering_sorted[i] = tmp_clust[i];
-        } else {
-          clustering_sorted[i] = std::max(clustering_sorted[i]
-                                        , tmp_clust[i]);
+    while (microstates_lumped) {
+      std::vector<unsigned int> clustering_sorted_orig = clustering_sorted;
+      std::cerr << "microstate lumping iteration " << ++i_loop << std::endl;
+      #pragma omp parallel for\
+        default(none)\
+        private(i,i_gpu,block_rng,i_from,i_to)\
+        firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
+                     prev_last_frame,\
+                     shared_mem,first_frame_above_threshold)\
+        shared(d_coords_sorted,d_clustering,d_ref_states,\
+               tmp_coords_sorted,clustering_sorted)\
+        num_threads(n_gpus)
+      for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+        cudaSetDevice(i_gpu);
+        cudaMemcpy(d_clustering[i_gpu]
+                 , clustering_sorted.data()
+                 , sizeof(unsigned int) * n_rows
+                 , cudaMemcpyHostToDevice);
+        cudaMemcpy(d_ref_states[i_gpu]
+                 , clustering_sorted.data()
+                 , sizeof(unsigned int) * n_rows
+                 , cudaMemcpyHostToDevice);
+        i_from = prev_last_frame + i_gpu * gpu_rng;
+        i_to = (i_gpu == (n_gpus-1))
+             ? first_frame_above_threshold
+             : prev_last_frame + (i_gpu+1) * gpu_rng;
+        block_rng = min_multiplicator(i_to-i_from
+                                    , BSIZE_SCR);
+        for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
+          initial_density_clustering_krnl
+            <<< block_rng
+              , BSIZE_SCR
+              , shared_mem >>>
+            (i*BSIZE_SCR
+           , d_coords_sorted[i_gpu]
+           , n_rows
+           , n_cols
+           , max_dist2
+           , d_clustering[i_gpu]
+           , d_ref_states[i_gpu]
+           , i_from
+           , i_to);
+        }
+        cudaDeviceSynchronize();
+        check_error("after kernel loop");
+      }
+      // collect & merge clustering results from GPUs
+      for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+        std::vector<unsigned int> tmp_clust(n_rows, 0);
+        cudaMemcpy(tmp_clust.data()
+                 , d_clustering[i_gpu]
+                 , sizeof(unsigned int) * n_rows
+                 , cudaMemcpyDeviceToHost);
+        for (i=0; i < first_frame_above_threshold; ++i) {
+          if (i_gpu == 0) {
+            clustering_sorted[i] = tmp_clust[i];
+          } else {
+            clustering_sorted[i] = std::min(clustering_sorted[i]
+                                          , tmp_clust[i]);
+          }
         }
       }
-    }
-    // reduce clustering to min number of ids
-    clustering_sorted = sanitize_state_names(clustering_sorted);
-    //TODO: refined clustering (by rerunning with alternative kernel)
-
-
-
-
-    // convert state trajectory from
-    // FE-sorted order to original order
-    std::vector<std::size_t> clustering(n_rows, 0);
-    for (unsigned int i=0; i < n_rows; ++i) {
-      clustering[fe_sorted[i].first] = clustering_sorted[i];
-    }
+      std::cout << "lumping CUDA-results ..." << std::endl;
+      // lump microstates
+      clustering_sorted = lumped_clusters(clustering_sorted
+                                        , clustering_sorted_orig
+                                        , first_frame_above_threshold);
+      std::cout << "     ... finished" << std::endl;
+      // compare prev_clustering to clustering_sorted:
+      // if equal, end while
+      microstates_lumped = (clustering_sorted_orig != clustering_sorted);
+    } // end while (if microstates_lumped == false)
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
+      cudaFree(d_ref_states[i_gpu]);
+    }
+    // convert state trajectory from
+    // FE-sorted order to original order
+    std::vector<std::size_t> clustering(n_rows);
+    for (unsigned int i=0; i < n_rows; ++i) {
+      clustering[fe_sorted[i].first] = clustering_sorted[i];
     }
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
