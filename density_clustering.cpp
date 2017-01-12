@@ -510,6 +510,9 @@ namespace Clustering {
 #ifndef DC_USE_MPI
     void
     main(boost::program_options::variables_map args) {
+
+//TODO check if files have been read correctly
+
       using namespace Clustering::Tools;
       const std::string input_file = args["file"].as<std::string>();
       // setup coords
@@ -613,7 +616,8 @@ namespace Clustering {
         if (args.count("input")) {
           Clustering::logger(std::cout) << "reading initial clusters from file." << std::endl;
           clustering = read_clustered_trajectory(args["input"].as<std::string>());
-        } else if (args.count("threshold-screening")) {
+        }
+        if (args.count("threshold-screening")) {
           std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
           if (threshold_params.size() > 3) {
             std::cerr << "error: option -T expects at most three floating point arguments: FROM STEP TO." << std::endl;
@@ -632,7 +636,6 @@ namespace Clustering {
           if (threshold_params.size() == 3) {
             t_to = threshold_params[2];
           }
-          std::vector<std::size_t> clustering(n_rows);
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
           float t_to_low = t_to - t_step/10.0f + t_step;
@@ -650,30 +653,13 @@ namespace Clustering {
                               , clustering);
           }
         } else {
-          Clustering::logger(std::cout) << "calculating initial clusters" << std::endl;
-          if (args.count("threshold") == 0) {
-            std::cerr << "error: need threshold value for initial clustering" << std::endl;
-            exit(EXIT_FAILURE);
-          }
-          float threshold = args["threshold"].as<float>();
-          clustering = initial_density_clustering(free_energies
-                                                , nh
-                                                , threshold
-                                                , coords
-                                                , n_rows
-                                                , n_cols
-                                                , {});
-        }
-        if ( ! args["only-initial"].as<bool>() && ( ! args.count("threshold-screening"))) {
           Clustering::logger(std::cout) << "assigning low density states to initial clusters" << std::endl;
           clustering = assign_low_density_frames(clustering
                                                , nh_high_dens
                                                , free_energies);
+          Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
+          write_single_column<std::size_t>(output_file, clustering);
         }
-//TODO: culprit of empty 'clust' file?
-//      comment this code and test with screening and microstate generation
-//        Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
-//        write_single_column<std::size_t>(output_file, clustering);
       }
       Clustering::logger(std::cout) << "freeing coords" << std::endl;
       free_coords(coords);
