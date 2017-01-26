@@ -482,6 +482,14 @@ namespace CUDA {
                                 , unsigned int i_to) {
     // dynamic shared mem for ref coords
     extern __shared__ float smem_coords[];
+
+
+//TODO shared mem for all comparisons N^2 + 2N to perform lumping
+//     why size?: N^2 comparisons in compare block   j_1 - j_N
+//              + N comparisons against prior match  j_N+1
+//              + N for results                      j_N+2
+
+
     // static shared mem for cluster ids
     __shared__ unsigned int smem_ref_states[BSIZE_SCR];
     // thread dimensions
