@@ -20,6 +20,8 @@
 #define BSIZE_NH 128
 #define N_STREAMS_NH 1
 
+
+//TODO: check if this number is not too high (e.g. for Geforce instead of Tesla)
 // for screening
 #define BSIZE_SCR 512
 
@@ -483,12 +485,12 @@ namespace CUDA {
     // dynamic shared mem for ref coords
     extern __shared__ float smem_coords[];
 
-
 //TODO shared mem for all comparisons N^2 + 2N to perform lumping
 //     why size?: N^2 comparisons in compare block   j_1 - j_N
 //              + N comparisons against prior match  j_N+1
 //              + N for results                      j_N+2
 
+//TODO rewrite
 
     // static shared mem for cluster ids
     __shared__ unsigned int smem_ref_states[BSIZE_SCR];
@@ -534,6 +536,8 @@ namespace CUDA {
     }
   }
 
+
+/* TODO: rewrite / remove
   std::vector<unsigned int>
   lumped_clusters(std::vector<unsigned int> clustering
                 , std::vector<unsigned int> ref_states
@@ -595,7 +599,11 @@ namespace CUDA {
     }
     return clustering;
   }
+*/
 
+
+
+/* TODO: remove
   std::vector<unsigned int>
   lumped_clusters__old(std::vector<unsigned int> clustering
                 , std::vector<unsigned int> ref_states
@@ -664,6 +672,7 @@ namespace CUDA {
     }
     return clustering;
   }
+*/
 
   std::vector<std::size_t>
   initial_density_clustering(const std::vector<float>& free_energy
@@ -738,6 +747,9 @@ namespace CUDA {
                          , 0);
     check_error("getting max shared mem size");
     unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
+    //TODO check shared_mem + const(shared_mem) < max_shared_mem
+    
+    
     unsigned int block_rng, i_from, i_to, i, i_gpu;
     // lump microstates until nothing changes
     bool microstates_lumped = true;
@@ -826,9 +838,12 @@ namespace CUDA {
                                         , clustering_sorted_orig
                                         , first_frame_above_threshold);
       std::cout << "     ... finished" << std::endl;
+
+//TODO: check: one lumping should be enough with new algorithm
       // compare prev_clustering to clustering_sorted:
       // if equal, end while
       microstates_lumped = (clustering_sorted_orig != clustering_sorted);
+
     } // end while (if microstates_lumped == false)
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
