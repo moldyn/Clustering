@@ -21,9 +21,8 @@
 #define N_STREAMS_NH 1
 
 
-//TODO: check if this number is not too high (e.g. for Geforce instead of Tesla)
 // for screening
-#define BSIZE_SCR 512
+#define BSIZE_SCR 128
 
 namespace Clustering {
 namespace Density {
@@ -479,61 +478,109 @@ namespace CUDA {
                                 , unsigned int n_cols
                                 , float max_dist2
                                 , unsigned int* clustering
-                                , unsigned int* ref_states
                                 , unsigned int i_from
                                 , unsigned int i_to) {
     // dynamic shared mem for ref coords
     extern __shared__ float smem_coords[];
-
-//TODO shared mem for all comparisons N^2 + 2N to perform lumping
-//     why size?: N^2 comparisons in compare block   j_1 - j_N
-//              + N comparisons against prior match  j_N+1
-//              + N for results                      j_N+2
-
-//TODO rewrite
-
-    // static shared mem for cluster ids
-    __shared__ unsigned int smem_ref_states[BSIZE_SCR];
+    // static shared mem for temp. results
+    //   schema (N == BSIZE_SCR):
+    //     N rows, one for each tid
+    //     N + 3 columns:
+    //       one for each reference frame (1-N)
+    //       one for the previous clustering result (N+1)
+    //       one for the current best clustering (N+2)
+    //       one for intermediate col-bests (N+3)
+    // addressing is col-oriented, i.e. smem_cache[N*i_col + i_row]
+    const unsigned int col_prev = BSIZE_SCR*BSIZE_SCR;
+    const unsigned int col_result = col_prev + 1;
+    const unsigned int col_inter = col_result + 1;
+    __shared__ unsigned int smem_cache[BSIZE_SCR*(BSIZE_SCR+3)];
     // thread dimensions
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
     unsigned int gid = bid * bsize + tid + i_from;
-    // load frames for comparison into shared memory
     int comp_size = min(bsize, n_rows - offset);
     if (tid < comp_size) {
+      // reference coordinates to cache
       for (unsigned int j=0; j < n_cols; ++j) {
         smem_coords[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
       }
-      smem_ref_states[tid] = ref_states[(tid+offset)];
+      // reference state information to cache
+      smem_cache[col_inter+tid] = clustering[tid+offset];
     }
     __syncthreads();
     if (gid < i_to) {
       unsigned int min_id = clustering[gid];
-      // load reference coordinates for re-use into shared memory
-      unsigned int ref_id = tid+bsize;
       for (unsigned int j=0; j < n_cols; ++j) {
-        smem_coords[ref_id*n_cols+j] = sorted_coords[gid*n_cols+j];
+        // load coordinates of current frame for re-use into shared memory
+        smem_coords[(tid+bsize)*n_cols+j] = sorted_coords[gid*n_cols+j];
       }
-      // check against reference structures: if close enough, they'll be
-      // considered as the same state (choosing min. state id).
-      // state lumping will be done on host.
-      for (unsigned int i=0; i < comp_size; ++i) {
-        if (min_id != smem_ref_states[i]
-         && smem_ref_states[i] != 0) {
-          float dist2 = 0.0f;
-          for (unsigned int j=0; j < n_cols; ++j) {
-            float c = smem_coords[ref_id*n_cols+j] - smem_coords[i*n_cols+j];
-            dist2 = fma(c, c, dist2);
-          }
-          if (dist2 < max_dist2
-           && smem_ref_states[i] < min_id) {
-            min_id = smem_ref_states[i];
-          }
+      // previous state information to cache
+      smem_cache[col_prev+tid] = clustering[gid];
+      smem_cache[col_result+tid] = smem_cache[col_prev+tid];
+      // compare current frame (tid) against reference block (i)
+      for (unsigned int k=0; k < comp_size; ++k) {
+        float dist2 = 0.0f;
+        for (unsigned int j=0; j < n_cols; ++j) {
+          float c = smem_coords[(tid+bsize)*n_cols+j]
+                  - smem_coords[          k*n_cols+j];
+          dist2 = fma(c, c, dist2);
+        }
+        // fill cache with intermediate results
+        if (dist2 < max_dist2) {
+          smem_cache[k*BSIZE_SCR+tid] = smem_cache[col_inter+k];
+          smem_cache[col_result+tid] = min(smem_cache[k*BSIZE_SCR+tid]
+                                         , smem_cache[col_result+tid]);
+        } else {
+          smem_cache[k*BSIZE_SCR+tid] = 0;
         }
       }
-      clustering[gid] = min_id;
     }
+    __syncthreads();
+    //// following code blocks essentially perform an inner join
+    //// of reference states to find min. ids & lump corresponding states
+    if (tid < comp_size) {
+      // tid == reference state
+      for (unsigned int i=0; i < comp_size; ++i) {
+        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
+          smem_cache[col_inter+tid] = min(smem_cache[col_inter+tid]
+                                        , smem_cache[col_result+i]);
+        }
+      }
+    }
+    __syncthreads();
+    if (tid < comp_size) {
+      // tid == current frame
+      for (unsigned int k=0; k < comp_size; ++k) {
+        if (smem_cache[k*BSIZE_SCR+tid] != 0) {
+          smem_cache[col_result+tid] = min(smem_cache[col_result+tid]
+                                         , smem_cache[col_inter+k]);
+        }
+      }
+    }
+    __syncthreads();
+    if (tid < comp_size) {
+      // tid == reference state
+      for (unsigned int i=0; i < comp_size; ++i) {
+        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
+          smem_cache[col_inter+tid] = min(smem_cache[col_inter+tid]
+                                        , smem_cache[col_result+i]);
+        }
+      }
+    }
+    __syncthreads();
+    ////////
+
+    // update global result
+    if (gid < i_to) {
+      clustering[gid] = smem_cache[col_result+tid];
+    }
+
+    //TODO update references and ids of prev results
+
+
+
   }
 
 
