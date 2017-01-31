@@ -471,6 +471,9 @@ namespace CUDA {
   }
 
 
+  //TODO: rename 'initial_density_clustering' -> 'screening'
+
+
   __global__ void
   initial_density_clustering_krnl(unsigned int offset
                                 , float* sorted_coords
@@ -825,15 +828,20 @@ namespace CUDA {
                , sizeof(float) * n_rows * n_cols);
       cudaMalloc((void**) &d_clustering[i_gpu]
                , sizeof(unsigned int) * n_rows);
-      cudaMalloc((void**) &d_ref_states[i_gpu]
-               , sizeof(unsigned int) * n_rows);
+//      cudaMalloc((void**) &d_ref_states[i_gpu]
+//               , sizeof(unsigned int) * n_rows);
       // copy sorted coords and previous clustering results to GPUs
       cudaMemcpy(d_coords_sorted[i_gpu]
                , tmp_coords_sorted.data()
                , sizeof(float) * n_rows * n_cols
                , cudaMemcpyHostToDevice);
     }
-    while (microstates_lumped) {
+//    while (microstates_lumped) {
+
+
+
+// TODO change state names in clustering to conform to lowest indices
+
       std::vector<unsigned int> clustering_sorted_orig = clustering_sorted;
       std::cerr << "microstate lumping iteration " << ++i_loop << std::endl;
       #pragma omp parallel for\
@@ -880,34 +888,40 @@ namespace CUDA {
         check_error("after kernel loop");
       }
       // collect & merge clustering results from GPUs
+      std::vector<std::vector<unsigned int>>
+        clstr_results(n_gpus
+                    , std::vector<unsigned int>(n_rows));
       for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-        std::vector<unsigned int> tmp_clust(n_rows, 0);
-        cudaMemcpy(tmp_clust.data()
+        cudaMemcpy(clstr_results[i_gpu].data()
                  , d_clustering[i_gpu]
                  , sizeof(unsigned int) * n_rows
                  , cudaMemcpyDeviceToHost);
-        for (i=0; i < first_frame_above_threshold; ++i) {
-          if (i_gpu == 0) {
-            clustering_sorted[i] = tmp_clust[i];
-          } else {
-            clustering_sorted[i] = std::min(clustering_sorted[i]
-                                          , tmp_clust[i]);
-          }
-        }
       }
-      std::cout << "lumping CUDA-results ..." << std::endl;
-      // lump microstates
-      clustering_sorted = lumped_clusters(clustering_sorted
-                                        , clustering_sorted_orig
-                                        , first_frame_above_threshold);
-      std::cout << "     ... finished" << std::endl;
 
-//TODO: check: one lumping should be enough with new algorithm
-      // compare prev_clustering to clustering_sorted:
-      // if equal, end while
-      microstates_lumped = (clustering_sorted_orig != clustering_sorted);
+      //TODO final lumping
 
-    } // end while (if microstates_lumped == false)
+//        for (i=0; i < first_frame_above_threshold; ++i) {
+//          if (i_gpu == 0) {
+//            clustering_sorted[i] = tmp_clust[i];
+//          } else {
+//            clustering_sorted[i] = std::min(clustering_sorted[i]
+//                                          , tmp_clust[i]);
+//          }
+//        }
+
+
+//      std::cout << "lumping CUDA-results ..." << std::endl;
+//      // lump microstates
+//      clustering_sorted = lumped_clusters(clustering_sorted
+//                                        , clustering_sorted_orig
+//                                        , first_frame_above_threshold);
+//      std::cout << "     ... finished" << std::endl;
+//      // compare prev_clustering to clustering_sorted:
+//      // if equal, end while
+//      microstates_lumped = (clustering_sorted_orig != clustering_sorted);
+//    } // end while (if microstates_lumped == false)
+
+
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       cudaFree(d_coords_sorted[i_gpu]);
