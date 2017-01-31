@@ -575,6 +575,8 @@ namespace CUDA {
     __syncthreads();
     ////////
 
+    //TODO: need to think about: state is i_row+1
+
     // update result for given frame
     if (gid < i_to) {
       clustering[gid] = smem_cache[col_result+tid];
@@ -591,6 +593,7 @@ namespace CUDA {
         }
       }
     }
+    //TODO test if it is indeed faster to stick to tid==0
     if (tid == 1) {
       for (unsigned int k=0; k < comp_size; ++k) {
         // update prev best results
@@ -740,6 +743,55 @@ namespace CUDA {
   }
 */
 
+
+  std::vector<unsigned int>
+  clustering_rebased(std::vector<unsigned int> clustering) {
+    std::map<unsigned int, unsigned int> dict;
+    // construct dictionary
+    for (unsigned int i=0; i < n_frames; ++i) {
+      if (dict.count(clustering[i]) == 0) {
+        dict[clustering[i]] = i+1;
+      }
+    }
+    // rebase
+    for (unsigned int& s: clustering) {
+      s = dict[s];
+    }
+    return clustering;
+  }
+
+  std::vector<unsigned int>
+  clustering_merged_results(std::vector<std::vector<unsigned int>> clusterings
+                          , unsigned int max_row) {
+    unsigned int n_results = clusterings.size();
+    for (unsigned int i=0; i < max_row; ++i) {
+      std::set<unsigned int> start_points;
+      for (unsigned int j=0; j < n_results; ++j) {
+        start_points.insert(clusterings[j][i]);
+      }
+
+      //TODO remove 0 from start_points
+
+
+
+      //TODO: finish: follow start_points (id = i_state - 1), collect all
+      //              states and rebase them to min(state)
+      std::set<unsigned int> update_needed = start_points;
+      for (unsigned int s: start_points) {
+        unsigned int id = s-1;
+        while (clusterings[0][id] != 0
+            && clusterings[0][id] != s) {
+          update_needed.insert(s);
+          s = clusterings[0][id] 
+
+        }
+
+
+      }
+    }
+    return clustering;
+  }
+
   std::vector<std::size_t>
   initial_density_clustering(const std::vector<float>& free_energy
                            , const Neighborhood& nh
@@ -828,8 +880,6 @@ namespace CUDA {
                , sizeof(float) * n_rows * n_cols);
       cudaMalloc((void**) &d_clustering[i_gpu]
                , sizeof(unsigned int) * n_rows);
-//      cudaMalloc((void**) &d_ref_states[i_gpu]
-//               , sizeof(unsigned int) * n_rows);
       // copy sorted coords and previous clustering results to GPUs
       cudaMemcpy(d_coords_sorted[i_gpu]
                , tmp_coords_sorted.data()
