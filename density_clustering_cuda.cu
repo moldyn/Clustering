@@ -572,15 +572,31 @@ namespace CUDA {
     __syncthreads();
     ////////
 
-    // update global result
+    // update result for given frame
     if (gid < i_to) {
       clustering[gid] = smem_cache[col_result+tid];
     }
-
-    //TODO update references and ids of prev results
-
-
-
+    //// update referenced states (either from comparison block
+    //// or previous best results) under protection against race-conditions.
+    //// (since they may be updated from several, parallel blocks)
+    if (tid == 0) {
+      for (unsigned int k=0; k < comp_size; ++k) {
+        // update reference
+        if (clustering[tid+offset] != smem_cache[col_inter+tid]) {
+          atomicMin(&clustering[tid+offset]
+                  , smem_cache[col_inter+tid]);
+        }
+      }
+    }
+    if (tid == 1) {
+      for (unsigned int k=0; k < comp_size; ++k) {
+        // update prev best results
+        if (smem_cache[col_prev] != smem_cache[col_result]) {
+          atomicMin(&clustering[smem_cache[col_prev]]
+                  , smem_cache[col_result]);
+        }
+      }
+    }
   }
 
 
