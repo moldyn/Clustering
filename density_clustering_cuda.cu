@@ -21,8 +21,9 @@
 #define N_STREAMS_NH 1
 
 
-// for screening
-#define BSIZE_SCR 128
+// for screening;
+// this size is limited due to needed shared mem space
+#define BSIZE_SCR 64
 
 namespace Clustering {
 namespace Density {
@@ -505,21 +506,24 @@ namespace CUDA {
     unsigned int gid = bid * bsize + tid + i_from;
     int comp_size = min(bsize, n_rows - offset);
     if (tid < comp_size) {
-      // reference coordinates to cache
+      // load reference coordinates to cache
       for (unsigned int j=0; j < n_cols; ++j) {
         smem_coords[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
       }
-      // reference state information to cache
+      // load reference state information to cache
       smem_cache[col_inter+tid] = clustering[tid+offset];
     }
     __syncthreads();
+
+//TODO: everything lands in state '1'
+
+
     if (gid < i_to) {
-      unsigned int min_id = clustering[gid];
       for (unsigned int j=0; j < n_cols; ++j) {
         // load coordinates of current frame for re-use into shared memory
         smem_coords[(tid+bsize)*n_cols+j] = sorted_coords[gid*n_cols+j];
       }
-      // previous state information to cache
+      // load previous state information to cache
       smem_cache[col_prev+tid] = clustering[gid];
       smem_cache[col_result+tid] = smem_cache[col_prev+tid];
       // compare current frame (tid) against reference block (i)
@@ -574,8 +578,6 @@ namespace CUDA {
     }
     __syncthreads();
     ////////
-
-    //TODO: need to think about: state is i_row+1
 
     // update result for given frame
     if (gid < i_to) {
@@ -748,9 +750,11 @@ namespace CUDA {
   clustering_rebased(std::vector<unsigned int> clustering) {
     std::map<unsigned int, unsigned int> dict;
     // construct dictionary
-    for (unsigned int i=0; i < n_frames; ++i) {
-      if (dict.count(clustering[i]) == 0) {
-        dict[clustering[i]] = i+1;
+    dict[0] = 0;
+    for (unsigned int i=0; i < clustering.size(); ++i) {
+      unsigned int s = clustering[i];
+      if (dict.count(s) == 0) {
+        dict[s] = i+1;
       }
     }
     // rebase
@@ -761,35 +765,57 @@ namespace CUDA {
   }
 
   std::vector<unsigned int>
-  clustering_merged_results(std::vector<std::vector<unsigned int>> clusterings
-                          , unsigned int max_row) {
+  merge_results(std::vector<std::vector<unsigned int>> clusterings
+              , unsigned int max_row) {
     unsigned int n_results = clusterings.size();
+    if (n_results == 0) {
+      std::cerr << "error: there are no partial clustering results to merge!"
+                << std::endl;
+      exit(EXIT_FAILURE);
+    } else {
+      if (clusterings[0].size() == 0) {
+        std::cerr << "error: no sampling, nothing to merge"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+    max_row = std::min(max_row
+                     , (unsigned int) clusterings[0].size());
+std::cout << "merge" << std::endl;
     for (unsigned int i=0; i < max_row; ++i) {
+      // collect start points, i.e. cluster assignemnts
+      // of all partial results
+std::cout << i << ": " << "collecting start_points" << std::endl;
       std::set<unsigned int> start_points;
       for (unsigned int j=0; j < n_results; ++j) {
         start_points.insert(clusterings[j][i]);
       }
-
-      //TODO remove 0 from start_points
-
-
-
-      //TODO: finish: follow start_points (id = i_state - 1), collect all
-      //              states and rebase them to min(state)
-      std::set<unsigned int> update_needed = start_points;
+      // not interested in zero-ed states (aka no assignment)
+      if (start_points.count(0) > 0) {
+        start_points.erase(0);
+      }
+std::cout << i << ": " << "following state trails" << std::endl;
+      // follow start_points (id = i_state-1), collect all
+      // states and rebase them to min(state)
+      std::set<unsigned int> need_update = start_points;
       for (unsigned int s: start_points) {
-        unsigned int id = s-1;
-        while (clusterings[0][id] != 0
-            && clusterings[0][id] != s) {
-          update_needed.insert(s);
-          s = clusterings[0][id] 
-
+std::cout << "start point: " << s << std::endl;
+        unsigned int s_old = 1;
+        while (s != 0 && s_old != s) {
+          s_old = s;
+          s = clusterings[0][s-1];
+std::cout << "   needs update: " << s << std::endl;
+          need_update.insert(s);
         }
-
-
+      }
+std::cout << i << ": " << "update state names" << std::endl;
+      // std::set is guaranteed to be ordered!
+      unsigned int min_s = (*need_update.begin());
+      for (unsigned int s: need_update) {
+        clusterings[0][s-1] = min_s;
       }
     }
-    return clustering;
+    return clusterings[0];
   }
 
   std::vector<std::size_t>
@@ -826,7 +852,6 @@ namespace CUDA {
     int n_gpus = get_num_gpus();
     std::vector<float*> d_coords_sorted(n_gpus);
     std::vector<unsigned int*> d_clustering(n_gpus);
-    std::vector<unsigned int*> d_ref_states(n_gpus);
     // sort coords (and previous clustering results)
     // according to free energies
     std::vector<float> tmp_coords_sorted(n_rows * n_cols);
@@ -869,9 +894,6 @@ namespace CUDA {
     
     
     unsigned int block_rng, i_from, i_to, i, i_gpu;
-    // lump microstates until nothing changes
-    bool microstates_lumped = true;
-    unsigned int i_loop = 0;
     // initialize GPUs
     for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       cudaSetDevice(i_gpu);
@@ -886,104 +908,93 @@ namespace CUDA {
                , sizeof(float) * n_rows * n_cols
                , cudaMemcpyHostToDevice);
     }
-//    while (microstates_lumped) {
-
-
-
-// TODO change state names in clustering to conform to lowest indices
-
-      std::vector<unsigned int> clustering_sorted_orig = clustering_sorted;
-      std::cerr << "microstate lumping iteration " << ++i_loop << std::endl;
-      #pragma omp parallel for\
-        default(none)\
-        private(i,i_gpu,block_rng,i_from,i_to)\
-        firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
-                     prev_last_frame,\
-                     shared_mem,first_frame_above_threshold)\
-        shared(d_coords_sorted,d_clustering,d_ref_states,\
-               tmp_coords_sorted,clustering_sorted)\
-        num_threads(n_gpus)
-      for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-        cudaSetDevice(i_gpu);
-        cudaMemcpy(d_clustering[i_gpu]
-                 , clustering_sorted.data()
-                 , sizeof(unsigned int) * n_rows
-                 , cudaMemcpyHostToDevice);
-        cudaMemcpy(d_ref_states[i_gpu]
-                 , clustering_sorted.data()
-                 , sizeof(unsigned int) * n_rows
-                 , cudaMemcpyHostToDevice);
-        i_from = prev_last_frame + i_gpu * gpu_rng;
-        i_to = (i_gpu == (n_gpus-1))
-             ? first_frame_above_threshold
-             : prev_last_frame + (i_gpu+1) * gpu_rng;
-        block_rng = min_multiplicator(i_to-i_from
-                                    , BSIZE_SCR);
-        for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
-          initial_density_clustering_krnl
-            <<< block_rng
-              , BSIZE_SCR
-              , shared_mem >>>
-            (i*BSIZE_SCR
-           , d_coords_sorted[i_gpu]
-           , n_rows
-           , n_cols
-           , max_dist2
-           , d_clustering[i_gpu]
-           , d_ref_states[i_gpu]
-           , i_from
-           , i_to);
-        }
-        cudaDeviceSynchronize();
-        check_error("after kernel loop");
+    // change state names in clustering to conform to lowest indices
+    clustering_sorted = clustering_rebased(clustering_sorted);
+    // fill zero-set indices with their own index
+    for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
+      if (clustering_sorted[i] == 0) {
+        clustering_sorted[i] = i+1;
       }
-      // collect & merge clustering results from GPUs
-      std::vector<std::vector<unsigned int>>
-        clstr_results(n_gpus
-                    , std::vector<unsigned int>(n_rows));
-      for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-        cudaMemcpy(clstr_results[i_gpu].data()
-                 , d_clustering[i_gpu]
-                 , sizeof(unsigned int) * n_rows
-                 , cudaMemcpyDeviceToHost);
+    }
+
+//std::cerr << "running CUDA kernels" << std::endl;
+    #pragma omp parallel for\
+      default(none)\
+      private(i,i_gpu,block_rng,i_from,i_to)\
+      firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
+                   prev_last_frame,\
+                   shared_mem,first_frame_above_threshold)\
+      shared(d_coords_sorted,d_clustering,\
+             tmp_coords_sorted,clustering_sorted)\
+      num_threads(n_gpus)
+    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      cudaSetDevice(i_gpu);
+      cudaMemcpy(d_clustering[i_gpu]
+               , clustering_sorted.data()
+               , sizeof(unsigned int) * n_rows
+               , cudaMemcpyHostToDevice);
+      i_from = prev_last_frame + i_gpu * gpu_rng;
+      i_to = (i_gpu == (n_gpus-1))
+           ? first_frame_above_threshold
+           : prev_last_frame + (i_gpu+1) * gpu_rng;
+      block_rng = min_multiplicator(i_to-i_from
+                                  , BSIZE_SCR);
+      for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
+        initial_density_clustering_krnl
+          <<< block_rng
+            , BSIZE_SCR
+            , shared_mem >>>
+          (i*BSIZE_SCR
+         , d_coords_sorted[i_gpu]
+         , std::min(first_frame_above_threshold, n_rows)
+         , n_cols
+         , max_dist2
+         , d_clustering[i_gpu]
+         , i_from
+         , i_to);
       }
+      cudaDeviceSynchronize();
+      check_error("after kernel loop");
+    }
+//std::cerr << "collect partial results" << std::endl;
+    // collect & merge clustering results from GPUs
+    std::vector<std::vector<unsigned int>>
+      clstr_results(n_gpus
+                  , std::vector<unsigned int>(n_rows));
+    for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+      cudaMemcpy(clstr_results[i_gpu].data()
+               , d_clustering[i_gpu]
+               , sizeof(unsigned int) * n_rows
+               , cudaMemcpyDeviceToHost);
+    }
 
-      //TODO final lumping
-
-//        for (i=0; i < first_frame_above_threshold; ++i) {
-//          if (i_gpu == 0) {
-//            clustering_sorted[i] = tmp_clust[i];
-//          } else {
-//            clustering_sorted[i] = std::min(clustering_sorted[i]
-//                                          , tmp_clust[i]);
-//          }
-//        }
+//for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+//  std::cerr << "partial results from gpu " << i_gpu << std::endl;
+//  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
+//    std::cerr << "  " << i << ": " << clstr_results[i_gpu][i] << std::endl;
+//  }
+//  std::cerr << std::endl;
+//}
 
 
-//      std::cout << "lumping CUDA-results ..." << std::endl;
-//      // lump microstates
-//      clustering_sorted = lumped_clusters(clustering_sorted
-//                                        , clustering_sorted_orig
-//                                        , first_frame_above_threshold);
-//      std::cout << "     ... finished" << std::endl;
-//      // compare prev_clustering to clustering_sorted:
-//      // if equal, end while
-//      microstates_lumped = (clustering_sorted_orig != clustering_sorted);
-//    } // end while (if microstates_lumped == false)
 
-
+//std::cerr << "merge partial results" << std::endl;
+    clustering_sorted = merge_results(clstr_results
+                                    , first_frame_above_threshold);
+//std::cerr << "cleanup" << std::endl;
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
-      cudaFree(d_ref_states[i_gpu]);
     }
+//std::cerr << "back-conversion from sorted to true order" << std::endl;
     // convert state trajectory from
     // FE-sorted order to original order
     std::vector<std::size_t> clustering(n_rows);
     for (unsigned int i=0; i < n_rows; ++i) {
       clustering[fe_sorted[i].first] = clustering_sorted[i];
     }
+//std::cerr << "normalize and return" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);
