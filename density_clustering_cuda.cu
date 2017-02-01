@@ -1,158 +1,21 @@
 
 #include "tools.hpp"
 #include "density_clustering_cuda.hpp"
+#include "density_clustering_cuda_kernels.hpp"
 #include "logger.hpp"
 
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
+#include <chrono>
 
 #include <cuda.h>
 #include <omp.h>
 
-#include "lts_cuda_kernels.cuh"
-
-// for pops
-#define BSIZE_POPS 512
-//#define BSIZE_POPS 1024
-
-// for neighborhood search
-#define BSIZE_NH 128
-#define N_STREAMS_NH 1
-
-
-// for screening;
-// this size is limited due to needed shared mem space
-#define BSIZE_SCR 64
 
 namespace Clustering {
 namespace Density {
 namespace CUDA {
-
-  __global__ void
-  population_count(unsigned int offset
-                 , float* coords
-                 , unsigned int n_rows
-                 , unsigned int n_cols
-                 , float* radii2
-                 , unsigned int n_radii
-                 , unsigned int* pops
-                 , unsigned int i_from
-                 , unsigned int i_to) {
-    extern __shared__ float smem[];
-    unsigned int bid = blockIdx.x;
-    unsigned int tid = threadIdx.x;
-    unsigned int bsize = blockDim.x;
-    unsigned int gid = bid * bsize + tid + i_from;
-    // load frames for comparison into shared memory
-    int comp_size = min(bsize, n_rows - offset);
-    if (tid < comp_size) {
-      for (unsigned int j=0; j < n_cols; ++j) {
-        smem[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
-      }
-    }
-    __syncthreads();
-    // count neighbors
-    if (gid < i_to) {
-      unsigned int ref_id = tid+bsize;
-      // load reference coordinates for re-use into shared memory
-      for (unsigned int j=0; j < n_cols; ++j) {
-        smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
-      }
-      for (unsigned int r=0; r < n_radii; ++r) {
-        unsigned int local_pop = 0;
-        float rad2 = radii2[r];
-        for (unsigned int i=0; i < comp_size; ++i) {
-          float dist2 = 0.0f;
-          for (unsigned int j=0; j < n_cols; ++j) {
-            float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
-            dist2 = fma(c, c, dist2);
-          }
-          if (dist2 <= rad2) {
-            ++local_pop;
-          }
-        }
-        // update frame populations (per radius)
-        pops[r*n_rows+gid] += local_pop;
-      }
-    }
-  }
-
-  __global__ void
-  nearest_neighbor_search(unsigned int offset
-                        , float* coords
-                        , unsigned int n_rows
-                        , unsigned int n_cols
-                        , float* fe
-                        , float* nh_dist_ndx
-                        , float* nhhd_dist_ndx
-                        , unsigned int i_from
-                        , unsigned int i_to) {
-    extern __shared__ float smem[];
-    unsigned int bid = blockIdx.x;
-    unsigned int tid = threadIdx.x;
-    unsigned int bsize = blockDim.x;
-    unsigned int gid = bid * bsize + tid + i_from;
-
-    float nh_mindist;
-    float nh_minndx;
-    float nhhd_mindist;
-    float nhhd_minndx;
-    float ref_fe;
-    unsigned int ref_id;
-
-    // load frames for comparison into shared memory
-    int comp_size = min(bsize, n_rows - offset);
-    if (tid < comp_size) {
-      for (unsigned int j=0; j < n_cols; ++j) {
-        smem[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
-      }
-    }
-    __syncthreads();
-
-    if (gid < i_to) {
-      ref_id = tid+bsize;
-      // load reference coordinates for re-use into shared memory
-      for (unsigned int j=0; j < n_cols; ++j) {
-        smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
-      }
-      ref_fe = fe[gid];
-      // load current best mindists into registers
-      nh_mindist = nh_dist_ndx[gid];
-      nh_minndx = nh_dist_ndx[n_rows+gid];
-      nhhd_mindist = nhhd_dist_ndx[gid];
-      nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
-      // compare squared distances of reference
-      // compare squared distances of reference
-      // to (other) frames in shared mem
-      for (unsigned int i=0; i < comp_size; ++i) {
-        float dist2=0.0f;
-        for (unsigned int j=0; j < n_cols; ++j) {
-          float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
-          dist2 = fma(c, c, dist2);
-        }
-        // frame with min distance (i.e. nearest neighbor)
-        if ((nh_mindist == 0)
-         || (dist2 < nh_mindist && dist2 != 0)) {
-          nh_mindist = dist2;
-          nh_minndx = i+offset;
-        }
-        // frame with min distance and lower energy
-        if ((nhhd_mindist == 0 && fe[i+offset] < ref_fe)
-         || (dist2 < nhhd_mindist && fe[i+offset] < ref_fe && dist2 != 0)) {
-          nhhd_mindist = dist2;
-          nhhd_minndx = i+offset;
-        }
-      }
-      // write results (dist & ndx) to global buffers
-      nh_dist_ndx[gid] = nh_mindist;
-      nh_dist_ndx[n_rows+gid] = nh_minndx;
-      nhhd_dist_ndx[gid] = nhhd_mindist;
-      nhhd_dist_ndx[n_rows+gid] = nhhd_minndx;
-    }
-  }
-
-  ////
 
   void
   check_error(std::string msg) {
@@ -235,17 +98,18 @@ namespace CUDA {
     Clustering::logger(std::cout) << "# blocks needed: "
                                   << block_rng << std::endl;
     for (unsigned int i=0; i*block_size < n_rows; ++i) {
-      population_count <<< block_rng
-                         , block_size
-                         , shared_mem >>> (i*block_size
-                                         , d_coords
-                                         , n_rows
-                                         , n_cols
-                                         , d_rad2
-                                         , n_radii
-                                         , d_pops
-                                         , i_from
-                                         , i_to);
+      Clustering::Density::CUDA::Kernel::population_count
+      <<< block_rng
+        , block_size
+        , shared_mem >>> (i*block_size
+                        , d_coords
+                        , n_rows
+                        , n_cols
+                        , d_rad2
+                        , n_radii
+                        , d_pops
+                        , i_from
+                        , i_to);
     }
     cudaDeviceSynchronize();
     check_error("after kernel loop");
@@ -372,18 +236,19 @@ namespace CUDA {
     unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
     for (unsigned int i=0; i*block_size < n_rows; ++i) {
       unsigned int i_stream = i % N_STREAMS_NH;
-      nearest_neighbor_search <<< block_rng
-                                , block_size
-                                , shared_mem
-                                , streams[i_stream] >>> (i*block_size
-                                                       , d_coords
-                                                       , n_rows
-                                                       , n_cols
-                                                       , d_fe
-                                                       , d_nh[i_stream]
-                                                       , d_nhhd[i_stream]
-                                                       , i_from
-                                                       , i_to);
+      Clustering::Density::CUDA::Kernel::nearest_neighbor_search
+      <<< block_rng
+        , block_size
+        , shared_mem
+        , streams[i_stream] >>> (i*block_size
+                               , d_coords
+                               , n_rows
+                               , n_cols
+                               , d_fe
+                               , d_nh[i_stream]
+                               , d_nhhd[i_stream]
+                               , i_from
+                               , i_to);
     }
     cudaDeviceSynchronize();
     check_error("after kernel loop");
@@ -471,281 +336,6 @@ namespace CUDA {
     return std::make_tuple(nh, nhhd);
   }
 
-
-  //TODO: rename 'initial_density_clustering' -> 'screening'
-
-
-  __global__ void
-  initial_density_clustering_krnl(unsigned int offset
-                                , float* sorted_coords
-                                , unsigned int n_rows
-                                , unsigned int n_cols
-                                , float max_dist2
-                                , unsigned int* clustering
-                                , unsigned int i_from
-                                , unsigned int i_to) {
-    // dynamic shared mem for ref coords
-    extern __shared__ float smem_coords[];
-    // static shared mem for temp. results
-    //   schema (N == BSIZE_SCR):
-    //     N rows, one for each tid
-    //     N + 3 columns:
-    //       one for each reference frame (1-N)
-    //       one for the previous clustering result (N+1)
-    //       one for the current best clustering (N+2)
-    //       one for intermediate col-bests (N+3)
-    // addressing is col-oriented, i.e. smem_cache[N*i_col + i_row]
-    const unsigned int col_prev = BSIZE_SCR*BSIZE_SCR;
-    const unsigned int col_result = col_prev + 1;
-    const unsigned int col_inter = col_result + 1;
-    __shared__ unsigned int smem_cache[BSIZE_SCR*(BSIZE_SCR+3)];
-    // thread dimensions
-    unsigned int bid = blockIdx.x;
-    unsigned int tid = threadIdx.x;
-    unsigned int bsize = blockDim.x;
-    unsigned int gid = bid * bsize + tid + i_from;
-    int comp_size = min(bsize, n_rows - offset);
-    if (tid < comp_size) {
-      // load reference coordinates to cache
-      for (unsigned int j=0; j < n_cols; ++j) {
-        smem_coords[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
-      }
-      // load reference state information to cache
-      smem_cache[col_inter+tid] = clustering[tid+offset];
-    }
-    __syncthreads();
-
-//TODO: everything lands in state '1'
-
-
-    if (gid < i_to) {
-      for (unsigned int j=0; j < n_cols; ++j) {
-        // load coordinates of current frame for re-use into shared memory
-        smem_coords[(tid+bsize)*n_cols+j] = sorted_coords[gid*n_cols+j];
-      }
-      // load previous state information to cache
-      smem_cache[col_prev+tid] = clustering[gid];
-      smem_cache[col_result+tid] = smem_cache[col_prev+tid];
-      // compare current frame (tid) against reference block (i)
-      for (unsigned int k=0; k < comp_size; ++k) {
-        float dist2 = 0.0f;
-        for (unsigned int j=0; j < n_cols; ++j) {
-          float c = smem_coords[(tid+bsize)*n_cols+j]
-                  - smem_coords[          k*n_cols+j];
-          dist2 = fma(c, c, dist2);
-        }
-        // fill cache with intermediate results
-        if (dist2 < max_dist2) {
-          smem_cache[k*BSIZE_SCR+tid] = smem_cache[col_inter+k];
-          smem_cache[col_result+tid] = min(smem_cache[k*BSIZE_SCR+tid]
-                                         , smem_cache[col_result+tid]);
-        } else {
-          smem_cache[k*BSIZE_SCR+tid] = 0;
-        }
-      }
-    }
-    __syncthreads();
-    //// following code blocks essentially perform an inner join
-    //// of reference states to find min. ids & lump corresponding states
-    if (tid < comp_size) {
-      // tid == reference state
-      for (unsigned int i=0; i < comp_size; ++i) {
-        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-          smem_cache[col_inter+tid] = min(smem_cache[col_inter+tid]
-                                        , smem_cache[col_result+i]);
-        }
-      }
-    }
-    __syncthreads();
-    if (tid < comp_size) {
-      // tid == current frame
-      for (unsigned int k=0; k < comp_size; ++k) {
-        if (smem_cache[k*BSIZE_SCR+tid] != 0) {
-          smem_cache[col_result+tid] = min(smem_cache[col_result+tid]
-                                         , smem_cache[col_inter+k]);
-        }
-      }
-    }
-    __syncthreads();
-    if (tid < comp_size) {
-      // tid == reference state
-      for (unsigned int i=0; i < comp_size; ++i) {
-        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-          smem_cache[col_inter+tid] = min(smem_cache[col_inter+tid]
-                                        , smem_cache[col_result+i]);
-        }
-      }
-    }
-    __syncthreads();
-    ////////
-
-    // update result for given frame
-    if (gid < i_to) {
-      clustering[gid] = smem_cache[col_result+tid];
-    }
-    //// update referenced states (either from comparison block
-    //// or previous best results) under protection against race-conditions.
-    //// (since they may be updated from several, parallel blocks)
-    if (tid == 0) {
-      for (unsigned int k=0; k < comp_size; ++k) {
-        // update reference
-        if (clustering[tid+offset] != smem_cache[col_inter+tid]) {
-          atomicMin(&clustering[tid+offset]
-                  , smem_cache[col_inter+tid]);
-        }
-      }
-    }
-    //TODO test if it is indeed faster to stick to tid==0
-    if (tid == 1) {
-      for (unsigned int k=0; k < comp_size; ++k) {
-        // update prev best results
-        if (smem_cache[col_prev] != smem_cache[col_result]) {
-          atomicMin(&clustering[smem_cache[col_prev]]
-                  , smem_cache[col_result]);
-        }
-      }
-    }
-  }
-
-
-/* TODO: rewrite / remove
-  std::vector<unsigned int>
-  lumped_clusters(std::vector<unsigned int> clustering
-                , std::vector<unsigned int> ref_states
-                , unsigned int first_frame_above_threshold) {
-    std::unordered_set<unsigned int> sstates;
-    sstates.insert(clustering.begin()
-                 , clustering.begin() + first_frame_above_threshold);
-    sstates.insert(ref_states.begin()
-                 , ref_states.begin() + first_frame_above_threshold);
-    sstates.erase(0);
-    std::vector<unsigned int> states(sstates.begin(), sstates.end());
-    unsigned int n_states = states.size();
-    // identify lumps
-    unsigned int i, j, s, s1, s2;
-    std::map<unsigned int, unsigned int> state_mapping;
-    for (i=0; i < n_states; ++i) {
-      state_mapping[states[i]] = states[i];
-    }
-    #pragma omp parallel for\
-      default(none)\
-      private(i,j,s1,s2,s)\
-      firstprivate(n_states,first_frame_above_threshold)\
-      shared(state_mapping,states,clustering,ref_states)
-    for (i=0; i < n_states; ++i) {
-      s = states[i];
-      for (j=0; j < first_frame_above_threshold; ++j) {
-        s1 = clustering[j];
-        s2 = ref_states[j];
-        //TODO: no loop over states, just over frames,
-        //      then select 's' from {s1,s2}, compute min and update
-        //      state_mapping in critical section
-        if (s1 == s || s2 == s) {
-          state_mapping[s] = std::min(state_mapping[s]
-                                    , std::min(s1, s2));
-        }
-      }
-    }
-    // assign new (ordered) names to lumps
-    std::set<unsigned int> distinct_states;
-    for (auto sm: state_mapping) {
-      distinct_states.insert(sm.second);
-    }
-    std::map<unsigned int, unsigned int> remapped_distinct;
-    unsigned int i_state = 0;
-    for (unsigned int s: distinct_states) {
-      remapped_distinct[s] = ++i_state;
-    }
-    for (auto& sm: state_mapping) {
-      sm.second = remapped_distinct[sm.second];
-    }
-    // remap states to lumps
-    #pragma omp parallel for\
-      default(none)\
-      private(i)\
-      firstprivate(first_frame_above_threshold)\
-      shared(clustering,state_mapping)
-    for (i=0; i < first_frame_above_threshold; ++i) {
-      clustering[i] = state_mapping[clustering[i]];
-    }
-    return clustering;
-  }
-*/
-
-
-
-/* TODO: remove
-  std::vector<unsigned int>
-  lumped_clusters__old(std::vector<unsigned int> clustering
-                , std::vector<unsigned int> ref_states
-                , unsigned int first_frame_above_threshold) {
-    unsigned int i_state = 0;
-    std::map<unsigned int, std::unordered_set<unsigned int>> lumps;
-    std::set<std::pair<unsigned int, unsigned int>> pairings;
-    for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-      unsigned int s1 = clustering[i];
-      unsigned int s2 = ref_states[i];
-      pairings.emplace(s1, s2);
-    }
-    std::unordered_set<unsigned int> seen_states;
-    for (auto p: pairings) {
-      unsigned int s1 = p.first;
-      unsigned int s2 = p.second;
-      if (s1 == s2 && seen_states.count(s1) > 0) {
-        continue;
-      } else {
-        seen_states.insert(s1);
-        seen_states.insert(s2);
-      }
-      unsigned int l1=0, l2=0;
-      // find lumps of states
-      for (auto l: lumps) {
-        if (l.second.count(s1) > 0) {
-          l1 = l.first;
-        }
-        if (l.second.count(s2) > 0) {
-          l2 = l.first;
-        }
-        if (l1 != 0 && l2 != 0) {
-          break;
-        }
-      }
-      if (l1 == 0 && l2 == 0) {
-        // no lump found: make new one
-        lumps[++i_state] = {s1, s2};
-      } else if (l1 == 0 && l2 != 0) {
-        // s2 has lump: add s1
-        lumps[l2].insert(s1);
-      } else if (l1 != 0 && l2 == 0) {
-        // s1 has lump: add s2
-        lumps[l1].insert(s2);
-      } else if (l1 != l2) {
-        // s1 and s2 have different lumps: join them
-        auto mm = std::minmax(l1,l2);
-        lumps[mm.first].insert(lumps[mm.second].begin()
-                             , lumps[mm.second].end());
-        lumps.erase(mm.second);
-      }
-    }
-    // recluster trajectory
-    i_state = 0;
-    std::unordered_map<unsigned int, unsigned int> dict;
-    for (auto l: lumps) {
-      ++i_state;
-      for (auto s: l.second) {
-        dict[s] = i_state;
-      }
-    }
-    for (unsigned int i=0; i < clustering.size(); ++i) {
-      if (clustering[i] > 0) {
-        clustering[i] = dict[clustering[i]];
-      }
-    }
-    return clustering;
-  }
-*/
-
-
   std::vector<unsigned int>
   clustering_rebased(std::vector<unsigned int> clustering) {
     std::map<unsigned int, unsigned int> dict;
@@ -781,11 +371,11 @@ namespace CUDA {
     }
     max_row = std::min(max_row
                      , (unsigned int) clusterings[0].size());
-std::cout << "merge" << std::endl;
+//std::cout << "merge" << std::endl;
     for (unsigned int i=0; i < max_row; ++i) {
       // collect start points, i.e. cluster assignemnts
       // of all partial results
-std::cout << i << ": " << "collecting start_points" << std::endl;
+//std::cout << i << ": " << "collecting start_points" << std::endl;
       std::set<unsigned int> start_points;
       for (unsigned int j=0; j < n_results; ++j) {
         start_points.insert(clusterings[j][i]);
@@ -794,21 +384,21 @@ std::cout << i << ": " << "collecting start_points" << std::endl;
       if (start_points.count(0) > 0) {
         start_points.erase(0);
       }
-std::cout << i << ": " << "following state trails" << std::endl;
+//std::cout << i << ": " << "following state trails" << std::endl;
       // follow start_points (id = i_state-1), collect all
       // states and rebase them to min(state)
       std::set<unsigned int> need_update = start_points;
       for (unsigned int s: start_points) {
-std::cout << "start point: " << s << std::endl;
+//std::cout << "start point: " << s << std::endl;
         unsigned int s_old = 1;
         while (s != 0 && s_old != s) {
           s_old = s;
           s = clusterings[0][s-1];
-std::cout << "   needs update: " << s << std::endl;
+//std::cout << "   needs update: " << s << std::endl;
           need_update.insert(s);
         }
       }
-std::cout << i << ": " << "update state names" << std::endl;
+//std::cout << i << ": " << "update state names" << std::endl;
       // std::set is guaranteed to be ordered!
       unsigned int min_s = (*need_update.begin());
       for (unsigned int s: need_update) {
@@ -819,13 +409,13 @@ std::cout << i << ": " << "update state names" << std::endl;
   }
 
   std::vector<std::size_t>
-  initial_density_clustering(const std::vector<float>& free_energy
-                           , const Neighborhood& nh
-                           , const float free_energy_threshold
-                           , const float* coords
-                           , const std::size_t n_rows
-                           , const std::size_t n_cols
-                           , const std::vector<std::size_t> initial_clusters) {
+  screening(const std::vector<float>& free_energy
+          , const Neighborhood& nh
+          , const float free_energy_threshold
+          , const float* coords
+          , const std::size_t n_rows
+          , const std::size_t n_cols
+          , const std::vector<std::size_t> initial_clusters) {
     using Clustering::Tools::min_multiplicator;
     // data preparation
     std::size_t first_frame_above_threshold;
@@ -844,9 +434,15 @@ std::cout << i << ": " << "update state names" << std::endl;
                                                         , n_rows
                                                         , initial_clusters);
     // write log
-    screening_log(sigma2
-                , first_frame_above_threshold
-                , fe_sorted);
+//    screening_log(sigma2
+//                , first_frame_above_threshold
+//                , fe_sorted);
+    // measure runtime & give some informative output
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+    Clustering::logger(std::cout) << "FE: "
+                                  << free_energy_threshold
+                                  << "    frames: "
+                                  << first_frame_above_threshold;
     float max_dist2 = 4*sigma2;
     // prepare CUDA environment
     int n_gpus = get_num_gpus();
@@ -917,7 +513,6 @@ std::cout << i << ": " << "update state names" << std::endl;
       }
     }
 
-//std::cerr << "running CUDA kernels" << std::endl;
     #pragma omp parallel for\
       default(none)\
       private(i,i_gpu,block_rng,i_from,i_to)\
@@ -940,7 +535,7 @@ std::cout << i << ": " << "update state names" << std::endl;
       block_rng = min_multiplicator(i_to-i_from
                                   , BSIZE_SCR);
       for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
-        initial_density_clustering_krnl
+        Clustering::Density::CUDA::Kernel::screening
           <<< block_rng
             , BSIZE_SCR
             , shared_mem >>>
@@ -956,7 +551,6 @@ std::cout << i << ": " << "update state names" << std::endl;
       cudaDeviceSynchronize();
       check_error("after kernel loop");
     }
-//std::cerr << "collect partial results" << std::endl;
     // collect & merge clustering results from GPUs
     std::vector<std::vector<unsigned int>>
       clstr_results(n_gpus
@@ -968,15 +562,14 @@ std::cout << i << ": " << "update state names" << std::endl;
                , cudaMemcpyDeviceToHost);
     }
 
-//for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-//  std::cerr << "partial results from gpu " << i_gpu << std::endl;
-//  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-//    std::cerr << "  " << i << ": " << clstr_results[i_gpu][i] << std::endl;
-//  }
-//  std::cerr << std::endl;
-//}
-
-
+//TODO debugging
+for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
+    //std::cerr << "@  " << i << " " << clstr_results[i_gpu][i] << std::endl;
+    std::cerr << clstr_results[i_gpu][i] << std::endl;
+  }
+  std::cerr << std::endl;
+}
 
 //std::cerr << "merge partial results" << std::endl;
     clustering_sorted = merge_results(clstr_results
@@ -994,6 +587,13 @@ std::cout << i << ": " << "update state names" << std::endl;
     for (unsigned int i=0; i < n_rows; ++i) {
       clustering[fe_sorted[i].first] = clustering_sorted[i];
     }
+    // final output
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    Clustering::logger(std::cout) << "    runtime: "
+                                  << std::chrono::duration_cast
+                                       <std::chrono::seconds>(t1-t0).count()
+                                  << " secs"
+                                  << std::endl;
 //std::cerr << "normalize and return" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering

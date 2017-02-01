@@ -607,9 +607,10 @@ namespace Clustering {
       //// clustering
       if (args.count("output")) {
 #ifdef USE_CUDA
-        using Clustering::Density::CUDA::initial_density_clustering;
+        using Clustering::Density::CUDA::screening;
 #else
-        using Clustering::Density::initial_density_clustering;
+//TODO: rename!!!!!!
+        using Clustering::Density::screening;
 #endif
         const std::string output_file = args["output"].as<std::string>();
         std::vector<std::size_t> clustering;
@@ -642,13 +643,13 @@ namespace Clustering {
           float t_to_high = t_to + t_step/10.0f + t_step;
           for (float t=t_from; (t < t_to_low) && !(t_to_high < t); t += t_step) {
             // compute clusters, re-using old results from previous step
-            clustering = initial_density_clustering(free_energies
-                                                  , nh
-                                                  , t
-                                                  , coords
-                                                  , n_rows
-                                                  , n_cols
-                                                  , clustering);
+            clustering = screening(free_energies
+                                 , nh
+                                 , t
+                                 , coords
+                                 , n_rows
+                                 , n_cols
+                                 , clustering);
             write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
                               , clustering);
           }

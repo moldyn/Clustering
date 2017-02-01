@@ -112,36 +112,19 @@ if(${USE_CUDA})
   find_package(CUDA REQUIRED)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE;-Xcompiler -fopenmp")
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-arch=compute_30")
   # debugging
   #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-g -G")
 
-  set (CLUSTERING_SRCS ${CLUSTERING_SRCS} density_clustering_cuda.cu)
+  set (CLUSTERING_SRCS ${CLUSTERING_SRCS}
+                       density_clustering_cuda.cu
+                       density_clustering_cuda_kernels.cu)
 
   set (CLUSTERING_LIBS ${CLUSTERING_LIBS} ${CUDA_LIBRARIES})
   include_directories (${CUDA_INCLUDE_DIRS})
   add_definitions(-DUSE_CUDA)
 endif()
 
-## MPI has a small, systematic error in density computation.
-## Actually negligable, but deactivated nevertheless.
-## Perhaps, I'll find some time to fix it someday...
-
-#if(USE_MPI)
-#  set (USE_MPI "#define USE_MPI")
-#  find_package(MPI REQUIRED)
-#  if (MPI_CXX_FOUND)
-#    message("using MPI for parallelization")
-#  else()
-#    message(SEND_ERROR "no MPI for C++ found!")
-#  endif()
-#endif()
-
-#if(USE_MPI)
-#  include_directories("${MPI_CXX_INCLUDE_PATH}")
-#  add_executable(clustering_mpi ${CLUSTERING_SRCS} density_clustering_mpi.cpp)
-#  target_link_libraries(clustering_mpi ${Boost_LIBRARIES} ${MPI_CXX_LIBRARIES} coords_file)
-#  set(CLUSTERING_BINARIES ${CLUSTERING_BINARIES} clustering_mpi)
-#else()
 
 set (PROGNAME clustering)
 
