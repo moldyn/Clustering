@@ -9,9 +9,8 @@
 #define BSIZE_NH 128
 #define N_STREAMS_NH 1
 
-// for screening;
-// this size is limited due to needed shared mem space
-#define BSIZE_SCR 64
+// for screening
+#define BSIZE_SCR 512
 
 ////
 

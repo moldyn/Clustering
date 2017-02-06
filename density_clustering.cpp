@@ -424,7 +424,6 @@ namespace Clustering {
             visited_frames.insert(i);
           }
         }
-        logger(std::cout) << "# already visited: " << visited_frames.size() << std::endl;
       }
       return std::make_tuple(clustering
                            , first_frame_above_threshold

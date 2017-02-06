@@ -140,28 +140,7 @@ namespace Kernel {
           , unsigned int i_to) {
     // dynamic shared mem for ref coords
     extern __shared__ float smem_coords[];
-    // static shared mem for temp. results
-    //   schema (N == BSIZE_SCR):
-    //     N rows, one for each tid
-    //     N + 3 columns:
-    //       one for each reference frame (1-N)
-    //       one for the previous clustering result (N+1)
-    //       one for the current best clustering (N+2)
-    //       one for intermediate col-bests (N+3)
-    // addressing is col-oriented, i.e. smem_cache[N*i_col + i_row]
-
-
-//    const unsigned int col_prev = BSIZE_SCR*BSIZE_SCR;
-//    const unsigned int col_result = col_prev + BSIZE_SCR;
-//    const unsigned int col_inter = col_result + BSIZE_SCR;
-//    __shared__ unsigned int smem_cache[BSIZE_SCR*(BSIZE_SCR+3)];
-
-
-    const unsigned int col_result = 0;
-    const unsigned int col_inter = BSIZE_SCR;
-    __shared__ unsigned int smem_cache[2*BSIZE_SCR];
-
-
+    __shared__ unsigned int smem_states[BSIZE_SCR];
     // thread dimensions
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
@@ -174,7 +153,7 @@ namespace Kernel {
         smem_coords[tid*n_cols+j] = sorted_coords[(tid+offset)*n_cols+j];
       }
       // load reference state information to cache
-      smem_cache[col_inter+tid] = clustering[tid+offset];
+      smem_states[tid] = clustering[tid+offset];
     }
     __syncthreads();
     if (gid < i_to) {
@@ -183,116 +162,34 @@ namespace Kernel {
         smem_coords[(tid+bsize)*n_cols+j] = sorted_coords[gid*n_cols+j];
       }
       // load previous state information to cache
-      unsigned int tmp_state = clustering[gid];
-      unsigned int tmp_result = tmp_state;
-//      smem_cache[col_prev+tid] = tmp_state;
-      smem_cache[col_result+tid] = tmp_state;
+      unsigned int tmp_result = clustering[gid];
       // compare current frame (tid) against reference block (k)
       for (unsigned int k=0; k < comp_size; ++k) {
-        float dist2 = 0.0f;
-        for (unsigned int j=0; j < n_cols; ++j) {
-          float c = smem_coords[(tid+bsize)*n_cols+j]
-                  - smem_coords[          k*n_cols+j];
-          dist2 = fma(c, c, dist2);
-        }
-        // fill cache with intermediate results
-        if (dist2 < max_dist2) {
-          tmp_state = smem_cache[col_inter+k];
-          tmp_result = min(tmp_state, tmp_result);
- //         smem_cache[k*BSIZE_SCR+tid] = tmp_state;
- //       } else {
- //         smem_cache[k*BSIZE_SCR+tid] = 0;
+        unsigned int tmp_state = smem_states[k];
+        if (tmp_state != tmp_result) {
+          float dist2 = 0.0f;
+          for (unsigned int j=0; j < n_cols; ++j) {
+            float c = smem_coords[(tid+bsize)*n_cols+j]
+                    - smem_coords[          k*n_cols+j];
+            dist2 = fma(c, c, dist2);
+          }
+          // update intermediate results
+          if (dist2 < max_dist2) {
+            tmp_result = min(tmp_state
+                           , tmp_result);
+            smem_states[k] = tmp_result;
+          }
         }
       }
-      smem_cache[col_result+tid] = tmp_result;
+      clustering[gid] = tmp_result;
     }
     __syncthreads();
-    //// following code blocks essentially perform an inner join
-    //// of reference states to find min. ids & lump corresponding states
-//    if (tid < comp_size) {
-//      unsigned int tmp_inter = 0;
-//      // tid == reference state
-//      for (unsigned int i=0; i < comp_size; ++i) {
-//        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-//          if (tmp_inter == 0) {
-//            tmp_inter = smem_cache[col_result+i];
-//          } else {
-//            tmp_inter = min(tmp_inter
-//                          , smem_cache[col_result+i]);
-//          }
-//        }
-//      }
-//      smem_cache[col_inter+tid] = tmp_inter;
-//    }
-//    __syncthreads();
-//    if (tid < comp_size) {
-//      unsigned int tmp_result = smem_cache[col_result+tid];
-//      // tid == current frame
-//      for (unsigned int k=0; k < comp_size; ++k) {
-//        if (smem_cache[k*BSIZE_SCR+tid] != 0) {
-//          unsigned int tmp_inter = smem_cache[col_inter+k];
-//          if (tmp_inter != 0) {
-//            tmp_result = min(tmp_result
-//                           , tmp_inter);
-//          }
-//        }
-//      }
-//      smem_cache[col_result+tid] = tmp_result;
-//    }
-//    __syncthreads();
-//    if (tid < comp_size) {
-//      unsigned int tmp_inter = smem_cache[col_inter+tid];
-//      // tid == reference state
-//      for (unsigned int i=0; i < comp_size; ++i) {
-//        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-//          if (tmp_inter == 0) {
-//            tmp_inter = smem_cache[col_result+i];
-//          } else {
-//            tmp_inter = min(tmp_inter
-//                          , smem_cache[col_result+i]);
-//          }
-//        }
-//      }
-//      smem_cache[col_inter+tid] = tmp_inter;
-//    }
-//    __syncthreads();
-    ////////
-
-    // update result for given frame
-    if (gid < i_to) {
-      clustering[gid] = smem_cache[col_result+tid];
+    // update reference states
+    if (tid < comp_size) {
+      atomicMin(&clustering[tid+offset]
+              , smem_states[tid]);
     }
-    //// update reference states (either from comparison block
-    //// or previous best results) under protection against race-conditions.
-    //// (since they may be updated from several, parallel blocks)
-
-
-//TODO debug
-//    if (tid == 0) {
-//      for (unsigned int k=0; k < comp_size; ++k) {
-//        unsigned int tmp_inter = smem_cache[col_inter+k];
-//        // update reference
-//        if (tmp_inter != 0
-//         && clustering[k+offset] != tmp_inter) {
-//          atomicMin(&clustering[k+offset]
-//                  , tmp_inter);
-//        }
-//      }
-//    }
-//    if (tid == 1) {
-//      for (unsigned int k=0; k < comp_size; ++k) {
-//        unsigned int tmp_result = smem_cache[col_result+k];
-//        unsigned int tmp_prev = smem_cache[col_prev+k];
-//        // update prev best results
-//        if (tmp_prev != 0
-//         && tmp_prev != tmp_result) {
-//          atomicMin(&clustering[tmp_prev-1]
-//                  , tmp_result);
-//        }
-//      }
-//    }
   }
-
 
 }}}} // end Clustering::Density::CUDA::Kernel
 

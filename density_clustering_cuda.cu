@@ -371,11 +371,9 @@ namespace CUDA {
     }
     max_row = std::min(max_row
                      , (unsigned int) clusterings[0].size());
-//std::cout << "merge" << std::endl;
     for (unsigned int i=0; i < max_row; ++i) {
       // collect start points, i.e. cluster assignemnts
       // of all partial results
-//std::cout << i << ": " << "collecting start_points" << std::endl;
       std::set<unsigned int> start_points;
       for (unsigned int j=0; j < n_results; ++j) {
         start_points.insert(clusterings[j][i]);
@@ -384,21 +382,17 @@ namespace CUDA {
       if (start_points.count(0) > 0) {
         start_points.erase(0);
       }
-//std::cout << i << ": " << "following state trails" << std::endl;
       // follow start_points (id = i_state-1), collect all
       // states and rebase them to min(state)
       std::set<unsigned int> need_update = start_points;
       for (unsigned int s: start_points) {
-//std::cout << "start point: " << s << std::endl;
         unsigned int s_old = 1;
         while (s != 0 && s_old != s) {
           s_old = s;
           s = clusterings[0][s-1];
-//std::cout << "   needs update: " << s << std::endl;
           need_update.insert(s);
         }
       }
-//std::cout << i << ": " << "update state names" << std::endl;
       // std::set is guaranteed to be ordered!
       unsigned int min_s = (*need_update.begin());
       for (unsigned int s: need_update) {
@@ -433,10 +427,6 @@ namespace CUDA {
                                                         , free_energy_threshold
                                                         , n_rows
                                                         , initial_clusters);
-    // write log
-//    screening_log(sigma2
-//                , first_frame_above_threshold
-//                , fe_sorted);
     // measure runtime & give some informative output
     std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
     Clustering::logger(std::cout) << "FE: "
@@ -566,32 +556,29 @@ namespace CUDA {
                  , sizeof(unsigned int) * n_rows
                  , cudaMemcpyDeviceToHost);
       }
-  
-  //TODO debugging
-  //for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-  //  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-  //    //std::cerr << "@  " << i << " " << clstr_results[i_gpu][i] << std::endl;
-  //    std::cerr << clstr_results[i_gpu][i] << std::endl;
-  //  }
-  //  std::cerr << std::endl;
-  //}
-  
-  //std::cerr << "merge partial results" << std::endl;
-  
       clustering_sorted = merge_results(clstr_results
                                       , first_frame_above_threshold);
+      // update references by comparing old to new results
+      std::unordered_map<unsigned int, unsigned int> dict;
+      dict[0] = 0;
+      for (i=0; i < first_frame_above_threshold; ++i) {
+        unsigned int state_old = clustering_sorted_old[i];
+        unsigned int state_new = clustering_sorted[i];
+        if (dict.count(state_old) == 0) {
+          dict[state_old] = std::min(state_old, state_new);
+        } else {
+          dict[state_old] = std::min(dict[state_old], state_new);
+        }
+      }
+      for (unsigned int& s: clustering_sorted) {
+        s = dict[s];
+      }
     } // end while
-
-
-
-
-//std::cerr << "cleanup" << std::endl;
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
       cudaFree(d_coords_sorted[i_gpu]);
       cudaFree(d_clustering[i_gpu]);
     }
-//std::cerr << "back-conversion from sorted to true order" << std::endl;
     // convert state trajectory from
     // FE-sorted order to original order
     std::vector<std::size_t> clustering(n_rows);
@@ -605,7 +592,6 @@ namespace CUDA {
                                        <std::chrono::seconds>(t1-t0).count()
                                   << " secs"
                                   << std::endl;
-//std::cerr << "normalize and return" << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);
