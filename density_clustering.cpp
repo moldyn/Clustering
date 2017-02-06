@@ -608,7 +608,6 @@ namespace Clustering {
 #ifdef USE_CUDA
         using Clustering::Density::CUDA::screening;
 #else
-//TODO: rename!!!!!!
         using Clustering::Density::screening;
 #endif
         const std::string output_file = args["output"].as<std::string>();

@@ -42,16 +42,16 @@ namespace Density {
     //! frames with a local free energy estimate higher than the given threshold
     //! will not be clustered and remain in 'state 0'.
     std::vector<std::size_t>
-    initial_density_clustering(const std::vector<float>& free_energy
-                             , const Neighborhood& nh
-                             , const float free_energy_threshold
-                             , const float* coords
-                             , const std::size_t n_rows
-                             , const std::size_t n_cols
-                             , const std::vector<std::size_t> initial_clusters
+    screening(const std::vector<float>& free_energy
+            , const Neighborhood& nh
+            , const float free_energy_threshold
+            , const float* coords
+            , const std::size_t n_rows
+            , const std::size_t n_cols
+            , const std::vector<std::size_t> initial_clusters
 #ifdef DC_USE_MPI
-                             , const int mpi_n_nodes
-                             , const int mpi_node_id
+            , const int mpi_n_nodes
+            , const int mpi_node_id
 #endif
                                );
 }} // end namespace Clustering::Density
