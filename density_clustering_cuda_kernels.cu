@@ -149,10 +149,19 @@ namespace Kernel {
     //       one for the current best clustering (N+2)
     //       one for intermediate col-bests (N+3)
     // addressing is col-oriented, i.e. smem_cache[N*i_col + i_row]
-    const unsigned int col_prev = BSIZE_SCR*BSIZE_SCR;
-    const unsigned int col_result = col_prev + BSIZE_SCR;
-    const unsigned int col_inter = col_result + BSIZE_SCR;
-    __shared__ unsigned int smem_cache[BSIZE_SCR*(BSIZE_SCR+3)];
+
+
+//    const unsigned int col_prev = BSIZE_SCR*BSIZE_SCR;
+//    const unsigned int col_result = col_prev + BSIZE_SCR;
+//    const unsigned int col_inter = col_result + BSIZE_SCR;
+//    __shared__ unsigned int smem_cache[BSIZE_SCR*(BSIZE_SCR+3)];
+
+
+    const unsigned int col_result = 0;
+    const unsigned int col_inter = BSIZE_SCR;
+    __shared__ unsigned int smem_cache[2*BSIZE_SCR];
+
+
     // thread dimensions
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
@@ -176,9 +185,9 @@ namespace Kernel {
       // load previous state information to cache
       unsigned int tmp_state = clustering[gid];
       unsigned int tmp_result = tmp_state;
-      smem_cache[col_prev+tid] = tmp_state;
+//      smem_cache[col_prev+tid] = tmp_state;
       smem_cache[col_result+tid] = tmp_state;
-      // compare current frame (tid) against reference block (i)
+      // compare current frame (tid) against reference block (k)
       for (unsigned int k=0; k < comp_size; ++k) {
         float dist2 = 0.0f;
         for (unsigned int j=0; j < n_cols; ++j) {
@@ -190,9 +199,9 @@ namespace Kernel {
         if (dist2 < max_dist2) {
           tmp_state = smem_cache[col_inter+k];
           tmp_result = min(tmp_state, tmp_result);
-          smem_cache[k*BSIZE_SCR+tid] = tmp_state;
-        } else {
-          smem_cache[k*BSIZE_SCR+tid] = 0;
+ //         smem_cache[k*BSIZE_SCR+tid] = tmp_state;
+ //       } else {
+ //         smem_cache[k*BSIZE_SCR+tid] = 0;
         }
       }
       smem_cache[col_result+tid] = tmp_result;
@@ -200,53 +209,53 @@ namespace Kernel {
     __syncthreads();
     //// following code blocks essentially perform an inner join
     //// of reference states to find min. ids & lump corresponding states
-    if (tid < comp_size) {
-      unsigned int tmp_inter = 0;
-      // tid == reference state
-      for (unsigned int i=0; i < comp_size; ++i) {
-        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-          if (tmp_inter == 0) {
-            tmp_inter = smem_cache[col_result+i];
-          } else {
-            tmp_inter = min(tmp_inter
-                          , smem_cache[col_result+i]);
-          }
-        }
-      }
-      smem_cache[col_inter+tid] = tmp_inter;
-    }
-    __syncthreads();
-    if (tid < comp_size) {
-      unsigned int tmp_result = smem_cache[col_result+tid];
-      // tid == current frame
-      for (unsigned int k=0; k < comp_size; ++k) {
-        if (smem_cache[k*BSIZE_SCR+tid] != 0) {
-          unsigned int tmp_inter = smem_cache[col_inter+k];
-          if (tmp_inter != 0) {
-            tmp_result = min(tmp_result
-                           , tmp_inter);
-          }
-        }
-      }
-      smem_cache[col_result+tid] = tmp_result;
-    }
-    __syncthreads();
-    if (tid < comp_size) {
-      unsigned int tmp_inter = smem_cache[col_inter+tid];
-      // tid == reference state
-      for (unsigned int i=0; i < comp_size; ++i) {
-        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
-          if (tmp_inter == 0) {
-            tmp_inter = smem_cache[col_result+i];
-          } else {
-            tmp_inter = min(tmp_inter
-                          , smem_cache[col_result+i]);
-          }
-        }
-      }
-      smem_cache[col_inter+tid] = tmp_inter;
-    }
-    __syncthreads();
+//    if (tid < comp_size) {
+//      unsigned int tmp_inter = 0;
+//      // tid == reference state
+//      for (unsigned int i=0; i < comp_size; ++i) {
+//        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
+//          if (tmp_inter == 0) {
+//            tmp_inter = smem_cache[col_result+i];
+//          } else {
+//            tmp_inter = min(tmp_inter
+//                          , smem_cache[col_result+i]);
+//          }
+//        }
+//      }
+//      smem_cache[col_inter+tid] = tmp_inter;
+//    }
+//    __syncthreads();
+//    if (tid < comp_size) {
+//      unsigned int tmp_result = smem_cache[col_result+tid];
+//      // tid == current frame
+//      for (unsigned int k=0; k < comp_size; ++k) {
+//        if (smem_cache[k*BSIZE_SCR+tid] != 0) {
+//          unsigned int tmp_inter = smem_cache[col_inter+k];
+//          if (tmp_inter != 0) {
+//            tmp_result = min(tmp_result
+//                           , tmp_inter);
+//          }
+//        }
+//      }
+//      smem_cache[col_result+tid] = tmp_result;
+//    }
+//    __syncthreads();
+//    if (tid < comp_size) {
+//      unsigned int tmp_inter = smem_cache[col_inter+tid];
+//      // tid == reference state
+//      for (unsigned int i=0; i < comp_size; ++i) {
+//        if (smem_cache[tid*BSIZE_SCR+i] != 0) {
+//          if (tmp_inter == 0) {
+//            tmp_inter = smem_cache[col_result+i];
+//          } else {
+//            tmp_inter = min(tmp_inter
+//                          , smem_cache[col_result+i]);
+//          }
+//        }
+//      }
+//      smem_cache[col_inter+tid] = tmp_inter;
+//    }
+//    __syncthreads();
     ////////
 
     // update result for given frame

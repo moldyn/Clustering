@@ -513,67 +513,78 @@ namespace CUDA {
       }
     }
 
-    #pragma omp parallel for\
-      default(none)\
-      private(i,i_gpu,block_rng,i_from,i_to)\
-      firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
-                   prev_last_frame,\
-                   shared_mem,first_frame_above_threshold)\
-      shared(d_coords_sorted,d_clustering,\
-             tmp_coords_sorted,clustering_sorted)\
-      num_threads(n_gpus)
-    for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaSetDevice(i_gpu);
-      cudaMemcpy(d_clustering[i_gpu]
-               , clustering_sorted.data()
-               , sizeof(unsigned int) * n_rows
-               , cudaMemcpyHostToDevice);
-      i_from = prev_last_frame + i_gpu * gpu_rng;
-      i_to = (i_gpu == (n_gpus-1))
-           ? first_frame_above_threshold
-           : prev_last_frame + (i_gpu+1) * gpu_rng;
-      block_rng = min_multiplicator(i_to-i_from
-                                  , BSIZE_SCR);
-      for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
-        Clustering::Density::CUDA::Kernel::screening
-          <<< block_rng
-            , BSIZE_SCR
-            , shared_mem >>>
-          (i*BSIZE_SCR
-         , d_coords_sorted[i_gpu]
-         , std::min(first_frame_above_threshold, n_rows)
-         , n_cols
-         , max_dist2
-         , d_clustering[i_gpu]
-         , i_from
-         , i_to);
+    std::vector<unsigned int> clustering_sorted_old;
+    while (clustering_sorted_old != clustering_sorted) {
+      // cache old results
+      clustering_sorted_old = clustering_sorted;
+      // (re-)cluster
+      #pragma omp parallel for\
+        default(none)\
+        private(i,i_gpu,block_rng,i_from,i_to)\
+        firstprivate(n_gpus,n_rows,n_cols,gpu_rng,max_dist2,\
+                     prev_last_frame,\
+                     shared_mem,first_frame_above_threshold)\
+        shared(d_coords_sorted,d_clustering,\
+               tmp_coords_sorted,clustering_sorted)\
+        num_threads(n_gpus)
+      for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+        cudaSetDevice(i_gpu);
+        cudaMemcpy(d_clustering[i_gpu]
+                 , clustering_sorted.data()
+                 , sizeof(unsigned int) * n_rows
+                 , cudaMemcpyHostToDevice);
+        i_from = prev_last_frame + i_gpu * gpu_rng;
+        i_to = (i_gpu == (n_gpus-1))
+             ? first_frame_above_threshold
+             : prev_last_frame + (i_gpu+1) * gpu_rng;
+        block_rng = min_multiplicator(i_to-i_from
+                                    , BSIZE_SCR);
+        for (i=0; i*BSIZE_SCR < first_frame_above_threshold; ++i) {
+          Clustering::Density::CUDA::Kernel::screening
+            <<< block_rng
+              , BSIZE_SCR
+              , shared_mem >>>
+            (i*BSIZE_SCR
+           , d_coords_sorted[i_gpu]
+           , std::min(first_frame_above_threshold, n_rows)
+           , n_cols
+           , max_dist2
+           , d_clustering[i_gpu]
+           , i_from
+           , i_to);
+        }
+        cudaDeviceSynchronize();
+        check_error("after kernel loop");
       }
-      cudaDeviceSynchronize();
-      check_error("after kernel loop");
-    }
-    // collect & merge clustering results from GPUs
-    std::vector<std::vector<unsigned int>>
-      clstr_results(n_gpus
-                  , std::vector<unsigned int>(n_rows));
-    for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-      cudaMemcpy(clstr_results[i_gpu].data()
-               , d_clustering[i_gpu]
-               , sizeof(unsigned int) * n_rows
-               , cudaMemcpyDeviceToHost);
-    }
+      // collect & merge clustering results from GPUs
+      std::vector<std::vector<unsigned int>>
+        clstr_results(n_gpus
+                    , std::vector<unsigned int>(n_rows));
+      for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+        cudaMemcpy(clstr_results[i_gpu].data()
+                 , d_clustering[i_gpu]
+                 , sizeof(unsigned int) * n_rows
+                 , cudaMemcpyDeviceToHost);
+      }
+  
+  //TODO debugging
+  //for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
+  //  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
+  //    //std::cerr << "@  " << i << " " << clstr_results[i_gpu][i] << std::endl;
+  //    std::cerr << clstr_results[i_gpu][i] << std::endl;
+  //  }
+  //  std::cerr << std::endl;
+  //}
+  
+  //std::cerr << "merge partial results" << std::endl;
+  
+      clustering_sorted = merge_results(clstr_results
+                                      , first_frame_above_threshold);
+    } // end while
 
-//TODO debugging
-for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
-  for (unsigned int i=0; i < first_frame_above_threshold; ++i) {
-    //std::cerr << "@  " << i << " " << clstr_results[i_gpu][i] << std::endl;
-    std::cerr << clstr_results[i_gpu][i] << std::endl;
-  }
-  std::cerr << std::endl;
-}
 
-//std::cerr << "merge partial results" << std::endl;
-    clustering_sorted = merge_results(clstr_results
-                                    , first_frame_above_threshold);
+
+
 //std::cerr << "cleanup" << std::endl;
     // cleanup CUDA environment
     for (int i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
