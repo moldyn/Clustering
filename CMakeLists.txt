@@ -130,7 +130,7 @@ set (PROGNAME clustering)
 
 
 if (${USE_CUDA})
-  set (PROGNAME ${PROGNAME}.cuda)
+  #  set (PROGNAME ${PROGNAME}.cuda)
   cuda_add_executable(${PROGNAME} ${CLUSTERING_SRCS})
 else()
   add_executable(${PROGNAME} ${CLUSTERING_SRCS})
