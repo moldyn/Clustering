@@ -342,13 +342,13 @@ namespace Clustering {
     }
 
     // run clustering for given Q_min value
-    // returns: {new traj, lumping info}
-    std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
+    // returns: {new traj, lumping info, updated transition matrix}
+    std::tuple<std::vector<std::size_t>
+             , std::map<std::size_t, std::size_t>
+             , SparseMatrixF>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
-                                   std::vector<std::size_t> concat_limits, //TODO: not needed here anymore, instead: trans_prob
-                                   bool diff_size_chunks,
+                                   SparseMatrixF trans_prob,
                                    float q_min,
-                                   std::size_t lagtime,
                                    std::vector<float> free_energy) {
       std::set<std::size_t> microstate_names;
       std::vector<std::size_t> traj = initial_trajectory;
@@ -372,31 +372,6 @@ namespace Clustering {
                           << " for q_min "
                           << Clustering::Tools::stringprintf("%0.3f", q_min)
                           << std::endl;
-
-
-
-        //TODO: trans_prob as parameter / update after lumping
-
-        // get transition probabilities
-        logger(std::cout) << "  calculating transition probabilities" << std::endl;
-        SparseMatrixF trans_prob;
-        if (diff_size_chunks) {
-          trans_prob = row_normalized_transition_probabilities(
-                         weighted_transition_counts(traj
-                                                  , concat_limits
-                                                  , lagtime)
-                       , microstate_names);
-        } else {
-          trans_prob = row_normalized_transition_probabilities(
-                         transition_counts(traj
-                                         , concat_limits
-                                         , lagtime)
-                       , microstate_names);
-        }
-
-
-
-
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state;
@@ -429,12 +404,9 @@ namespace Clustering {
             lumping[from] = to;
           }
         }
-
-
-        //TODO: update transition matrix here
-
-
-
+        // update transition matrix
+        trans_prob = updated_transition_probabilities(trans_prob
+                                                    , sinks);
         // check convergence
         if (traj_old == traj) {
           break;
@@ -446,10 +418,7 @@ namespace Clustering {
                                    " for Q_min convergence: %d"
                                  , iter));
       } else {
-
-        //TODO: also return updated transition matrix
-
-        return std::make_tuple(traj, lumping);
+        return std::make_tuple(traj, lumping, trans_prob);
       }
     }
 
@@ -491,22 +460,42 @@ namespace Clustering {
           concat_limits.push_back(i);
         }
       }
+      SparseMatrixF trans_prob;
+      bool tprob_given = args.count("tprob");
+      if (tprob_given) {
+        //TODO read transition matrix
+      } else {
+        auto microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
+        if (diff_sized_chunks) {
+          trans_prob = row_normalized_transition_probabilities(
+                         weighted_transition_counts(traj
+                                                  , concat_limits
+                                                  , lagtime)
+                       , microstate_names);
+        } else {
+          trans_prob = row_normalized_transition_probabilities(
+                         transition_counts(traj
+                                         , concat_limits
+                                         , lagtime)
+                       , microstate_names);
+        }
+      }
       Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
       for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
-        auto traj_sinks = fixed_metastability_clustering(traj
-                                                       , concat_limits
-                                                       , diff_sized_chunks
-                                                       , q_min
-                                                       , lagtime
-                                                       , free_energy);
+        auto traj_sinks_tprob = fixed_metastability_clustering(traj
+                                                             , trans_prob
+                                                             , q_min
+                                                             , free_energy);
+        // reuse updated transition matrix in next iteration
+        trans_prob = std::get<2>(traj_sinks_tprob);
         // write trajectory at current Qmin level to file
-        traj = std::get<0>(traj_sinks);
+        traj = std::get<0>(traj_sinks_tprob);
         write_single_column(stringprintf("%s_traj_%0.3f.dat"
                                        , basename.c_str()
                                        , q_min)
                           , traj);
         // save transitions (i.e. lumping of states)
-        std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks);
+        std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks_tprob);
         for (auto from_to: sinks) {
           transitions[from_to.first] = {from_to.second, q_min};
         }

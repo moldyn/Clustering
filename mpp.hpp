@@ -98,12 +98,12 @@ namespace Clustering {
     lumped_trajectory(std::vector<std::size_t> trajectory,
                       std::map<std::size_t, std::size_t> sinks);
     //! run clustering for given Q_min value
-    std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
+    std::tuple<std::vector<std::size_t>
+             , std::map<std::size_t, std::size_t>
+             , SparseMatrixF>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
-                                   std::vector<std::size_t> concat_limits,
-                                   bool diff_size_chunks,
+                                   SparseMatrixF trans_prob,
                                    float q_min,
-                                   std::size_t lagtime,
                                    std::vector<float> free_energy);
     /*!
      * MPP clustering control function and user interface\n
