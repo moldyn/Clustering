@@ -119,7 +119,6 @@ int main(int argc, char* argv[]) {
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
     ("radius,r", b_po::value<float>(), "parameter: hypersphere radius.")
     // optional
-//    ("threshold,t", b_po::value<float>(), "parameter: Free Energy threshold for clustering (FEL is normalized to zero).")
     ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(),
                                           "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
                                           "set -T -1 for default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"
@@ -136,9 +135,6 @@ int main(int argc, char* argv[]) {
     ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
     ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
     // defaults
-//    ("only-initial,I", b_po::bool_switch()->default_value(false),
-//                      "only assign initial (i.e. low free energy / high density) frames to clusters. "
-//                      "leave unclustered frames as state '0'.")
     ("nthreads,n", b_po::value<int>()->default_value(0),
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
@@ -160,7 +156,12 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (file): file with sizes of individual (not equally sized) sub-trajectories for concatenated trajectory files. e.g.: for a concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+      "input (file): file with sizes of individual (not equally sized)"
+      " sub-trajectories for concatenated trajectory files. e.g.: for a"
+      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+    ("tprob", b_po::value<std::string>(),
+     "input (file): initial transition probability matrix. "
+     "Format:three space-separated columns 'state_from' 'state_to' 'probability'")
     // defaults
     ("basename", b_po::value<std::string>()->default_value("mpp"), "basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),

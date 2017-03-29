@@ -57,7 +57,12 @@ namespace Clustering {
                              , std::size_t n_lag_steps);
     //! compute transition matrix from counts by normalization of rows
     SparseMatrixF
-    row_normalized_transition_probabilities(SparseMatrixF count_matrix, std::set<std::size_t> microstate_names);
+    row_normalized_transition_probabilities(SparseMatrixF count_matrix
+                                          , std::set<std::size_t> microstate_names);
+    //! update transition matrix after lumping states into sinks
+    SparseMatrixF
+    updated_transition_probabilities(SparseMatrixF transition_matrix
+                                   , std::map<std::size_t, std::size_t> sinks);
     //! compute immediate future (i.e. without lag) of every state from highest probable transitions;
     //! exclude self-transitions.
     std::map<std::size_t, std::size_t>

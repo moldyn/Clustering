@@ -132,6 +132,40 @@ namespace Clustering {
       return transition_matrix;
     }
 
+    SparseMatrixF
+    updated_transition_probabilities(SparseMatrixF transition_matrix
+                                   , std::map<std::size_t, std::size_t> sinks) {
+      std::size_t n_rows = transition_matrix.size1();
+      std::size_t n_cols = transition_matrix.size2();
+      SparseMatrixF updated_matrix(n_rows
+                                 , n_cols);
+      // macrostates == states left after lumping
+      std::set<std::size_t> macrostates;
+      // microstates == states before lumping
+      // (with map-key being the name of the macrostate they are lumped into)
+      std::map<std::size_t, std::set<std::size_t>> microstates;
+      for (auto lump_from_to: sinks) {
+        macrostates.insert(lump_from_to.second);
+        if (microstates.count(lump_from_to.second) == 0) {
+          microstates[lump_from_to.second] = {lump_from_to.first};
+        } else {
+          microstates[lump_from_to.second].insert(lump_from_to.first);
+        }
+      }
+      // construct new transition matrix by summing over all transition
+      // probabilities from one macrostate to another macrostate
+      for (auto macro1: macrostates) {
+        for (auto macro2: macrostates) {
+          for (auto micro1: microstates[macro1]) {
+            for (auto micro2: microstates[macro2]) {
+              updated_matrix(macro1, macro2) += transition_matrix(micro1, micro2);
+            }
+          }
+        }
+      }
+      return updated_matrix;
+    }
+
     std::map<std::size_t, std::size_t>
     single_step_future_state(SparseMatrixF transition_matrix,
                              std::set<std::size_t> cluster_names,
@@ -311,7 +345,7 @@ namespace Clustering {
     // returns: {new traj, lumping info}
     std::tuple<std::vector<std::size_t>, std::map<std::size_t, std::size_t>>
     fixed_metastability_clustering(std::vector<std::size_t> initial_trajectory,
-                                   std::vector<std::size_t> concat_limits,
+                                   std::vector<std::size_t> concat_limits, //TODO: not needed here anymore, instead: trans_prob
                                    bool diff_size_chunks,
                                    float q_min,
                                    std::size_t lagtime,
@@ -338,6 +372,11 @@ namespace Clustering {
                           << " for q_min "
                           << Clustering::Tools::stringprintf("%0.3f", q_min)
                           << std::endl;
+
+
+
+        //TODO: trans_prob as parameter / update after lumping
+
         // get transition probabilities
         logger(std::cout) << "  calculating transition probabilities" << std::endl;
         SparseMatrixF trans_prob;
@@ -354,6 +393,10 @@ namespace Clustering {
                                          , lagtime)
                        , microstate_names);
         }
+
+
+
+
         // get immediate future
         logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state;
@@ -386,6 +429,12 @@ namespace Clustering {
             lumping[from] = to;
           }
         }
+
+
+        //TODO: update transition matrix here
+
+
+
         // check convergence
         if (traj_old == traj) {
           break;
@@ -397,6 +446,9 @@ namespace Clustering {
                                    " for Q_min convergence: %d"
                                  , iter));
       } else {
+
+        //TODO: also return updated transition matrix
+
         return std::make_tuple(traj, lumping);
       }
     }
