@@ -1,27 +1,29 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
-All rights reserved.
+Copyright (c) 2015, Florian Sittel (www.lettis.net) All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
 
 2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
-OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#include <fstream>
 
 #include "tools.hpp"
 #include "mpp.hpp"
@@ -29,6 +31,47 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Clustering {
   namespace MPP {
+
+    SparseMatrixF
+    read_transition_probabilities(std::string fname) {
+      std::vector<unsigned int> i;
+      std::vector<unsigned int> j;
+      std::vector<float> k;
+      std::ifstream fh(fname);
+      // read raw data
+      if (fh.is_open()) {
+        float i_buf;
+        float j_buf;
+        float k_buf;
+        while (fh.good()) {
+          fh >> i_buf;
+          fh >> j_buf;
+          fh >> k_buf;
+          if (fh.good()) {
+            i.push_back(i_buf);
+            j.push_back(j_buf);
+            k.push_back(k_buf);
+          }
+        }
+      } else {
+        std::cerr << "error: cannot open file "
+                  << fname
+                  << " for reading transition matrix."
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      // convert to matrix
+      unsigned int max_state = std::max((*std::max_element(i.begin()
+                                                         , i.end()))
+                                      , (*std::max_element(j.begin()
+                                                         , j.end())));
+      SparseMatrixF trans_prob(max_state+1, max_state+1);
+      for (unsigned int n=0; n < i.size(); ++n) {
+        trans_prob(i[n], j[n]) = k[n];
+      }
+      return trans_prob;
+    }
+
     SparseMatrixF
     transition_counts(std::vector<std::size_t> trajectory,
                       std::vector<std::size_t> concat_limits,
@@ -134,7 +177,8 @@ namespace Clustering {
 
     SparseMatrixF
     updated_transition_probabilities(SparseMatrixF transition_matrix
-                                   , std::map<std::size_t, std::size_t> sinks) {
+                                   , std::map<std::size_t, std::size_t> sinks
+                                   , std::map<std::size_t, std::size_t> pops) {
       std::size_t n_rows = transition_matrix.size1();
       std::size_t n_cols = transition_matrix.size2();
       SparseMatrixF updated_matrix(n_rows
@@ -152,15 +196,33 @@ namespace Clustering {
           microstates[lump_from_to.second].insert(lump_from_to.first);
         }
       }
+      // compute relative populations of microstates inside their macrostate
+      std::map<std::size_t, float> relative_pops;
+      for (auto macro1: macrostates) {
+        std::size_t pop_total = 0;
+        for (auto micro1: microstates[macro1]) {
+          pop_total += pops[micro1];
+        }
+        for (auto micro1: microstates[macro1]) {
+          relative_pops[micro1] = (float) pops[micro1] / (float) pop_total;
+        }
+      }
       // construct new transition matrix by summing over all transition
       // probabilities from one macrostate to another macrostate
       for (auto macro1: macrostates) {
+        float macro_row_sum = 0.0f;
         for (auto macro2: macrostates) {
           for (auto micro1: microstates[macro1]) {
             for (auto micro2: microstates[macro2]) {
-              updated_matrix(macro1, macro2) += transition_matrix(micro1, micro2);
+              updated_matrix(macro1, macro2) += relative_pops[micro1]
+                                              * transition_matrix(micro1, micro2);
             }
           }
+          macro_row_sum += updated_matrix(macro1, macro2);
+        }
+        // renormalize row
+        for (auto macro2: macrostates) {
+          updated_matrix(macro1, macro2) /= macro_row_sum;
         }
       }
       return updated_matrix;
@@ -373,7 +435,6 @@ namespace Clustering {
                           << Clustering::Tools::stringprintf("%0.3f", q_min)
                           << std::endl;
         // get immediate future
-        logger(std::cout) << "  calculating future states" << std::endl;
         std::map<std::size_t, std::size_t> future_state;
         future_state = single_step_future_state(trans_prob
                                               , microstate_names
@@ -382,20 +443,21 @@ namespace Clustering {
                                                   traj
                                                 , free_energy));
         // compute MPP
-        logger(std::cout) << "  calculating most probable path" << std::endl;
         std::map<std::size_t, std::vector<std::size_t>> mpp;
         mpp = most_probable_path(future_state, microstate_names);
         // compute sinks (i.e. states with lowest Free Energy per path)
-        logger(std::cout) << "  calculating path sinks" << std::endl;
         std::map<std::size_t, std::size_t> sinks = path_sinks(traj
                                                             , mpp
                                                             , trans_prob
                                                             , microstate_names
                                                             , q_min
                                                             , free_energy);
+        // update transition matrix
+        trans_prob = updated_transition_probabilities(trans_prob
+                                                    , sinks
+                                                    , Clustering::Tools::microstate_populations(traj));
         // lump trajectory into sinks
         std::vector<std::size_t> traj_old = traj;
-        logger(std::cout) << "  lumping trajectory" << std::endl;
         traj = lumped_trajectory(traj, sinks);
         for (auto from_to: sinks) {
           std::size_t from = from_to.first;
@@ -404,9 +466,6 @@ namespace Clustering {
             lumping[from] = to;
           }
         }
-        // update transition matrix
-        trans_prob = updated_transition_probabilities(trans_prob
-                                                    , sinks);
         // check convergence
         if (traj_old == traj) {
           break;
@@ -463,8 +522,11 @@ namespace Clustering {
       SparseMatrixF trans_prob;
       bool tprob_given = args.count("tprob");
       if (tprob_given) {
-        //TODO read transition matrix
+        // read transition matrix from file
+        std::string tprob_fname = args["tprob"].as<std::string>();
+        trans_prob = read_transition_probabilities(tprob_fname);
       } else {
+        // compute transition matrix from trajectory
         auto microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
         if (diff_sized_chunks) {
           trans_prob = row_normalized_transition_probabilities(
