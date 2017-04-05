@@ -476,7 +476,7 @@ namespace CUDA {
                          , 0);
     check_error("getting max shared mem size");
     unsigned int shared_mem = 2 * BSIZE_SCR * n_cols * sizeof(float);
-    //TODO check shared_mem + const(shared_mem) < max_shared_mem
+    //TODO!!!!!!!!! check shared_mem + const(shared_mem) < max_shared_mem
     
     
     unsigned int block_rng, i_from, i_to, i, i_gpu;
@@ -486,13 +486,16 @@ namespace CUDA {
       // allocate memory on GPUs
       cudaMalloc((void**) &d_coords_sorted[i_gpu]
                , sizeof(float) * n_rows * n_cols);
+      check_error("after malloc");
       cudaMalloc((void**) &d_clustering[i_gpu]
                , sizeof(unsigned int) * n_rows);
+      check_error("after malloc");
       // copy sorted coords and previous clustering results to GPUs
       cudaMemcpy(d_coords_sorted[i_gpu]
                , tmp_coords_sorted.data()
                , sizeof(float) * n_rows * n_cols
                , cudaMemcpyHostToDevice);
+      check_error("after memcopy of sorted coords");
     }
     // change state names in clustering to conform to lowest indices
     clustering_sorted = clustering_rebased(clustering_sorted);
@@ -502,7 +505,6 @@ namespace CUDA {
         clustering_sorted[i] = i+1;
       }
     }
-
     std::vector<unsigned int> clustering_sorted_old;
     while (clustering_sorted_old != clustering_sorted) {
       // cache old results
@@ -519,10 +521,12 @@ namespace CUDA {
         num_threads(n_gpus)
       for (i_gpu=0; i_gpu < n_gpus; ++i_gpu) {
         cudaSetDevice(i_gpu);
+        check_error("after setting gpu device");
         cudaMemcpy(d_clustering[i_gpu]
                  , clustering_sorted.data()
                  , sizeof(unsigned int) * n_rows
                  , cudaMemcpyHostToDevice);
+        check_error("after memcopy of prev clustering");
         i_from = prev_last_frame + i_gpu * gpu_rng;
         i_to = (i_gpu == (n_gpus-1))
              ? first_frame_above_threshold

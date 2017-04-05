@@ -10,7 +10,7 @@
 #define N_STREAMS_NH 1
 
 // for screening
-#define BSIZE_SCR 512
+#define BSIZE_SCR 256
 
 ////
 
