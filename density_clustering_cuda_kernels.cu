@@ -61,51 +61,54 @@ namespace Kernel {
                         , unsigned int n_rows
                         , unsigned int n_cols
                         , float* fe
-                        , float* nh_dist_ndx
-                        , float* nhhd_dist_ndx
+                        , unsigned int* nh_nhhd_ndx
+                        , float* nh_nhhd_dist
                         , unsigned int i_from
                         , unsigned int i_to) {
-    extern __shared__ float smem[];
+    // grid ids
     unsigned int bid = blockIdx.x;
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
     unsigned int gid = bid * bsize + tid + i_from;
-
-    float nh_mindist;
-    float nh_minndx;
-    float nhhd_mindist;
-    float nhhd_minndx;
+    // result buffers for this frame
+    unsigned int nh_mindist;
+    unsigned int nh_minndx;
+    unsigned int nhhd_mindist;
+    unsigned int nhhd_minndx;
+    // free energy and local id for this frame
     float ref_fe;
     unsigned int ref_id;
-
-    // load frames for comparison into shared memory
+    // shared memory for fast free energy / coordinate retrieval
     int comp_size = min(bsize, n_rows - offset);
+    extern __shared__ float smem[];
+    float* smem_fe = (float*) smem;
+    float* smem_coords = (float*) &smem[comp_size];
+    // load data of current block to compare with into shared memory 
     if (tid < comp_size) {
       for (unsigned int j=0; j < n_cols; ++j) {
-        smem[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
+        smem_coords[tid*n_cols+j] = coords[(tid+offset)*n_cols+j];
       }
+      smem_fe[tid] = fe[tid+offset];
     }
     __syncthreads();
-
     if (gid < i_to) {
       ref_id = tid+bsize;
       // load reference coordinates for re-use into shared memory
       for (unsigned int j=0; j < n_cols; ++j) {
-        smem[ref_id*n_cols+j] = coords[gid*n_cols+j];
+        smem_coords[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
       ref_fe = fe[gid];
-      // load current best mindists into registers
-      nh_mindist = nh_dist_ndx[gid];
-      nh_minndx = nh_dist_ndx[n_rows+gid];
-      nhhd_mindist = nhhd_dist_ndx[gid];
-      nhhd_minndx = nhhd_dist_ndx[n_rows+gid];
-      // compare squared distances of reference
+      // load current best mindists for this frame into registers
+      nh_mindist = nh_nhhd_dist[gid];
+      nh_minndx = nh_nhhd_ndx[gid];
+      nhhd_mindist = nh_nhhd_dist[n_rows+gid];
+      nhhd_minndx = nh_nhhd_ndx[n_rows+gid];
       // compare squared distances of reference
       // to (other) frames in shared mem
       for (unsigned int i=0; i < comp_size; ++i) {
         float dist2=0.0f;
         for (unsigned int j=0; j < n_cols; ++j) {
-          float c = smem[ref_id*n_cols+j] - smem[i*n_cols+j];
+          float c = smem_coords[ref_id*n_cols+j] - smem_coords[i*n_cols+j];
           dist2 = fma(c, c, dist2);
         }
         // frame with min distance (i.e. nearest neighbor)
@@ -115,17 +118,18 @@ namespace Kernel {
           nh_minndx = i+offset;
         }
         // frame with min distance and lower energy
-        if ((nhhd_mindist == 0 && fe[i+offset] < ref_fe)
-         || (dist2 < nhhd_mindist && fe[i+offset] < ref_fe && dist2 != 0)) {
+        if ((nhhd_mindist == 0 && smem_fe[i] < ref_fe)
+         || (dist2 < nhhd_mindist
+          && smem_fe[i] < ref_fe && dist2 != 0)) {
           nhhd_mindist = dist2;
           nhhd_minndx = i+offset;
         }
       }
-      // write results (dist & ndx) to global buffers
-      nh_dist_ndx[gid] = nh_mindist;
-      nh_dist_ndx[n_rows+gid] = nh_minndx;
-      nhhd_dist_ndx[gid] = nhhd_mindist;
-      nhhd_dist_ndx[n_rows+gid] = nhhd_minndx;
+      // write results (ndx & dist) to global buffers
+      nh_nhhd_ndx[gid] = nh_minndx;
+      nh_nhhd_ndx[n_rows+gid] = nhhd_minndx;
+      nh_nhhd_dist[gid] = nh_mindist;
+      nh_nhhd_dist[n_rows+gid] = nhhd_mindist;
     }
   }
 

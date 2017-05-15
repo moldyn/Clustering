@@ -7,7 +7,6 @@
 
 // for neighborhood search
 #define BSIZE_NH 128
-#define N_STREAMS_NH 1
 
 // for screening
 #define BSIZE_SCR 256
@@ -37,8 +36,8 @@ namespace Kernel {
                         , unsigned int n_rows
                         , unsigned int n_cols
                         , float* fe
-                        , float* nh_dist_ndx
-                        , float* nhhd_dist_ndx
+                        , unsigned int* nh_nhhd_ndx
+                        , float* nh_nhhd_dist
                         , unsigned int i_from
                         , unsigned int i_to);
 

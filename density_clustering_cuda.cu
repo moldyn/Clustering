@@ -63,11 +63,13 @@ namespace CUDA {
     unsigned int* d_pops;
     cudaMalloc((void**) &d_coords
              , sizeof(float) * n_rows * n_cols);
+    check_error("pop-calc device mallocs (coords)");
     cudaMalloc((void**) &d_pops
              , sizeof(unsigned int) * n_rows * n_radii);
+    check_error("pop-calc device mallocs (pops)");
     cudaMalloc((void**) &d_rad2
              , sizeof(float) * n_radii);
-    check_error("pop-calc device mallocs");
+    check_error("pop-calc device mallocs (rad2)");
     cudaMemset(d_pops
              , 0
              , sizeof(unsigned int) * n_rows * n_radii);
@@ -190,28 +192,24 @@ namespace CUDA {
     ASSUME_ALIGNED(coords);
     // GPU setup
     cudaSetDevice(i_gpu);
-    cudaStream_t streams[N_STREAMS_NH];
     float* d_coords;
     float* d_fe;
-    float* d_nh[N_STREAMS_NH];
-    float* d_nhhd[N_STREAMS_NH];
+    unsigned int* d_nh_nhhd_ndx;
+    float* d_nh_nhhd_dist;
+    // allocate memory
     cudaMalloc((void**) &d_coords
              , sizeof(float) * n_rows * n_cols);
     cudaMalloc((void**) &d_fe
              , sizeof(float) * n_rows);
-    for (unsigned int i=0; i < N_STREAMS_NH; ++i) {
-      cudaMalloc((void**) &d_nh[i]
-               , sizeof(float) * n_rows * 2);
-      cudaMalloc((void**) &d_nhhd[i]
-               , sizeof(float) * n_rows * 2);
-      cudaMemset(d_nh[i]
-               , 0
-               , sizeof(float) * n_rows * 2);
-      cudaMemset(d_nhhd[i]
-               , 0
-               , sizeof(float) * n_rows * 2);
-      cudaStreamCreate(&streams[i]);
-    }
+    cudaMalloc((void**) &d_nh_nhhd_ndx
+             , sizeof(unsigned int) * n_rows * 2);
+    cudaMalloc((void**) &d_nh_nhhd_dist
+             , sizeof(float) * n_rows * 2);
+    // initialize all min dists to zero
+    cudaMemset(d_nh_nhhd_dist
+             , 0
+             , sizeof(float) * n_rows * 2);
+    // copy coordinates and free energies to GPU
     cudaMemcpy(d_coords
              , coords
              , sizeof(float) * n_rows * n_cols
@@ -226,7 +224,9 @@ namespace CUDA {
                          , i_gpu);
     check_error("retrieving max shared mem");
     unsigned int block_size = BSIZE_NH;
-    unsigned int shared_mem = 2 * block_size * n_cols * sizeof(float);
+    // compute necessary size of shared memory of block for
+    // coordinates (2*n_cols) and free energies (1 col)
+    unsigned int shared_mem = (2*n_cols + 1) * block_size * sizeof(float);
     if (shared_mem > max_shared_mem) {
       std::cerr << "error: max. shared mem per block too small on this GPU.\n"
                 << "       either reduce block_size for NN search or get a "
@@ -235,61 +235,54 @@ namespace CUDA {
     }
     unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
     for (unsigned int i=0; i*block_size < n_rows; ++i) {
-      unsigned int i_stream = i % N_STREAMS_NH;
       Clustering::Density::CUDA::Kernel::nearest_neighbor_search
       <<< block_rng
         , block_size
-        , shared_mem
-        , streams[i_stream] >>> (i*block_size
-                               , d_coords
-                               , n_rows
-                               , n_cols
-                               , d_fe
-                               , d_nh[i_stream]
-                               , d_nhhd[i_stream]
-                               , i_from
-                               , i_to);
+        , shared_mem >>> (i*block_size
+                        , d_coords
+                        , n_rows
+                        , n_cols
+                        , d_fe
+                        , d_nh_nhhd_ndx
+                        , d_nh_nhhd_dist
+                        , i_from
+                        , i_to);
     }
     cudaDeviceSynchronize();
     check_error("after kernel loop");
-    // initialize neighborhoods
+    // initialize neighborhoods (on host)
     Neighborhood nh;
     Neighborhood nhhd;
+    // collect results from GPU
+    std::vector<unsigned int> buf_ndx(n_rows * 2);
+    std::vector<float> buf_dist(n_rows * 2);
+    cudaMemcpy(buf_ndx.data()
+             , d_nh_nhhd_ndx
+             , sizeof(unsigned int) * n_rows * 2
+             , cudaMemcpyDeviceToHost);
+    cudaMemcpy(buf_dist.data()
+             , d_nh_nhhd_dist
+             , sizeof(float) * n_rows * 2
+             , cudaMemcpyDeviceToHost);
     for (unsigned int i=0; i < n_rows; ++i) {
-      nh[i] = {i, std::numeric_limits<float>::max()};
-      nhhd[i] = {i, std::numeric_limits<float>::max()};
-    }
-    // collect partial results from streams
-    for (unsigned int i_stream=0; i_stream < N_STREAMS_NH; ++i_stream) {
-      std::vector<float> dist_ndx(n_rows * 2);
-      auto update_nh = [&dist_ndx,n_rows] (Neighborhood& _nh) -> void {
-        for (unsigned int i=0; i < n_rows; ++i) {
-          if (dist_ndx[i] < _nh[i].second && dist_ndx[i] != 0) {
-            _nh[i] = {(unsigned int) dist_ndx[n_rows+i]
-                    , dist_ndx[i]};
-          }
-        }
-      };
-      cudaMemcpy(dist_ndx.data()
-               , d_nh[i_stream]
-               , sizeof(float) * n_rows * 2
-               , cudaMemcpyDeviceToHost);
-      update_nh(nh);
-      cudaMemcpy(dist_ndx.data()
-               , d_nhhd[i_stream]
-               , sizeof(float) * n_rows * 2
-               , cudaMemcpyDeviceToHost);
-      update_nh(nhhd);
+      nh[i] = {(unsigned int) buf_ndx[i]
+             , buf_dist[i]};
+      nhhd[i] = {(unsigned int) buf_ndx[n_rows+i]
+               , buf_dist[n_rows+i]};
     }
     // device cleanup
     cudaFree(d_coords);
     cudaFree(d_fe);
-    for (unsigned int i=0; i < N_STREAMS_NH; ++i) {
-      cudaFree(d_nh[i]);
-      cudaFree(d_nhhd[i]);
-    }
+    cudaFree(d_nh_nhhd_ndx);
+    cudaFree(d_nh_nhhd_dist);
+    // results
     return std::make_tuple(nh, nhhd);
   }
+
+
+
+//TODO: error: sometimes high-density neighbors have not higher density!
+//      found in Mithuns Aib9 shortmd data set.
 
   std::tuple<Neighborhood, Neighborhood>
   nearest_neighbors(const float* coords
@@ -316,7 +309,7 @@ namespace CUDA {
                                                         : (i_gpu+1)*gpu_range
                                                 , i_gpu);
     }
-    // combine partial neighborhood results from different gpus
+    // combine partial neighborhood results from gpus
     Neighborhood nh;
     Neighborhood nhhd;
     std::tie(nh, nhhd) = partials[0];
