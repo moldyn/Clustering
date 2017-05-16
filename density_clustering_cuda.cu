@@ -205,7 +205,10 @@ namespace CUDA {
              , sizeof(unsigned int) * n_rows * 2);
     cudaMalloc((void**) &d_nh_nhhd_dist
              , sizeof(float) * n_rows * 2);
-    // initialize all min dists to zero
+    // initialize all min dists and indices to zero
+    cudaMemset(d_nh_nhhd_ndx
+             , 0
+             , sizeof(unsigned int) * n_rows * 2);
     cudaMemset(d_nh_nhhd_dist
              , 0
              , sizeof(float) * n_rows * 2);
@@ -265,9 +268,9 @@ namespace CUDA {
              , sizeof(float) * n_rows * 2
              , cudaMemcpyDeviceToHost);
     for (unsigned int i=0; i < n_rows; ++i) {
-      nh[i] = {(unsigned int) buf_ndx[i]
+      nh[i] = {buf_ndx[i]
              , buf_dist[i]};
-      nhhd[i] = {(unsigned int) buf_ndx[n_rows+i]
+      nhhd[i] = {buf_ndx[n_rows+i]
                , buf_dist[n_rows+i]};
     }
     // device cleanup
@@ -278,11 +281,6 @@ namespace CUDA {
     // results
     return std::make_tuple(nh, nhhd);
   }
-
-
-
-//TODO: error: sometimes high-density neighbors have not higher density!
-//      found in Mithuns Aib9 shortmd data set.
 
   std::tuple<Neighborhood, Neighborhood>
   nearest_neighbors(const float* coords
@@ -304,9 +302,9 @@ namespace CUDA {
                                                 , n_cols
                                                 , free_energy
                                                 , i_gpu*gpu_range
-                                                , i_gpu == (n_gpus-1)
-                                                        ? n_rows
-                                                        : (i_gpu+1)*gpu_range
+                                                , (i_gpu == (n_gpus-1))
+                                                    ? n_rows
+                                                    : (i_gpu+1)*gpu_range
                                                 , i_gpu);
     }
     // combine partial neighborhood results from gpus
@@ -318,10 +316,9 @@ namespace CUDA {
       Neighborhood partial_nhhd;
       std::tie(partial_nh, partial_nhhd) = partials[i_gpu];
       for (unsigned int i=0; i < n_rows; ++i) {
-        if (partial_nh[i].second < nh[i].second) {
+        if ((partial_nh[i].second != 0)
+         || (partial_nhhd[i].second != 0)) {
           nh[i] = partial_nh[i];
-        }
-        if (partial_nhhd[i].second < nhhd[i].second) {
           nhhd[i] = partial_nhhd[i];
         }
       }

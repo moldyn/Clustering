@@ -70,11 +70,6 @@ namespace Kernel {
     unsigned int tid = threadIdx.x;
     unsigned int bsize = blockDim.x;
     unsigned int gid = bid * bsize + tid + i_from;
-    // result buffers for this frame
-    unsigned int nh_mindist;
-    unsigned int nh_minndx;
-    unsigned int nhhd_mindist;
-    unsigned int nhhd_minndx;
     // free energy and local id for this frame
     float ref_fe;
     unsigned int ref_id;
@@ -97,12 +92,13 @@ namespace Kernel {
       for (unsigned int j=0; j < n_cols; ++j) {
         smem_coords[ref_id*n_cols+j] = coords[gid*n_cols+j];
       }
+      // reference free energy
       ref_fe = fe[gid];
       // load current best mindists for this frame into registers
-      nh_mindist = nh_nhhd_dist[gid];
-      nh_minndx = nh_nhhd_ndx[gid];
-      nhhd_mindist = nh_nhhd_dist[n_rows+gid];
-      nhhd_minndx = nh_nhhd_ndx[n_rows+gid];
+      float nh_mindist = nh_nhhd_dist[gid];
+      float nhhd_mindist = nh_nhhd_dist[gid+n_rows];
+      unsigned int nh_minndx = nh_nhhd_ndx[gid];
+      unsigned int nhhd_minndx = nh_nhhd_ndx[gid+n_rows];
       // compare squared distances of reference
       // to (other) frames in shared mem
       for (unsigned int i=0; i < comp_size; ++i) {
