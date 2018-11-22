@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
   // MPP options
   b_po::options_description desc_mpp (std::string(argv[1]).append(
     "\n\n"
-    "TODO: description for MPP"
+    "performs a most probable path (MPP) clustering based on the given lag time."
     "\n"
     "options"));
   desc_mpp.add_options()
@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
   // network options
   b_po::options_description desc_network (std::string(argv[1]).append(
     "\n\n"
-    "TODO: description for network builder"
+    "create a network from screening data."
     "\n"
     "options"));
   desc_network.add_options()
@@ -222,9 +222,8 @@ int main(int argc, char* argv[]) {
   desc_coring.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
         "show this help.")
-    // optional
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory")
+        "(required): file with state information (i.e. clustered trajectory)")
     ("windows,w", b_po::value<std::string>()->required(), 
         "(required): file with window sizes."
         "format is space-separated lines of\n\n"
@@ -235,6 +234,7 @@ int main(int argc, char* argv[]) {
         "3 40\n"
         "4 60\n\n"
         "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states")
+    // optional
     ("output,o", b_po::value<std::string>(),
         "(optional): cored trajectory")
     ("distribution,d", b_po::value<std::string>(),
@@ -305,9 +305,10 @@ int main(int argc, char* argv[]) {
     b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
-    if ( ! args["help"].as<bool>()) {
+// TODO: this is just a temporal solution
+//    if ( ! args["help"].as<bool>()) {
       std::cerr << "\nerror parsing arguments:\n\n" << e.what() << "\n\n" << std::endl;
-    }
+//    }
     std::cerr << desc << std::endl;
     return EXIT_FAILURE;
   }

@@ -34,7 +34,18 @@ namespace Coring {
   //typedef std::map<std::size_t, std::size_t, std::greater<std::size_t>> EtdMap;
   typedef std::map<std::size_t, float> WTDMap;
   
-  // TODO doc
+  /*!
+   * controlling function and user interface for boundary corrections
+   *
+   * *parsed arguments*:\n
+   *    - **states**: single column file with state information.
+   *    - **windows**: double column file with states and their coring time.
+   *    - **output**: file name to store resulting trajectory
+   *    - **distribution**: generate and write waiting time distributions to file.
+   *    - **cores**: file name to store resulting cores.
+   *    - **concat-nframes**: no. of frames per trajectory.
+   *    - **concat-limits**: boundaries of trajectories.
+   */
   WTDMap
   compute_wtd(std::list<std::size_t> streaks);
 

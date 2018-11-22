@@ -396,7 +396,7 @@ namespace NetworkBuilder {
     std::size_t max_id;
     std::size_t n_rows = cl_next.size();
     // re-map states to give every state a unique id.
-    // this is nevessary, since every initially clustered trajectory
+    // this is necessary, since every initially clustered trajectory
     // at different thresholds uses the same ids starting with 0.
     const float prec = d_step / 10.0f;
     if (d_max == 0.0f) {
