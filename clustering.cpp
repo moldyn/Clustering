@@ -30,6 +30,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *   - **network**: for the network/microstate generation from density-based clustering results
  *   - **mpp**:     for Most Probable Path clustering of microstates
  *   - **coring**:  for boundary corrections of clustered state trajectories
+ *   - **noise**:   for defining and dynamically reassigning noise
  *   - **filter**:  for fast filtering of coordinates, order parameters, etc. based on\n
  *                  a given state trajectory (i.e. clustering result)
  */
@@ -47,6 +48,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "network_builder.hpp"
 #include "state_filter.hpp"
 #include "coring.hpp"
+#include "noise.hpp"
 // toolset
 #include "logger.hpp"
 #include "tools.hpp"
@@ -65,6 +67,7 @@ int main(int argc, char* argv[]) {
     "  mpp:     run MPP (Most Probable Path) clustering\n"
     "           (based on density-results)\n"
     "  coring:  boundary corrections for clustering results.\n"
+    "  noise:   defining and dynamically reassigning noise.\n"
     "  filter:  filter phase space (e.g. dihedrals) for given state\n"
     "\n"
     "usage:\n"
@@ -74,7 +77,7 @@ int main(int argc, char* argv[]) {
     "  clustering density -h\n"
   ;
 
-  enum {DENSITY, MPP, NETWORK, FILTER, CORING} mode;
+  enum {DENSITY, MPP, NETWORK, FILTER, CORING, NOISE} mode;
 
 #ifdef USE_CUDA
   // check for CUDA-enabled GPUs (will fail if none found)
@@ -97,6 +100,8 @@ int main(int argc, char* argv[]) {
       mode = FILTER;
     } else if (str_mode.compare("coring") == 0) {
       mode = CORING;
+    } else if (str_mode.compare("noise") == 0) {
+      mode = NOISE;
     } else {
       std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
       std::cerr << general_help;
@@ -244,6 +249,33 @@ int main(int argc, char* argv[]) {
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
   ;
+  // noise options
+  b_po::options_description desc_noise (std::string(argv[1]).append(
+    "\n\n"
+    "defining and dynamically reassigning noise for clustering results."
+    "\n"
+    "options"));
+  desc_noise.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false),
+        "show this help.")
+    ("states,s", b_po::value<std::string>()->required(),
+        "(required): file with state information (i.e. clustered trajectory")
+    // optional
+    ("basename,b", b_po::value<std::string>()->default_value("clust."),
+          "(optional): basename of input files (default: clust.) used to determine isolated clusters")
+    ("cmin,c", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): population (in percent) threshold below which an isolated cluster is assigned as noise.(default: 0.1).")
+    ("output,o", b_po::value<std::string>(),
+        "(optional): noise-reassigned trajectory")
+    ("cores", b_po::value<std::string>(),
+        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+    ("concat-nframes", b_po::value<std::size_t>(),
+      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+    // defaults
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+        "verbose mode: print runtime information to STDOUT.")
+  ;  
   // parse cmd arguments           
   b_po::options_description desc;  
   switch(mode){                    
@@ -261,6 +293,9 @@ int main(int argc, char* argv[]) {
       break;
     case CORING:
       desc.add(desc_coring);
+      break;
+    case NOISE:
+      desc.add(desc_noise);
       break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;
@@ -312,6 +347,9 @@ int main(int argc, char* argv[]) {
       break;
     case CORING:
       Clustering::Coring::main(args);
+      break;
+    case NOISE:
+      Clustering::Noise::main(args);
       break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;

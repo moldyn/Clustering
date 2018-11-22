@@ -102,6 +102,7 @@ set(CLUSTERING_SRCS clustering.cpp
                     network_builder.cpp
                     state_filter.cpp
                     coring.cpp
+                    noise.cpp
                     tools.cpp
                     logger.cpp)
 
