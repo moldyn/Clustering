@@ -110,6 +110,7 @@ namespace Coring {
       // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
+        current_core = states[last_limit];
         for (std::size_t i=last_limit; i < next_limit; ++i) {
           // coring window
           std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
