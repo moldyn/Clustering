@@ -41,6 +41,7 @@ namespace NetworkBuilder {
    *    - **step**: free energy stepping
    *    - **basename**: basic input file format
    *    - **minpop**: min. population per microstate, discard states with lower population
+   *    - **network-html**: generate an html representation of the network
    */
   void
   main(boost::program_options::variables_map args);

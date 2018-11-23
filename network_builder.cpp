@@ -381,6 +381,7 @@ namespace NetworkBuilder {
     std::string basename = args["basename"].as<std::string>();
     std::string remapped_name = "remapped_" + basename;
     std::size_t minpop = args["minpop"].as<std::size_t>();
+    bool network_html = args["network-html"].as<bool>();
 
     std::map<std::size_t, std::size_t> network;
     std::map<std::size_t, std::size_t> pops;
@@ -474,7 +475,9 @@ namespace NetworkBuilder {
     // all non-leaf states are kept as non-assignment state '0'.
     save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
     // generate html-file with embedded javascript to visualize network
-    save_network_to_html("network_visualization.html", network, free_energies, pops);
+    if (network_html) {
+      save_network_to_html("network_visualization.html", network, free_energies, pops);
+    }
   }
 } // end namespace NetworkBuilder
 } // end namespace Clustering

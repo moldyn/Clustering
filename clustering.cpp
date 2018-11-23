@@ -189,6 +189,7 @@ int main(int argc, char* argv[]) {
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
     ("minpop,p", b_po::value<std::size_t>()->default_value(1),
           "(optional): minimum population of node to be considered for network (default: 1).")
+    ("network-html,n", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
