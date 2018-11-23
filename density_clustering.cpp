@@ -651,9 +651,6 @@ namespace Clustering {
         nh_high_dens = nh_pair.second;
       } else if (args.count("nearest-neighbors") || args.count("output")) {
         Clustering::logger(std::cout) << "calculating nearest neighbors" << std::endl;
-        if ( ! args.count("radius")) {
-          std::cerr << "error: radius (-r) is required!" << std::endl;
-        }
 #ifdef USE_CUDA
         auto nh_tuple = Clustering::Density::CUDA::nearest_neighbors(coords
                                                                    , n_rows
