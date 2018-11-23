@@ -454,6 +454,48 @@ namespace Clustering {
       return clustering;
     }
 
+    std::vector<std::size_t>
+    sorted_cluster_names(std::vector<std::size_t> clustering) {
+
+      std::size_t n_frames = clustering.size();
+
+      // generate counting maps
+      typedef std::map<std::size_t,std::size_t> CounterClustMap;
+      CounterClustMap counts;
+      for (std::size_t i=0; i < n_frames; ++i) {
+        CounterClustMap::iterator it(counts.find(clustering[i]));
+        if (it != counts.end()){
+          it->second++;
+        } else {
+          counts[clustering[i]] = 1;
+        }
+      }
+
+      // convert to vector for sorting
+      std::vector<std::pair<std::size_t,std::size_t>> counts_vec;
+      std::copy(counts.begin(), counts.end(), std::back_inserter(counts_vec));
+
+      std::sort(counts_vec.begin(), counts_vec.end(), compare2DVector);
+
+      // generate cluster name conversion map
+      CounterClustMap MapNames;
+      for(std::size_t i = 0; i < counts_vec.size(); ++i) {
+        MapNames[counts_vec[i].first] = counts_vec.size() - i;
+      }
+
+      // remap cluster names
+      std::vector<std::size_t> remapped_clustering(n_frames);
+      for (std::size_t i = 0; i < n_frames; ++i) {
+        remapped_clustering[i] = MapNames[clustering[i]];
+      }
+      return remapped_clustering;
+    }
+
+    bool
+    compare2DVector(const std::pair<std::size_t,std::size_t>  &p1, const std::pair<std::size_t,std::size_t> &p2) {
+      return p1.second < p2.second;
+    }
+
     bool
     lump_initial_clusters(const std::set<std::size_t>& local_nh
                         , std::size_t& distinct_name
@@ -656,6 +698,9 @@ namespace Clustering {
           clustering = assign_low_density_frames(clustering
                                                , nh_high_dens
                                                , free_energies);
+          // sort, rename and save states
+          Clustering::logger(std::cout) << "sorting clusters by decreasing population" << std::endl;
+          clustering = sorted_cluster_names(clustering);
           Clustering::logger(std::cout) << "writing clusters to file " << output_file << std::endl;
           write_single_column<std::size_t>(output_file, clustering);
         }
