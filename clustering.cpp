@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
   desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
-    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius.")
     // optional
+    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius. If not used, the lumping radius will be used instead.")
     ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(),
                                           "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
                                           "set -T -1 for default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"

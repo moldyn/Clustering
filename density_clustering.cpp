@@ -601,10 +601,33 @@ namespace Clustering {
             }
           }
         } else {
+          float radius_lump = 1.0;
+          // if no radius passed, use clustering radius = lumping radius.
+          // TODO: Optimize, only sigma is needed. No need for fe, nn_hd
           if ( ! args.count("radius")) {
-            std::cerr << "error: radius (-r) is required!" << std::endl;
+            Clustering::logger(std::cout) << "compute d_lump..." << std::endl;
+            std::vector<std::size_t> pops = calculate_populations(coords,
+                                                                  n_rows,
+                                                                  n_cols,
+                                                                  radius_lump);
+            free_energies = calculate_free_energies(pops);
+
+            Neighborhood nh;
+#ifdef USE_CUDA
+            auto nh_tuple = Clustering::Density::CUDA::nearest_neighbors(coords
+                                                                   , n_rows
+                                                                   , n_cols
+                                                                   , free_energies);
+#else
+            auto nh_tuple = nearest_neighbors(coords, n_rows, n_cols, free_energies);
+#endif
+            nh = std::get<0>(nh_tuple);
+
+            double sigma2 = compute_sigma2(nh);
+            radius_lump = sqrt(4*sigma2);
+            Clustering::logger(std::cout) << "use R=d_lump=" << radius_lump << std::endl;
           }
-          const float radius = args["radius"].as<float>();
+          const float radius = (args.count("radius")) ? args["radius"].as<float>() : radius_lump;
           // compute populations & free energies for clustering and/or saving
           Clustering::logger(std::cout) << "calculating populations" << std::endl;
           std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);

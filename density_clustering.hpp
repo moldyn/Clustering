@@ -170,6 +170,13 @@ namespace Clustering {
     //! with x being the distances between nearest neighbors).
     double
     compute_sigma2(const Neighborhood& nh);
+    //! compare two two dimensional pairs by their second entry
+    bool
+    compare2DVector(const std::pair<std::size_t,std::size_t>& p1,
+                    const std::pair<std::size_t,std::size_t>& p2);
+    //! sorts the cluster by decreasing population and renames them from 1..N
+    std::vector<std::size_t>
+    sorted_cluster_names (std::vector<std::size_t> clustering);
     //! given an initial clustering computed from free energy cutoff screenings,
     //! assign all yet unclustered frames (those in 'state 0') to their geometrically
     //! next cluster. do this by starting at the lowest free energy of unassigned frames,
