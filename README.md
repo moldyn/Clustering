@@ -1,12 +1,13 @@
 
 
 
-This software package provides extensive tools for robust and stable
+This software package provides extensive tools for fast, robust and stable
 clustering of molecular dynamics trajectories.
 The essential functions are:
   - density-based geometric clustering for microstate generation
   - dynamic clustering based on the Most-Probable-Path algorithm (MPP)
   - variable dynamic coring for boundary corrections
+  - dynamic noise assignment.
 
 Additionally, the package includes tools to efficiently filter original
 coordinates or order parameters based on a discrete state definition
@@ -19,7 +20,7 @@ and MPI over different cluster nodes. MPI support, however, is optional and
 for a modern computer with a high number of fast cores or
 even multiple CPUs, OpenMP parallelization is sufficiently fast.
 -->
-Computationally demanding functions are parallelized using OpenMP.
+Computationally demanding functions are parallelized using CUDA or OpenMP.
 
 # Documentation
 All options are well documented and may be viewed by 'clustering -h'.
@@ -80,6 +81,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      support C++11 standard)
 
  optional:
+  - **CUDA >= 9.1**
   - doxygen (to build the API docs)
 <!--  - MPI (for parallelized execution on clusters) -->
 
@@ -114,6 +116,11 @@ To quickly get a working (but possibly underperforming) binary
 
 
 ## Optimized Binaries and Custom Build Options
+
+### CUDA
+If you have an Nvidia graphic card it can be used to significantly speed up the
+*clustering density* method, by setting the following **cmake-option**:
+-DUSE_CUDA=1
 
 ### Vectorization
 If you have a modern computer with vectorizing instruction sets (SSE2, SSE4_2,
