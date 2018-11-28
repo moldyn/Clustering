@@ -90,30 +90,28 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 To quickly get a working (but possibly underperforming) binary
 
   - unpack the code ...
-
-      \# tar xfz clustering_VERSION.tar.gz
-
+```
+    # tar xfz clustering_VERSION.tar.gz
+```
   - create a build folder inside the code directory ...
-
-      \# cd clustering_VERSION
-
-      \# mkdir build
-
+```
+    # cd clustering_VERSION
+    # mkdir build
+```
   - change to the build directory ...
-
-      \# cd build
-
+```
+    # cd build
+```
   - ... and run cmake
-
-      \# cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path
-
+```
+    # cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path
+```
   - then compile and install the package to /my/installation/path (or any other
     path you chose above) by invoking
-
-      \# make
-
-      \# make install
-
+```
+    # make
+    # make install 
+```
 
 ## Optimized Binaries and Custom Build Options
 
@@ -134,9 +132,9 @@ where <OPTION> is one of
 It is important to select an option that is actually supported by your machine.
 Otherwise the program will produce erratic results, crash or not compile at all.
 On linux systems, you can check your computer's capabilities with
-
-      # cat /proc/cpuinfo
-
+```
+    # cat /proc/cpuinfo
+```
 Check in the *flags:*-block, if a certain instruction set is supported.
 If it is not listed, it is not supported.
 
