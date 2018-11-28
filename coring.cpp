@@ -85,14 +85,21 @@ namespace Coring {
         std::ifstream ifs(args["windows"].as<std::string>());
         std::string buf1, buf2;
         std::size_t size_for_all = 1;
-        while (ifs.good()) {
-          ifs >> buf1;
-          ifs >> buf2;
-          if (ifs.good()) {
-            if (buf1 == "*") {
-              size_for_all = string_to_num<std::size_t>(buf2);
-            } else {
-              coring_windows[string_to_num<std::size_t>(buf1)] = string_to_num<std::size_t>(buf2);
+        if (ifs.fail()) {
+          std::cerr << "error: cannot open file '"
+                    << args["windows"].as<std::string>()
+                    << "'" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          while (ifs.good()) {
+            ifs >> buf1;
+            ifs >> buf2;
+            if (ifs.good()) {
+              if (buf1 == "*") {
+                size_for_all = string_to_num<std::size_t>(buf2);
+              } else {
+                coring_windows[string_to_num<std::size_t>(buf1)] = string_to_num<std::size_t>(buf2);
+              }
             }
           }
         }
