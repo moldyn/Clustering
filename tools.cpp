@@ -38,55 +38,23 @@ min_multiplicator(unsigned int orig
 };
 
 void
-write_fes(std::string fname, std::vector<float> fes) {
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    ofs << std::scientific;
-    for (float f: fes) {
-      ofs << f << "\n";
-    }
-  }
+write_fes(std::string filename, std::vector<float> fes) {
+  write_single_column<float>(filename, fes, true);
 }
 
 void
-write_pops(std::string fname, std::vector<std::size_t> pops) {
-  // technically the same ...
-  write_clustered_trajectory(fname, pops);
+write_pops(std::string filename, std::vector<std::size_t> pops) {
+  write_single_column<std::size_t>(filename, traj, false);
 }
 
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename) {
-  std::vector<std::size_t> traj;
-  std::ifstream ifs(filename);
-  if (ifs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    while (ifs.good()) {
-      std::size_t buf;
-      ifs >> buf;
-      if ( ! ifs.fail()) {
-        traj.push_back(buf);
-      }
-    }
-  }
-  return traj;
+  return read_single_column<std::size_t>(filename);
 }
 
 void
 write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj) {
-  std::ofstream ofs(filename);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    for (std::size_t c: traj) {
-      ofs << c << "\n";
-    }
-  }
+  write_single_column<std::size_t>(filename, traj, false);
 }
 
 //// from: https://github.com/lettis/Kubix
@@ -120,12 +88,12 @@ read_free_energies(std::string filename) {
 }
 
 std::pair<Neighborhood, Neighborhood>
-read_neighborhood(const std::string fname) {
+read_neighborhood(const std::string filename) {
   Neighborhood nh;
   Neighborhood nh_high_dens;
-  std::ifstream ifs(fname);
+  std::ifstream ifs(filename);
   if (ifs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for reading." << std::endl;
+    std::cerr << "error: cannot open file '" << filename << "' for reading." << std::endl;
     exit(EXIT_FAILURE);
   } else {
     std::size_t i=0;
@@ -149,10 +117,10 @@ read_neighborhood(const std::string fname) {
 }
 
 void
-write_neighborhood(const std::string fname,
+write_neighborhood(const std::string filename,
                    const Neighborhood& nh,
                    const Neighborhood& nh_high_dens) {
-  std::ofstream ofs(fname);
+  std::ofstream ofs(filename);
   auto p = nh.begin();
   auto p_hd = nh_high_dens.begin();
   while (p != nh.end() && p_hd != nh_high_dens.end()) {
