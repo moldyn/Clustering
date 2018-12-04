@@ -97,7 +97,7 @@ read_neighborhood(const std::string filename) {
     exit(EXIT_FAILURE);
   } else {
     std::size_t i=0;
-    while (ifs.good()) {
+    while (!ifs.eof() && !ifs.bad()) {
       std::size_t buf1;
       float buf2;
       std::size_t buf3;
@@ -110,6 +110,9 @@ read_neighborhood(const std::string filename) {
         nh[i] = std::pair<std::size_t, float>(buf1, buf2);
         nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
         ++i;
+      } else {  // if conversion error, skip (comment) line
+        ifs.clear();
+        ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       }
     }
   }

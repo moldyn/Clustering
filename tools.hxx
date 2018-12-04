@@ -218,13 +218,20 @@ read_single_column(std::string filename) {
     std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
     exit(EXIT_FAILURE);
   } else {
-    while (ifs.good()) {
+    while (!ifs.eof() && !ifs.bad()) {
       NUM buf;
       ifs >> buf;
       if ( ! ifs.fail()) {
         dat.push_back(buf);
+      } else {  // if conversion error, skip (comment) line
+        ifs.clear();
+        ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       }
     }
+  }
+  if (dat.empty()) {
+    std::cerr << "error: opened empty file '" << filename << "'" << std::endl;
+    exit(EXIT_FAILURE);
   }
   return dat;
 }
