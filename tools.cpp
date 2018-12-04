@@ -44,7 +44,7 @@ write_fes(std::string filename, std::vector<float> fes) {
 
 void
 write_pops(std::string filename, std::vector<std::size_t> pops) {
-  write_single_column<std::size_t>(filename, traj, false);
+  write_single_column<std::size_t>(filename, pops, false);
 }
 
 std::vector<std::size_t>
