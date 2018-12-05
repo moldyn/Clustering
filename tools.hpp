@@ -56,16 +56,17 @@ namespace Tools {
   using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
   //! write populations as column into given file
   void
-  write_pops(std::string fname, std::vector<std::size_t> pops);
+  write_pops(std::string fname, std::vector<std::size_t> pops, std::string header_comment);
   //! write free energies as column into given file
   void
-  write_fes(std::string fname, std::vector<float> fes);
+  write_fes(std::string fname, std::vector<float> fes, std::string header_comment);
   //! read states from trajectory (given as plain text file)
   std::vector<std::size_t>
   read_clustered_trajectory(std::string filename);
   //! write state trajectory into plain text file
   void
-  write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
+  write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
+                             std::string header_comment);
   //! read single column of numbers from given file. number type (int, float, ...) given as template parameter
   template <typename NUM>
   std::vector<NUM>
@@ -73,11 +74,13 @@ namespace Tools {
   //! write single column of numbers to given file. number type (int, float, ...) given as template parameter
   template <typename NUM>
   void
-  write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format=false);
+  write_single_column(std::string filename, std::vector<NUM> dat,
+                      std::string header_comment, bool with_scientific_format=false);
   //! write key-value map to plain text file with key as first and value as second column
   template <typename KEY, typename VAL>
   void
-  write_map(std::string filename, std::map<KEY, VAL> mapping);
+  write_map(std::string filename, std::map<KEY, VAL> mapping,
+            std::string header_comment, bool val_then_key=false);
   //! read free energies from plain text file
   std::vector<float>
   read_free_energies(std::string filename);
@@ -90,7 +93,8 @@ namespace Tools {
   void
   write_neighborhood(const std::string fname,
                      const Neighborhood& nh,
-                     const Neighborhood& nh_high_dens);
+                     const Neighborhood& nh_high_dens,
+                     std::string header_comment);
   //! compute microstate populations from clustered trajectory
   std::map<std::size_t, std::size_t>
   microstate_populations(std::vector<std::size_t> traj);

@@ -51,7 +51,7 @@ namespace Noise {
     float cmin = 0.01*args["cmin"].as<float>();
     std::string basename = args["basename"].as<std::string>();
     Clustering::verbose = args["verbose"].as<bool>();
-    
+    std::string header_comment = args["header"].as<std::string>();
     // noise state is 1 lower than lowest
     auto lowestState = std::min_element(states.begin(), states.end());
     std::size_t noiseState = *lowestState-1;
@@ -155,11 +155,16 @@ namespace Noise {
       }
       // write cored trajectory to file
       if (args.count("output")) {
-        Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(), noise_traj);
+        Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
+                                                      noise_traj,
+                                                      header_comment);
       }
       // write core information to file
       if (args.count("cores")) {
-        Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(), cores, false);
+        Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(),
+                                                     cores,
+                                                     header_comment,
+                                                     false);
       }
     } else {
       std::cerr << "\n" << "error (noise): nothing to do! please define '--output' or '--cores'" << "\n\n";

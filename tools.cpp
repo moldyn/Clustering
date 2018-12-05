@@ -38,13 +38,15 @@ min_multiplicator(unsigned int orig
 };
 
 void
-write_fes(std::string filename, std::vector<float> fes) {
-  write_single_column<float>(filename, fes, true);
+write_fes(std::string filename, std::vector<float> fes, std::string header_comment) {
+  header_comment.append("#\n# free energy of each frame\n");
+  write_single_column<float>(filename, fes, header_comment, true);
 }
 
 void
-write_pops(std::string filename, std::vector<std::size_t> pops) {
-  write_single_column<std::size_t>(filename, pops, false);
+write_pops(std::string filename, std::vector<std::size_t> pops, std::string header_comment) {
+  header_comment.append("#\n# point density of each frame\n");
+  write_single_column<std::size_t>(filename, pops, header_comment, false);
 }
 
 std::vector<std::size_t>
@@ -53,8 +55,10 @@ read_clustered_trajectory(std::string filename) {
 }
 
 void
-write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj) {
-  write_single_column<std::size_t>(filename, traj, false);
+write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
+                           std::string header_comment) {
+  header_comment.append("#\n# state/cluster frames are assigned to\n");
+  write_single_column<std::size_t>(filename, traj, header_comment, false);
 }
 
 //// from: https://github.com/lettis/Kubix
@@ -122,8 +126,20 @@ read_neighborhood(const std::string filename) {
 void
 write_neighborhood(const std::string filename,
                    const Neighborhood& nh,
-                   const Neighborhood& nh_high_dens) {
+                   const Neighborhood& nh_high_dens,
+                   std::string header_comment) {
   std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  header_comment.append("#\n# column definitions:\n"
+                        "#        nn = nearest neighbor\n"
+                        "#     nn_hd = nearest neighbor with higher density\n"
+                        "#     id(i) = id/line number of i\n"
+                        "#   dsqr(i) = squared euclidean distance to i\n#\n"
+                        "# id(nn)  dsqr(nn) id(nn_hd) dsqr(nn_hd)\n");
+  ofs << header_comment;
   auto p = nh.begin();
   auto p_hd = nh_high_dens.begin();
   while (p != nh.end() && p_hd != nh_high_dens.end()) {

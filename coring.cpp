@@ -65,6 +65,7 @@ namespace Coring {
     std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
     std::set<std::size_t> state_names(states.begin(), states.end());
     std::size_t n_frames = states.size();
+    std::string header_comment = args["header"].as<std::string>();
     if (args.count("output") || args.count("distribution") || args.count("cores")) {
       // load concatenation limits to treat concatenated trajectories correctly
       // when performing dynamical corrections
@@ -140,11 +141,16 @@ namespace Coring {
       }
       // write cored trajectory to file
       if (args.count("output")) {
-        Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(), cored_traj);
+        Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
+                                                      cored_traj,
+                                                      header_comment);
       }
       // write core information to file
       if (args.count("cores")) {
-        Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(), cores, false);
+        Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(),
+                                                     cores,
+                                                     header_comment,
+                                                     false);
       }
       // compute/save escape time distributions
       if (args.count("distribution")) {
@@ -169,7 +175,7 @@ namespace Coring {
         // write WTDs to file
         for (auto state_etd: etds) {
           std::string fname = Clustering::Tools::stringprintf(args["distribution"].as<std::string>() + "_%d", state_etd.first);
-          Clustering::Tools::write_map<std::size_t, float>(fname, state_etd.second);
+          Clustering::Tools::write_map<std::size_t, float>(fname, state_etd.second, header_comment);
         }
       }
     } else {

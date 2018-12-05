@@ -54,12 +54,14 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tools.hpp"
 
 #include <omp.h>
+#include <time.h>
 #include <boost/program_options.hpp>
 
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string general_help = 
-    "clustering - a classification framework for MD data\n"
+  std::string general_help =
+    "\nclustering 0.13: a classification framework for MD data\n"
+    "Copyright (c) 2015-2018, Florian Sittel and Daniel Nagel\n"
     "\n"
     "modes:\n"
     "  density: run density clustering\n"
@@ -184,6 +186,8 @@ int main(int argc, char* argv[]) {
     // optional
     ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.2f"),
           "(optional): basename of input files (default: clust.\%0.2f).")
+    ("output,o", b_po::value<std::string>()->default_value("network"),
+          "(optional): basename of output files (default: network).")
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
     ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
@@ -321,6 +325,15 @@ int main(int argc, char* argv[]) {
   if (args.count("verbose")) {
     Clustering::verbose = args["verbose"].as<bool>();
   }
+  // print head
+  Clustering::logger(std::cout) << "\n                    "
+                                << "~~~ clustering 0.13 - " << argv[1] << " ~~~\n\n"
+                                << "~~~ using for parallization: ";
+#ifdef USE_CUDA
+      Clustering::logger(std::cout) << "CUDA" << std::endl;
+#else
+      Clustering::logger(std::cout) << "cpu" << std::endl;
+#endif
   // setup OpenMP
   int n_threads = 0;
   if (args.count("nthreads")) {
@@ -329,6 +342,26 @@ int main(int argc, char* argv[]) {
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
+  // generate header comment
+  std::ostringstream header;
+  time_t rawtime;
+  time(&rawtime);
+  struct tm * timeinfo = localtime(&rawtime);
+  header << "# clustering v0.13 - " << argv[1] << "\n"
+         << "#\n"
+         << "# Created " << asctime(timeinfo)
+         << "# by following command:\n#\n# ";
+  std::vector<std::string> arguments(argv, argv + argc);
+  for (std::string& arg_string : arguments){
+      header << arg_string << " ";
+  }
+  header << "\n#\n# Copyright (c) 2015-2018 Florian Sittel and Daniel Nagel\n"
+         << "# please cite the corresponding paper, "
+         << "see https://github.com/moldyn/clustering\n";
+  args.insert(std::make_pair("header", b_po::variable_value(header.str(), false)));
+  std::ostringstream comment_end;
+  args.insert(std::make_pair("comment_end",
+                             b_po::variable_value(comment_end.str(), false)));
   // run selected subroutine
   switch(mode) {
     case DENSITY:

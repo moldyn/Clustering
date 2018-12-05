@@ -495,6 +495,7 @@ namespace Clustering {
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
+      std::string header_comment = args["header"].as<std::string>();
       Clustering::logger(std::cout) << "loading microstates" << std::endl;
       std::vector<std::size_t> traj;
       traj = read_clustered_trajectory(args["input"].as<std::string>());
@@ -555,7 +556,7 @@ namespace Clustering {
         write_single_column(stringprintf("%s_traj_%0.3f.dat"
                                        , basename.c_str()
                                        , q_min)
-                          , traj);
+                          , traj, header_comment);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks_tprob);
         for (auto from_to: sinks) {
@@ -567,7 +568,7 @@ namespace Clustering {
         write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.3f.dat"
                                                        , basename.c_str()
                                                        , q_min)
-                                          , pops);
+                                          , pops, header_comment);
         // collect max. pops + max. q_min per microstate
         for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
           max_pop[id] = pops[id];
@@ -586,8 +587,8 @@ namespace Clustering {
               << "\n";
         }
       }
-      write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop);
-      write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin);
+      write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop, header_comment);
+      write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin, header_comment);
     }
   } // end namespace MPP
 } // end namespace Clustering

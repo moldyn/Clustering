@@ -24,6 +24,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "tools.hpp"
+#include "logger.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -41,8 +42,13 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
   std::size_t n_rows=0;
   std::size_t n_cols=0;
   std::size_t n_cols_used=0;
-
   std::ifstream ifs(filename);
+  Clustering::logger(std::cout) << "~~~ reading coordinates" << std::endl;
+  if (ifs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  Clustering::logger(std::cout) << "    from file: " << filename << std::endl;
   {
     // determine n_cols
     std::string linebuf;
@@ -65,6 +71,8 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
     ifs.clear();
     ifs.seekg(0, std::ios::beg);
   }
+  Clustering::logger(std::cout) << "    with dimesions: " << n_rows << "x"
+                                << n_cols << "\n" << std::endl;
   std::map<std::size_t, bool> col_used;
   if (usecols.size() == 0) {
     // use all columns
@@ -198,14 +206,22 @@ min_max_box(const std::vector<NUM>& limits
 
 template <typename KEY, typename VAL>
 void
-write_map(std::string filename, std::map<KEY, VAL> mapping) {
+write_map(std::string filename, std::map<KEY, VAL> mapping,
+          std::string header_comment, bool val_then_key) {
   std::ofstream ofs(filename);
   if (ofs.fail()) {
     std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
     exit(EXIT_FAILURE);
   }
-  for (auto key_val: mapping) {
-    ofs << key_val.first << " " << key_val.second << "\n";
+  ofs << header_comment;
+  if (val_then_key) {
+    for (auto key_val: mapping) {
+      ofs << key_val.second << " " << key_val.first << "\n";
+    }
+  } else {
+    for (auto key_val: mapping) {
+      ofs << key_val.first << " " << key_val.second << "\n";
+    }
   }
 }
 
@@ -239,12 +255,14 @@ read_single_column(std::string filename) {
 
 template <typename NUM>
 void
-write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format) {
+write_single_column(std::string filename, std::vector<NUM> dat,
+                    std::string header_comment, bool with_scientific_format) {
   std::ofstream ofs(filename);
   if (ofs.fail()) {
     std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
     exit(EXIT_FAILURE);
   }
+  ofs << header_comment;
   if (with_scientific_format) {
     ofs << std::scientific;
   }

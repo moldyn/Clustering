@@ -179,30 +179,28 @@ namespace {
 
 
   void
-  save_network_links(std::string fname,
-                     std::map<std::size_t, std::size_t> network) {
-    Clustering::logger(std::cout) << "saving links" << std::endl;
-    std::ofstream ofs(fname);
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      for (auto p: network) {
-        ofs << p.second << " " << p.first << "\n";
-      }
-    }
+  save_network_links(std::string fname, std::map<std::size_t, std::size_t> network,
+                     std::string header_comment) {
+    fname.append("_links.dat");
+    Clustering::logger(std::cout) << "    saving links in: " << fname << std::endl;
+    header_comment.append("#\n# links\n");
+    Clustering::Tools::write_map<std::size_t, std::size_t>(fname, network, header_comment, true);
   }
   
   void
   save_node_info(std::string fname,
                  std::map<std::size_t, float> free_energies,
-                 std::map<std::size_t, std::size_t> pops) {
-    Clustering::logger(std::cout) << "saving nodes" << std::endl;
+                 std::map<std::size_t, std::size_t> pops,
+                 std::string header_comment) {
+    fname.append("_nodes.dat");
+    Clustering::logger(std::cout) << "    saving nodes in: " << fname << std::endl;
+    header_comment.append("#\n# nodes\n");
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
       exit(EXIT_FAILURE);
     } else {
+      ofs << header_comment;
       for (auto node_pop: pops) {
         std::size_t key = node_pop.first;
         ofs << key << " " << free_energies[key] << " " << node_pop.second << "\n";
@@ -212,29 +210,25 @@ namespace {
 
   std::set<std::size_t>
   compute_and_save_leaves(std::string fname,
-                          std::map<std::size_t, std::size_t> network) {
-    Clustering::logger(std::cout) << "saving leaves, i.e. tree end nodes" << std::endl;
+                          std::map<std::size_t, std::size_t> network,
+                          std::string header_comment) {
+    fname.append("_leaves.dat");
+    Clustering::logger(std::cout) << "    saving leaves in: " << fname << std::endl;
     std::set<std::size_t> leaves;
     std::set<std::size_t> not_leaves;
-    std::ofstream ofs(fname);
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      for (auto from_to: network) {
-        std::size_t src = from_to.first;
-        std::size_t target = from_to.second;
-        not_leaves.insert(target);
-        if (not_leaves.count(src)) {
-          leaves.erase(src);
-        } else {
-          leaves.insert(src);
-        }
-      }
-      for (std::size_t leaf: leaves) {
-        ofs << leaf << "\n";
+    for (auto from_to: network) {
+      std::size_t src = from_to.first;
+      std::size_t target = from_to.second;
+      not_leaves.insert(target);
+      if (not_leaves.count(src)) {
+        leaves.erase(src);
+      } else {
+        leaves.insert(src);
       }
     }
+    std::vector<std::size_t> leaves_vec( leaves.begin(), leaves.end() );
+    header_comment.append("#\n# leaves\n");
+    Clustering::Tools::write_single_column<std::size_t>(fname, leaves_vec, header_comment, false);
     return leaves;
   }
 
@@ -245,28 +239,23 @@ namespace {
                       float d_max,
                       float d_step,
                       std::string remapped_name,
-                      std::size_t n_rows) {
-    Clustering::logger(std::cout) << "saving end-node trajectory for seeding" << std::endl;
-    std::ofstream ofs(fname);
-    if (ofs.fail()) {
-      std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
-      exit(EXIT_FAILURE);
-    } else {
-      std::vector<std::size_t> traj(n_rows);
-      const float prec = d_step / 10.0f;
-      for (float d=d_min; ! fuzzy_equal(d, d_max+d_step, prec); d += d_step) {
-        std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
-                                            Clustering::Tools::stringprintf(remapped_name, d));
-        for (std::size_t i=0; i < n_rows; ++i) {
-          if (leaves.count(cl_now[i])) {
-            traj[i] = cl_now[i];
-          }
+                      std::size_t n_rows,
+                      std::string header_comment) {
+    fname.append("_end_node_traj.dat");
+    Clustering::logger(std::cout) << "    saving end-node trajectory in: " << fname << std::endl;
+    std::vector<std::size_t> traj(n_rows);
+    const float prec = d_step / 10.0f;
+    for (float d=d_min; ! fuzzy_equal(d, d_max+d_step, prec); d += d_step) {
+      std::vector<std::size_t> cl_now = Clustering::Tools::read_clustered_trajectory(
+                                          Clustering::Tools::stringprintf(remapped_name, d));
+      for (std::size_t i=0; i < n_rows; ++i) {
+        if (leaves.count(cl_now[i])) {
+          traj[i] = cl_now[i];
         }
       }
-      for (std::size_t i: traj) {
-        ofs << i << "\n";
-      }
     }
+    header_comment.append("#\n# end node trajs\n");
+    Clustering::Tools::write_single_column<std::size_t>(fname, traj, header_comment);
   }
   
   void
@@ -327,6 +316,7 @@ namespace {
       }
     }
     // write header
+    fname.append("_visualization.html");
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
@@ -379,9 +369,11 @@ namespace NetworkBuilder {
     float d_max = args["max"].as<float>();
     float d_step = args["step"].as<float>();
     std::string basename = args["basename"].as<std::string>();
+    std::string basename_output = args["output"].as<std::string>();
     std::string remapped_name = "remapped_" + basename;
     std::size_t minpop = args["minpop"].as<std::size_t>();
     bool network_html = args["network-html"].as<bool>();
+    std::string header_comment = args["header"].as<std::string>();
 
     std::map<std::size_t, std::size_t> network;
     std::map<std::size_t, std::size_t> pops;
@@ -389,7 +381,8 @@ namespace NetworkBuilder {
 
     std::string fname_next = stringprintf(basename, d_min);
     if ( ! b_fs::exists(fname_next)) {
-      std::cerr << "error: file does not exist: " << fname_next << std::endl;
+      std::cerr << "error: file does not exist: " << fname_next
+                << "       check basename (-b) and --min/--max/--step" << std::endl;
       exit(EXIT_SUCCESS);
     }
     std::vector<std::size_t> cl_next = read_clustered_trajectory(fname_next);
@@ -407,15 +400,19 @@ namespace NetworkBuilder {
       d_max += d_step;
     }
     float d;
+    Clustering::logger(std::cout) << "~~~ remapping cluster files and generating network" << std::endl;
     for (d=d_min; ! fuzzy_equal(d, d_max, prec) && b_fs::exists(fname_next); d += d_step) {
-      Clustering::logger(std::cout) << "free energy level: " << stringprintf("%0.2f", d) << std::endl;
+      Clustering::logger(std::cout) << "    " << fname_next << " -> "
+                                    << stringprintf(remapped_name, d)<< std::endl;
       cl_now = cl_next;
       fname_next = stringprintf(basename, d + d_step);
       #pragma omp parallel sections
       {
         #pragma omp section
         {
-          write_clustered_trajectory(stringprintf(remapped_name, d), cl_now);
+          write_clustered_trajectory(stringprintf(remapped_name, d),
+                                     cl_now,
+                                     header_comment);
         }
         #pragma omp section
         {
@@ -440,10 +437,11 @@ namespace NetworkBuilder {
     d_max = d-d_step;
     // if minpop given: delete nodes and edges not fulfilling min. population criterium
     if (minpop > 1) {
-      Clustering::logger(std::cout) << "cleaning from low pop. states ..." << std::endl;
+      Clustering::logger(std::cout) << "\n~~~ removing states with population p < "
+                                    << minpop << std::endl;
       std::unordered_set<std::size_t> removals;
       auto pop_it = pops.begin();
-      Clustering::logger(std::cout) << "  ... search nodes to remove" << std::endl;
+      Clustering::logger(std::cout) << "    ... removing nodes" << std::endl;
       while (pop_it != pops.end()) {
         if (pop_it->second < minpop) {
           removals.insert(pop_it->first);
@@ -452,7 +450,7 @@ namespace NetworkBuilder {
           ++pop_it;
         }
       }
-      Clustering::logger(std::cout) << "  ... search edges to remove" << std::endl;
+      Clustering::logger(std::cout) << "    ... removing edges" << std::endl;
       auto net_it = network.begin();
       while (net_it != network.end()) {
         std::size_t a = net_it->first;
@@ -463,20 +461,22 @@ namespace NetworkBuilder {
           ++net_it;
         }
       }
-      Clustering::logger(std::cout) << "  ... finished." << std::endl;
     }
+    Clustering::logger(std::cout) << "\n~~~ storing output files" << std::endl;
     // save links (i.e. edges) as two-column ascii in a child -> parent manner
-    save_network_links("network_links.dat", network);
+    save_network_links(basename_output, network, header_comment);
     // save id, population and free energy of nodes
-    save_node_info("network_nodes.dat", free_energies, pops);
+    save_node_info(basename_output, free_energies, pops, header_comment);
     // compute and directly save network end-nodes (i.e. leaves of the network-tree)
-    std::set<std::size_t> leaves = compute_and_save_leaves("network_leaves.dat", network);
+    std::set<std::size_t> leaves = compute_and_save_leaves(basename_output,
+                                                           network, header_comment);
     // save the trajectory consisting of the 'leaf-states'.
     // all non-leaf states are kept as non-assignment state '0'.
-    save_traj_of_leaves("network_end_node_traj.dat", leaves, d_min, d_max, d_step, remapped_name, n_rows);
+    save_traj_of_leaves(basename_output, leaves,
+                        d_min, d_max, d_step, remapped_name, n_rows, header_comment);
     // generate html-file with embedded javascript to visualize network
     if (network_html) {
-      save_network_to_html("network_visualization.html", network, free_energies, pops);
+      save_network_to_html(basename_output, network, free_energies, pops);
     }
   }
 } // end namespace NetworkBuilder
