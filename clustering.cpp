@@ -249,7 +249,7 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (optional, file): file with no. of frames of each (not equally sized) sub-trajectory for concatenated trajectory files.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
@@ -276,7 +276,7 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (optional, file): file with no. of frames of each (not equally sized) sub-trajectory for concatenated trajectory files.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")

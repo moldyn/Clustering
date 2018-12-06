@@ -24,6 +24,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "tools.hpp"
+#include "logger.hpp"
 
 #include <cmath>
 #include <stdarg.h>
@@ -123,6 +124,17 @@ read_neighborhood(const std::string filename) {
   return {nh, nh_high_dens};
 }
 
+std::vector<std::size_t>
+read_concat_limits(std::string filename) {
+  std::vector<std::size_t> concat_limits = read_single_column<std::size_t>(filename);
+
+  for (std::size_t i=0; i+1 < concat_limits.size(); ++i){
+    concat_limits[i+1] += concat_limits[i];
+  }
+
+  return concat_limits;
+}
+
 void
 write_neighborhood(const std::string filename,
                    const Neighborhood& nh,
@@ -165,6 +177,25 @@ microstate_populations(std::vector<std::size_t> traj) {
   }
   return populations;
 }
+
+void
+check_conact_limits(std::vector<std::size_t> concat_limits, std::size_t n_frames) {
+  if (concat_limits.back() < n_frames) {
+    Clustering::logger(std::cout) << "warning: last " << n_frames - concat_limits.back()
+                                  << " frames are ignored. check concat-limits/nframes"
+                                  << std::endl;
+  }
+  if (concat_limits.front() == 0) {
+    Clustering::logger(std::cout) << "warning: first trajectory is of zero length. check\n"
+                                  << "         help for correct usage of --concat-limits"
+                                  << std::endl;
+  }
+  if (concat_limits.back() > n_frames) {
+    Clustering::logger(std::cout) << "warning: limits are larger than the file length.\n"
+                                  << "         Check your limits!" <<std::endl;
+  }
+}
+
 
 } // end namespace Tools
 } // end namespace Clustering

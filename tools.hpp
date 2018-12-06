@@ -84,6 +84,10 @@ namespace Tools {
   //! read free energies from plain text file
   std::vector<float>
   read_free_energies(std::string filename);
+  //! read conact limits
+  //! takes length of the single trajectories.
+  std::vector<std::size_t>
+  read_concat_limits(std::string filename);
   //! read neighborhood info from plain text file
   //! (two different neighborhoods: nearest neighbor (NN) and NN with higher density)
   std::pair<Neighborhood, Neighborhood>
@@ -147,6 +151,10 @@ namespace Tools {
   template <typename T>
   std::vector<T>
   unique_elements(std::vector<T> xs);
+  //! check if concat limits were passed correctly
+  void
+  check_conact_limits(std::vector<std::size_t> concat_limits,
+                      std::size_t n_frames);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
 

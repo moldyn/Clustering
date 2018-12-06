@@ -61,7 +61,7 @@ namespace Noise {
       // when performing dynamical corrections
       std::vector<std::size_t> concat_limits;
       if (args.count("concat-limits")) {
-        concat_limits = Clustering::Tools::read_single_column<std::size_t>(args["concat-limits"].as<std::string>());
+        concat_limits = Clustering::Tools::read_concat_limits(args["concat-limits"].as<std::string>());
       } else if (args.count("concat-nframes")) {
         std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
         for (std::size_t i=n_frames_per_subtraj; i <= n_frames; i += n_frames_per_subtraj) {
@@ -70,6 +70,8 @@ namespace Noise {
       } else {
         concat_limits = {n_frames};
       }
+      // check if concat_limits are well definied
+      Clustering::Tools::check_conact_limits(concat_limits, n_frames);
       // findest highest clust file
       b_fs::path cwd(b_fs::current_path());
 
@@ -135,13 +137,14 @@ namespace Noise {
       // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
-        for (std::size_t i=last_limit; i < next_limit; ++i) {
+        std::size_t next_limit_corrected = std::min(next_limit, n_frames);
+        for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
           if (states[i] != noiseState) {
             current_core = states[i];
             break;      
           }
         }
-        for (std::size_t i=last_limit; i < next_limit; ++i) {
+        for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
           // coring window
           if (states[i] != noiseState) {
             current_core = states[i];
@@ -151,7 +154,7 @@ namespace Noise {
           }
           noise_traj[i] = current_core;
         }
-        last_limit = next_limit;
+        last_limit = next_limit_corrected;
       }
       // write cored trajectory to file
       if (args.count("output")) {
