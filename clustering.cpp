@@ -326,8 +326,11 @@ int main(int argc, char* argv[]) {
     Clustering::verbose = args["verbose"].as<bool>();
   }
   // print head
-  Clustering::logger(std::cout) << "\n                    "
-                                << "~~~ clustering 0.13 - " << argv[1] << " ~~~\n\n"
+  std::string leading_whitespace(20, ' ');
+  std::string leading_whitespace2nd(20 + (20-strlen(argv[1]))/2, ' ');
+  Clustering::logger(std::cout) << "\n" << leading_whitespace
+                                << "~~~ clustering v0.13 ~~~\n"
+                                << leading_whitespace2nd << "~ " << argv[1] << " ~\n\n"
                                 << "~~~ using for parallization: ";
 #ifdef USE_CUDA
       Clustering::logger(std::cout) << "CUDA" << std::endl;

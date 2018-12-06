@@ -62,6 +62,9 @@ namespace Coring {
     using namespace Clustering::Tools;
     namespace b_po = boost::program_options;
     // load states
+    Clustering::logger(std::cout) << "~~~ reading files\n"
+                                  << "    trajectory from: " << args["states"].as<std::string>()
+                                  << std::endl;
     std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
     std::set<std::size_t> state_names(states.begin(), states.end());
     std::size_t n_frames = states.size();
@@ -71,6 +74,8 @@ namespace Coring {
       // when performing dynamical corrections
       std::vector<std::size_t> concat_limits;
       if (args.count("concat-limits")) {
+        Clustering::logger(std::cout) << "    limits from: "
+                                      << args["concat-limits"].as<std::string>() << std::endl;
         concat_limits = Clustering::Tools::read_concat_limits(args["concat-limits"].as<std::string>());
       } else if (args.count("concat-nframes")) {
         std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
@@ -83,6 +88,8 @@ namespace Coring {
       // check if concat_limits are well definied
       Clustering::Tools::check_conact_limits(concat_limits, n_frames);
       // load window size information
+      Clustering::logger(std::cout) << "    coring windows from: "
+                                    << args["windows"].as<std::string>() << std::endl;
       std::map<std::size_t, std::size_t> coring_windows;
       {
         std::ifstream ifs(args["windows"].as<std::string>());
@@ -114,9 +121,11 @@ namespace Coring {
         }
       }
       // core trajectory
+      Clustering::logger(std::cout) << "~~~ coring trajectory" << std::endl;
       std::vector<std::size_t> cored_traj(n_frames);
       std::size_t current_core = states[0];
       std::vector<long> cores(n_frames);
+      std::size_t changed_frames = 0;
       // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
@@ -136,12 +145,18 @@ namespace Coring {
             current_core = states[i];
             cores[i] = current_core;
           } else {
+            ++changed_frames;
             cores[i] = -1;
           }
           cored_traj[i] = current_core;
         }
         last_limit = next_limit_corrected;
       }
+      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", (float) 100*changed_frames / n_frames)
+                                    << "% of frames were changed\n    " << changed_frames
+                                    << " frames in total"
+                                    << "\n    store result in: " << args["output"].as<std::string>()
+                                    << std::endl;
       // write cored trajectory to file
       if (args.count("output")) {
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
@@ -155,8 +170,10 @@ namespace Coring {
                                                      header_comment,
                                                      false);
       }
+
       // compute/save escape time distributions
       if (args.count("distribution")) {
+        Clustering::logger(std::cout) << "~~~ generating distribution" << std::endl;
         std::map<std::size_t, std::list<std::size_t>> streaks;
         std::size_t current_state = cored_traj[0];
         long n_counts = 0;
@@ -176,6 +193,7 @@ namespace Coring {
           etds[state] = compute_wtd(streaks[state]);
         }
         // write WTDs to file
+        Clustering::logger(std::cout) << "    storing..." << std::endl;
         for (auto state_etd: etds) {
           std::string fname = Clustering::Tools::stringprintf(args["distribution"].as<std::string>() + "_%d", state_etd.first);
           Clustering::Tools::write_map<std::size_t, float>(fname, state_etd.second, header_comment);

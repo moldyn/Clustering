@@ -44,13 +44,19 @@ namespace Noise {
     namespace b_fs = boost::filesystem;
     namespace b_po = boost::program_options;
     // load states
+    Clustering::logger(std::cout) << "~~~ reading files\n"
+                                  << "    trajectory from: " << args["states"].as<std::string>()
+                                  << std::endl;
     std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
+    std::vector<std::size_t> states_without_noise;
+    std::copy(states.begin(), states.end(), std::back_inserter(states_without_noise));
     std::set<std::size_t> state_names(states.begin(), states.end());
     std::size_t n_frames = states.size();
     // shift cmin fomr [0,100] -> [0,1]
     float cmin = 0.01*args["cmin"].as<float>();
     std::string basename = args["basename"].as<std::string>();
     Clustering::verbose = args["verbose"].as<bool>();
+    // generate header comment
     std::string header_comment = args["header"].as<std::string>();
     // noise state is 1 lower than lowest
     auto lowestState = std::min_element(states.begin(), states.end());
@@ -61,6 +67,8 @@ namespace Noise {
       // when performing dynamical corrections
       std::vector<std::size_t> concat_limits;
       if (args.count("concat-limits")) {
+        Clustering::logger(std::cout) << "    limits from: "
+                                      << args["concat-limits"].as<std::string>() << std::endl;
         concat_limits = Clustering::Tools::read_concat_limits(args["concat-limits"].as<std::string>());
       } else if (args.count("concat-nframes")) {
         std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
@@ -96,7 +104,6 @@ namespace Noise {
         found = file_str.rfind(basename);
         if (found!=std::string::npos) {
           clust_filename = file_str.substr(found,file_str.length()-found-1);
-          Clustering::logger(std::cout) << "used clust_file: " << clust_filename  << std::endl;
           break;
         }
       }
@@ -107,6 +114,7 @@ namespace Noise {
       }
       
       // open highest clust file
+      Clustering::logger(std::cout) << "    highest cluster: " << clust_filename  << std::endl;
       std::vector<std::size_t> clust = Clustering::Tools::read_clustered_trajectory(clust_filename);
       if (n_frames != clust.size()) {
         std::cerr << "\n" << "error (noise): clust file is not of same length as state trajectory." << "\n\n";
@@ -122,18 +130,24 @@ namespace Noise {
           counts[clust[i]] = 1;
         }
       }
+      Clustering::logger(std::cout) << "~~~ noise assignment" << std::endl;
+      std::size_t noise_frames = 0;
       // define noise frames as state 0
       for (std::size_t i=0; i < n_frames; ++i) {
         if (counts[clust[i]] < cmin*n_frames){
           states[i] = noiseState;
+          ++noise_frames;
         }      
       }
+      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", (float) 100*noise_frames / n_frames)
+                                    << "% of frames were identified as noise" << std::endl;
       // TODO: remove following line. Should we keep with argument?
       // Clustering::Tools::write_clustered_trajectory("microstatesNoiseDef", states);
       // noise core trajectory
       std::vector<std::size_t> noise_traj(n_frames);
       std::size_t current_core = states[0];
       std::vector<long> cores(n_frames);
+      std::size_t changed_frames = 0;
       // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
@@ -152,10 +166,17 @@ namespace Noise {
           } else {
             cores[i] = -1;
           }
+          if (current_core != states_without_noise[i]) {
+            ++changed_frames;
+          }
           noise_traj[i] = current_core;
         }
         last_limit = next_limit_corrected;
       }
+      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", (float) 100*changed_frames / n_frames)
+                                    << "% of frames were reassigned\n"
+                                    << "    store result in: " << args["output"].as<std::string>()
+                                    << std::endl;
       // write cored trajectory to file
       if (args.count("output")) {
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
