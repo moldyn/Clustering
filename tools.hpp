@@ -153,7 +153,7 @@ namespace Tools {
   unique_elements(std::vector<T> xs);
   //! check if concat limits were passed correctly
   void
-  check_conact_limits(std::vector<std::size_t> concat_limits,
+  check_concat_limits(std::vector<std::size_t> concat_limits,
                       std::size_t n_frames);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'

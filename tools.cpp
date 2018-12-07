@@ -179,7 +179,7 @@ microstate_populations(std::vector<std::size_t> traj) {
 }
 
 void
-check_conact_limits(std::vector<std::size_t> concat_limits, std::size_t n_frames) {
+check_concat_limits(std::vector<std::size_t> concat_limits, std::size_t n_frames) {
   if (concat_limits.back() < n_frames) {
     Clustering::logger(std::cout) << "warning: last " << n_frames - concat_limits.back()
                                   << " frames are ignored. check concat-limits/nframes"

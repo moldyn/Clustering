@@ -79,7 +79,7 @@ namespace Noise {
         concat_limits = {n_frames};
       }
       // check if concat_limits are well definied
-      Clustering::Tools::check_conact_limits(concat_limits, n_frames);
+      Clustering::Tools::check_concat_limits(concat_limits, n_frames);
       // findest highest clust file
       b_fs::path cwd(b_fs::current_path());
 

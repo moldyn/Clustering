@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <fstream>
+#include <iomanip>
 
 #include "tools.hpp"
 #include "mpp.hpp"
@@ -429,9 +430,9 @@ namespace Clustering {
                     << " density-clustering to fill up the FEL)?\n"
                     << std::endl;
         }
-        logger(std::cout) << "iteration "
+        logger(std::cout) << "          " << std::setw(3)
                           << iter+1
-                          << " for q_min "
+                          << " " << std::setw(6)
                           << Clustering::Tools::stringprintf("%0.3f", q_min)
                           << std::endl;
         // get immediate future
@@ -496,10 +497,15 @@ namespace Clustering {
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
       std::string header_comment = args["header"].as<std::string>();
-      Clustering::logger(std::cout) << "loading microstates" << std::endl;
+      Clustering::logger(std::cout) << "~~~ reading files\n"
+                                    << "    trajectory from: " << args["input"].as<std::string>()
+                                    << std::endl;
       std::vector<std::size_t> traj;
       traj = read_clustered_trajectory(args["input"].as<std::string>());
-      Clustering::logger(std::cout) << "loading free energies" << std::endl;
+      std::size_t n_frames = traj.size();
+      Clustering::logger(std::cout) << "    free energy from: "
+                                    << args["free-energy-input"].as<std::string>()
+                                    << std::endl;
       std::string fname_fe_in = args["free-energy-input"].as<std::string>();
       std::vector<float> free_energy = read_free_energies(fname_fe_in);
       float q_min_from = args["qmin-from"].as<float>();
@@ -509,17 +515,20 @@ namespace Clustering {
       std::vector<std::size_t> concat_limits;
       bool diff_sized_chunks = args.count("concat_limits");
       if (diff_sized_chunks) {
-        std::string fname_climits = args["concat-limits"].as<std::string>();
-        concat_limits = read_single_column<std::size_t>(fname_climits);
+        Clustering::logger(std::cout) << "    concat limits from: "
+                                      << args["concat-limits"].as<std::string>() << std::endl;
+        concat_limits = Clustering::Tools::read_concat_limits(args["concat-limits"].as<std::string>());
       } else if (args.count("concat-nframes")) {
-        std::size_t n_frames_per_subtraj;
-        n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
-        for (std::size_t i=n_frames_per_subtraj
-           ; i < traj.size()
-           ; i += n_frames_per_subtraj) {
+        std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+        for (std::size_t i=n_frames_per_subtraj; i <= n_frames; i += n_frames_per_subtraj) {
           concat_limits.push_back(i);
         }
+      } else {
+        concat_limits = {n_frames};
       }
+      // check if concat_limits are well definied
+      Clustering::Tools::check_concat_limits(concat_limits, n_frames);
+
       SparseMatrixF trans_prob;
       bool tprob_given = args.count("tprob");
       if (tprob_given) {
@@ -543,7 +552,7 @@ namespace Clustering {
                        , microstate_names);
         }
       }
-      Clustering::logger(std::cout) << "beginning q_min loop" << std::endl;
+      Clustering::logger(std::cout) << "\n~~~ run mpp\n    iteration   qmin" << std::endl;
       for (float q_min=q_min_from; q_min <= q_min_to; q_min += q_min_step) {
         auto traj_sinks_tprob = fixed_metastability_clustering(traj
                                                              , trans_prob
