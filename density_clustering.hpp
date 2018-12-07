@@ -174,6 +174,9 @@ namespace Clustering {
     bool
     compare2DVector(const std::pair<std::size_t,std::size_t>& p1,
                     const std::pair<std::size_t,std::size_t>& p2);
+    //! check if float has at maximum two digits
+    bool
+    has2digits(float val);
     //! sorts the cluster by decreasing population and renames them from 1..N
     std::vector<std::size_t>
     sorted_cluster_names (std::vector<std::size_t> clustering);

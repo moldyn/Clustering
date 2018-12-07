@@ -497,6 +497,12 @@ namespace Clustering {
     }
 
     bool
+    has2digits(float val){
+      float val_2digits = (int)(val * 100) / 100.0;
+      return val_2digits == val;
+    }
+
+    bool
     lump_initial_clusters(const std::set<std::size_t>& local_nh
                         , std::size_t& distinct_name
                         , std::vector<std::size_t>& clustering
@@ -677,7 +683,7 @@ namespace Clustering {
       //// nearest neighbors
       Neighborhood nh;
       Neighborhood nh_high_dens;
-      Clustering::logger(std::cout) << "~~~ nearest neighbors" << std::endl;
+      Clustering::logger(std::cout) << "\n~~~ nearest neighbors" << std::endl;
       if (args.count("nearest-neighbors-input")) {
         Clustering::logger(std::cout) << "    re-using nearest neighbor: "
                                       << args["nearest-neighbors-input"].as<std::string>()
@@ -710,6 +716,11 @@ namespace Clustering {
       }
       //// clustering
       if (args.count("output")) {
+        if (args.count("radii")) {
+            std::cerr << "error: output needs to depend on single radius\n"
+                      << "       several radii (-R is set)." << std::endl;
+            exit(EXIT_FAILURE);
+        }
 #ifdef USE_CUDA
         using Clustering::Density::CUDA::screening;
 #else
@@ -735,7 +746,7 @@ namespace Clustering {
           Clustering::logger(std::cout) << "    storing states in: " << output_file << std::endl;
           write_single_column<std::size_t>(output_file, clustering, header_comment);
         } else if (args.count("threshold-screening")) {
-          Clustering::logger(std::cout) << "~~~ free energy screening" << std::endl;
+          Clustering::logger(std::cout) << "\n~~~ free energy screening" << std::endl;
           std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
           if (threshold_params.size() > 3) {
             std::cerr << "error: option -T expects at most three floating point arguments: FROM STEP TO." << std::endl;
@@ -752,6 +763,11 @@ namespace Clustering {
           }
           if (threshold_params.size() == 3) {
             t_to = threshold_params[2];
+          }
+          // check if input is correctly formatted
+          if (! (has2digits(t_from) && has2digits(t_step))){
+            std::cerr << "error: -T can handle at maximum two digits." << std::endl;
+            exit(EXIT_FAILURE);
           }
           Clustering::logger(std::cout) << "\n        fe    frames" << std::endl;
           // upper limit extended to a 10th of the stepsize to
