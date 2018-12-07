@@ -184,8 +184,8 @@ int main(int argc, char* argv[]) {
   desc_network.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.2f"),
-          "(optional): basename of input files (default: clust.\%0.2f).")
+    ("basename,b", b_po::value<std::string>()->default_value("clust"),
+          "(optional): basename of input files (default: clust).")
     ("output,o", b_po::value<std::string>()->default_value("network"),
           "(optional): basename of output files (default: network).")
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")

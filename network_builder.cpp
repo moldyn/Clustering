@@ -183,7 +183,9 @@ namespace {
                      std::string header_comment) {
     fname.append("_links.dat");
     Clustering::logger(std::cout) << "    saving links in: " << fname << std::endl;
-    header_comment.append("#\n# links\n");
+    header_comment.append("#\n# Name of the cluster connected to the name in next "
+                          "higher free energy level\n# Named by the remapped clusters.\n#\n"
+                          "# cluster_name(fe+step) cluster_name(fe)\n");
     Clustering::Tools::write_map<std::size_t, std::size_t>(fname, network, header_comment, true);
   }
   
@@ -195,6 +197,9 @@ namespace {
     fname.append("_nodes.dat");
     Clustering::logger(std::cout) << "    saving nodes in: " << fname << std::endl;
     header_comment.append("#\n# nodes\n");
+    header_comment.append("#\n# Name of all clusters at a given free energies (fe) "
+                          "with the corresponding populations pop.\n"
+                          "# id(cluster) fe pop\n");
     std::ofstream ofs(fname);
     if (ofs.fail()) {
       std::cerr << "error: cannot open file '" << fname << "' for writing." << std::endl;
@@ -227,7 +232,11 @@ namespace {
       }
     }
     std::vector<std::size_t> leaves_vec( leaves.begin(), leaves.end() );
-    header_comment.append("#\n# leaves\n");
+    header_comment.append("#\n# All network leaves, i.e. nodes (microstates) without child\n"
+                          "# nodes at a lower free energy level. These microstates represent\n"
+                          "# the minima of their local basins.\n#\n"
+                          "# id(cluster)\n"
+                          );
     Clustering::Tools::write_single_column<std::size_t>(fname, leaves_vec, header_comment, false);
     return leaves;
   }
@@ -254,8 +263,9 @@ namespace {
         }
       }
     }
-    header_comment.append("#\n# end node trajs\n");
-    Clustering::Tools::write_single_column<std::size_t>(fname, traj, header_comment);
+    header_comment.append("#\n# All frames beloning to a leaf node are marked with\n"
+                          "# the custer id. All others with zero.\n");
+    Clustering::Tools::write_clustered_trajectory(fname, traj, header_comment);
   }
   
   void
@@ -378,6 +388,8 @@ namespace NetworkBuilder {
     std::map<std::size_t, std::size_t> network;
     std::map<std::size_t, std::size_t> pops;
     std::map<std::size_t, float> free_energies;
+
+    basename.append(".%0.2f");
 
     std::string fname_next = stringprintf(basename, d_min);
     if ( ! b_fs::exists(fname_next)) {
