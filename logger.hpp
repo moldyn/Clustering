@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,7 +25,15 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <iostream>
+/*! \file
+ * \brief Define global logger
+ */
 
+/*!
+ * \brief functions related to verbose/output mode
+ *
+ * This namespace contains all functions related to the verbose mode.
+ */
 namespace Clustering {
   //! global flag: use verbose output?
   extern bool verbose;

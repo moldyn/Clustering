@@ -41,13 +41,16 @@ The underlying methods are based on the following articles:
   - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
     Metastable Conformational States of Proteins*,
     J. Chem. Theory Comput., Article ASAP; DOI: 10.1021/acs.jctc.5b01233
+  - D. Nagel, A. Weber, B. Lickert and G. Stock, *Dynamical coring of Markov state models*, Submitted
 
 We kindly ask you to cite these articles if you use this software package for
 published works.
 
 
 # Licensing
-Copyright (c) 2015, [Florian Sittel](http://www.lettis.net)
+This project was created by [lettis](http://www.lettis.net) and is currently maintained by [moldyn-nagel](https://github.com/moldyn-nagel).
+
+Copyright (c) 2015-2018, [Florian Sittel](http://www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

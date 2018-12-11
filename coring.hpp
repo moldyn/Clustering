@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28,30 +28,51 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 
 #include <boost/program_options.hpp>
+/*! \file
+ * \brief Dynamical Coring
+ *
+ * \sa \link Clustering::Coring
+ */
 
 namespace Clustering {
-namespace Coring {
-  //typedef std::map<std::size_t, std::size_t, std::greater<std::size_t>> EtdMap;
-  typedef std::map<std::size_t, float> WTDMap;
-  
   /*!
-   * controlling function and user interface for boundary corrections
+   * \brief functions related to dynamical coring
    *
-   * *parsed arguments*:\n
-   *    - **states**: single column file with state information.
-   *    - **windows**: double column file with states and their coring time.
-   *    - **output**: file name to store resulting trajectory
-   *    - **distribution**: generate and write waiting time distributions to file.
-   *    - **cores**: file name to store resulting cores.
-   *    - **concat-nframes**: no. of frames per trajectory.
-   *    - **concat-limits**: boundaries of trajectories.
+   * This module contains all functions for finding the optimal coring time and
+   * dynamical coring. The underlaying principal is to define dynamical cores.
+   * In contrast to geometrical cores, this algorithm scales linear with the
+   * the number of frames. The idea is to require after a transition to stay
+   * at least for a certain time (coring time) in the new state, otherwise
+   * the transition is identified as intrastate fluctuation and the frames are
+   * are assigned to the previous state. A more in detail discussion can be
+   * found in Nagel19.
    */
-  WTDMap
-  compute_wtd(std::list<std::size_t> streaks);
+  namespace Coring {
+    //! store the waiting time distribution for each state with time vs count.
+    typedef std::map<std::size_t, float> WTDMap;
 
-  void
-  main(boost::program_options::variables_map args);
+    /*!
+     * \brief compute the waiting time distribution for single state
+     *
+     * \param streaks array with all wainting times
+     */    
+    WTDMap
+    compute_wtd(std::list<std::size_t> streaks);
 
-} // end namespace Coring
+    /*!
+     * \brief controlling function and user interface for boundary corrections
+     *
+     * \param states single column file with state information.
+     * \param windows double column file with states and their coring time
+     * \param distribution generate and write waiting time distributions to file.
+     * \param output file name to store resulting trajectory.
+     * \param concat-nframes no. of frames per trajectory.
+     * \param concat-limits length of concated trajectories.
+     * \param cores file name to store resulting cores.
+     * \return void
+     */
+    void
+    main(boost::program_options::variables_map args);
+  } // end namespace Coring
 } // end namespace Clustering
 

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28,23 +28,31 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 #include <boost/program_options.hpp>
-
+/*! \file
+ * \brief Network Builder
+ *
+ * \sa \link Clustering::NetworkBuilder
+ */
 namespace Clustering {
-//! functions for network creation from free energy screening
-namespace NetworkBuilder {
   /*!
-   * controlling function and user interface for network creation
+   * \brief functions for network creation from free energy screening
    *
-   * *parsed arguments*:\n
-   *    - **min**: min. free energy to take into account
-   *    - **max**: max. free energy to take into account
-   *    - **step**: free energy stepping
-   *    - **basename**: basic input file format
-   *    - **minpop**: min. population per microstate, discard states with lower population
-   *    - **network-html**: generate an html representation of the network
+   * This module finds local minimas in the free energy landscape. Therefore,
+   * it build a network from the previously determined clusters.
    */
-  void
-  main(boost::program_options::variables_map args);
-} // end namespace Clustering
+  namespace NetworkBuilder {
+    /*!
+     * controlling function and user interface for network creation
+     *
+     * \param min min. free energy to take into account
+     * \param max max. free energy to take into account
+     * \param step free energy stepping
+     * \param basename basic input file format
+     * \param minpop min. population per microstate, discard states with lower population
+     * \param network-html generate an html representation of the network
+     */
+    void
+    main(boost::program_options::variables_map args);
+  } // end namespace Clustering
 } // end namespace NetworkBuilder
 

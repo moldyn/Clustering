@@ -1,5 +1,5 @@
 /*
-Copyright(c) 2015, Florian Sittel (www.lettis.net) and (c) 2018, Daniel Nagel
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28,26 +28,45 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 
 #include <boost/program_options.hpp>
-
+/*! \file
+ * \brief Noise Assignment
+ *
+ * \sa \link Clustering::Noise
+ */
 namespace Clustering {
-namespace Noise {
   /*!
-   * controlling function and user interface for noise assignment
+   * \brief functions related to noise assignment
    *
-   * *parsed arguments*:\n
-   *    - **states**: single column file with state information.
-   *    - **basename**: basename used in 'clustering network' (def.: 'clust.').
-   *    - **cmin**: population threshold in percent below which an geometrically isolated cluster gets assigned as noise
-   *    - **output**: file name to store resulting trajectory
-   *    - **cores**: file name to store resulting cores.
-   *    - **concat-nframes**: no. of frames per trajectory.
-   *    - **concat-limits**: boundaries of trajectories.
+   * This module contains all function for identifying and dynamically
+   * reassigning noise. The underlaying principal is to assign low populated
+   * regions dynamically to the previous state, to improve the meta-stability
+   * of the resulting states.
+   * In Nagel19 it was shown that this works better than coring in case of low
+   * dimensional input. I.e., if the input is not homogeniously distributed in
+   * the input coordinates.
    */
-  typedef std::map<int,unsigned int> CounterClustMap;
+  namespace Noise {
+    //! map for sorting clusters by population
+    typedef std::map<int,unsigned int> CounterClustMap;
 
-  void
-  main(boost::program_options::variables_map args);
-
-} // end namespace Noise
+    /*!
+     * \brief controlling function and user interface for noise assignment
+     *
+     * \param states single column file with state information.
+     * \param basename basename used in 'clustering network' (def.: 'clust.').
+     * \param cmin population threshold in percent below which an geometrically
+     *            isolated cluster gets assigned as noise.
+     * \param concat-nframes no. of frames per trajectory.
+     * \param concat-limits length of concated trajectories.
+     * \param output file name to store resulting trajectory.
+     * \param cores file name to store resulting cores.
+     * \return void
+     * \note This code needs to be executed from the same directory as clustering
+     *       density
+     * \warning This function is still in beta.
+     */
+    void
+    main(boost::program_options::variables_map args);
+  } // end namespace Noise
 } // end namespace Clustering
 

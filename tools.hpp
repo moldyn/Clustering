@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #else
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
 #endif
+/*! \file
+ * \brief Tools mainly for IO and some other functions
+ *
+ * \sa \link Clustering::Tools
+ */
 
 namespace Clustering {
-//! additional tools used throughout the *clustering* package
+/*!
+ * \brief additional tools used throughout the *clustering* package
+ *
+ * This module contains helper functions. Most of them are for reading or
+ * writing files.
+ */
 namespace Tools {
   //! matches neighbor's frame id to distance
   using Neighbor = std::pair<std::size_t, float>;

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,15 +24,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*!\file
+ * \brief Wrapper for *clustering* package
  *
- * The main function of 'clustering' is essentially being a wrapper around the different sub-modules:
- *   - **density**: for density-based clustering on the given geometric space
- *   - **network**: for the network/microstate generation from density-based clustering results
- *   - **mpp**:     for Most Probable Path clustering of microstates
- *   - **coring**:  for boundary corrections of clustered state trajectories
- *   - **noise**:   for defining and dynamically reassigning noise
- *   - **filter**:  for fast filtering of coordinates, order parameters, etc. based on\n
- *                  a given state trajectory (i.e. clustering result)
+ * The main function of *clustering* is essentially being a wrapper around the different sub-modules:
+ * density, network, mpp, coring, noise and filter.
+ * \sa \link main()
  */
 
 #include "config.hpp"
@@ -56,7 +52,17 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <omp.h>
 #include <time.h>
 #include <boost/program_options.hpp>
-
+/*! \brief Parses option and execute corresponding sub-module
+ *
+ * This method parses the arguments and calls the corresponding sub-modules.
+ * \param density for density-based clustering on the given geometric space
+ * \param network for the network/microstate generation from density-based clustering results
+ * \param mpp for Most Probable Path clustering of microstates
+ * \param coring for boundary corrections of clustered state trajectories
+ * \param noise for defining and dynamically reassigning noise
+ * \param filter for fast filtering of coordinates, order parameters, etc. based on\n
+ *               a given state trajectory (i.e. clustering result)
+ */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   std::string general_help =
@@ -156,7 +162,7 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
+    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers. Note: Lagtime should be greater than the coring time/ smallest timescale. ")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
@@ -183,6 +189,8 @@ int main(int argc, char* argv[]) {
     "options"));
   desc_network.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("minpop,p", b_po::value<std::size_t>()->required(),
+          "(required): minimum population of node to be considered for network.")
     // optional
     ("basename,b", b_po::value<std::string>()->default_value("clust"),
           "(optional): basename of input files (default: clust).")
@@ -191,8 +199,6 @@ int main(int argc, char* argv[]) {
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
     ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
-    ("minpop,p", b_po::value<std::size_t>()->default_value(1),
-          "(optional): minimum population of node to be considered for network (default: 1).")
     ("network-html,n", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
@@ -249,7 +255,9 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (optional, file): file with no. of frames of each (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (file): file with sizes of individual (not equally sized)"
+      " sub-trajectories for concatenated trajectory files. e.g.: for a"
+      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
@@ -276,7 +284,9 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (optional, file): file with no. of frames of each (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (file): file with sizes of individual (not equally sized)"
+      " sub-trajectories for concatenated trajectory files. e.g.: for a"
+      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
