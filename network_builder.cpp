@@ -380,6 +380,7 @@ namespace NetworkBuilder {
     float d_step = args["step"].as<float>();
     std::string basename = args["basename"].as<std::string>();
     std::string basename_output = args["output"].as<std::string>();
+    basename.append(".%0.2f");
     std::string remapped_name = "remapped_" + basename;
     std::size_t minpop = args["minpop"].as<std::size_t>();
     bool network_html = args["network-html"].as<bool>();
@@ -389,7 +390,6 @@ namespace NetworkBuilder {
     std::map<std::size_t, std::size_t> pops;
     std::map<std::size_t, float> free_energies;
 
-    basename.append(".%0.2f");
 
     std::string fname_next = stringprintf(basename, d_min);
     if ( ! b_fs::exists(fname_next)) {
