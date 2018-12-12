@@ -372,9 +372,6 @@ int main(int argc, char* argv[]) {
          << "# please cite the corresponding paper, "
          << "see https://github.com/moldyn/clustering\n";
   args.insert(std::make_pair("header", b_po::variable_value(header.str(), false)));
-  std::ostringstream comment_end;
-  args.insert(std::make_pair("comment_end",
-                             b_po::variable_value(comment_end.str(), false)));
   // run selected subroutine
   switch(mode) {
     case DENSITY:

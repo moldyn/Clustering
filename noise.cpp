@@ -114,6 +114,8 @@ namespace Noise {
       }
       
       // open highest clust file
+      header_comment.append(Clustering::Tools::stringprintf("#\n# Execution remarks:\n"
+                            "# used for highest cluster file: %s\n", clust_filename.c_str()));
       Clustering::logger(std::cout) << "    highest cluster: " << clust_filename  << std::endl;
       std::vector<std::size_t> clust = Clustering::Tools::read_clustered_trajectory(clust_filename);
       if (n_frames != clust.size()) {
@@ -139,8 +141,11 @@ namespace Noise {
           ++noise_frames;
         }      
       }
-      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", (float) 100*noise_frames / n_frames)
+      float noise_frames_per = 100.*noise_frames / n_frames;
+      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", noise_frames_per)
                                     << "% of frames were identified as noise" << std::endl;
+      header_comment.append(Clustering::Tools::stringprintf("# %.2f", noise_frames_per) +
+                            "% of frames were identified as noise\n");
       // TODO: remove following line. Should we keep with argument?
       // Clustering::Tools::write_clustered_trajectory("microstatesNoiseDef", states);
       // noise core trajectory
@@ -173,10 +178,13 @@ namespace Noise {
         }
         last_limit = next_limit_corrected;
       }
-      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", (float) 100*changed_frames / n_frames)
+      float changed_frames_per = 100.*changed_frames / n_frames;
+      Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", changed_frames_per)
                                     << "% of frames were reassigned\n"
                                     << "    store result in: " << args["output"].as<std::string>()
                                     << std::endl;
+      header_comment.append(Clustering::Tools::stringprintf("# %.2f", changed_frames_per) +
+                            "% of frames were reassigned\n");
       // write cored trajectory to file
       if (args.count("output")) {
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
