@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <chrono>
+#include <iomanip>
 
 #include <cuda.h>
 #include <omp.h>
@@ -97,8 +98,8 @@ namespace CUDA {
       exit(EXIT_FAILURE);
     }
     unsigned int block_rng = min_multiplicator(i_to-i_from, block_size);
-    Clustering::logger(std::cout) << "# blocks needed: "
-                                  << block_rng << std::endl;
+//    Clustering::logger(std::cout) << "# blocks needed: "
+//                                  << block_rng << std::endl;
     for (unsigned int i=0; i*block_size < n_rows; ++i) {
       Clustering::Density::CUDA::Kernel::population_count
       <<< block_rng
@@ -419,10 +420,11 @@ namespace CUDA {
                                                         , initial_clusters);
     // measure runtime & give some informative output
     std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
-    Clustering::logger(std::cout) << "FE: "
-                                  << free_energy_threshold
-                                  << "    frames: "
-                                  << first_frame_above_threshold;
+    Clustering::logger(std::cout) << "    " << std::setw(6)
+                                  << Clustering::Tools::stringprintf("%.3f", free_energy_threshold)
+                                  << " " << std::setw(9)
+                                  << Clustering::Tools::stringprintf("%i", first_frame_above_threshold)
+                                  << std::endl;
     float max_dist2 = 4*sigma2;
     // prepare CUDA environment
     int n_gpus = get_num_gpus();
@@ -581,11 +583,11 @@ namespace CUDA {
     }
     // final output
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-    Clustering::logger(std::cout) << "    runtime: "
-                                  << std::chrono::duration_cast
-                                       <std::chrono::seconds>(t1-t0).count()
-                                  << " secs"
-                                  << std::endl;
+//    Clustering::logger(std::cout) << "    runtime: "
+//                                  << std::chrono::duration_cast
+//                                       <std::chrono::seconds>(t1-t0).count()
+//                                  << " secs"
+//                                  << std::endl;
     return normalized_cluster_names(first_frame_above_threshold
                                   , clustering
                                   , fe_sorted);

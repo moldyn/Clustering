@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -35,10 +35,20 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/program_options.hpp>
 
 #include "tools.hpp"
+/*! \file
+ * \brief Density-based clustering
+ *
+ * \sa \link Clustering::Noise
+ */
 
 //! general namespace for clustering package
 namespace Clustering {
-  //! namespace for density-based clustering functions
+  /*!
+   * \brief namespace for density-based clustering functions
+   *
+   * This module contains all function for assigning each frame a free energy
+   * and a nearest neighbor. Further, it identifies clusters.
+   */
   namespace Density {
     //! matches frame id to free energy
     using FreeEnergy = std::pair<std::size_t, float>;
@@ -170,6 +180,16 @@ namespace Clustering {
     //! with x being the distances between nearest neighbors).
     double
     compute_sigma2(const Neighborhood& nh);
+    //! compare two two dimensional pairs by their second entry
+    bool
+    compare2DVector(const std::pair<std::size_t,std::size_t>& p1,
+                    const std::pair<std::size_t,std::size_t>& p2);
+    //! check if float has at maximum two digits
+    bool
+    has2digits(float val);
+    //! sorts the cluster by decreasing population and renames them from 1..N
+    std::vector<std::size_t>
+    sorted_cluster_names (std::vector<std::size_t> clustering);
     //! given an initial clustering computed from free energy cutoff screenings,
     //! assign all yet unclustered frames (those in 'state 0') to their geometrically
     //! next cluster. do this by starting at the lowest free energy of unassigned frames,
@@ -180,20 +200,19 @@ namespace Clustering {
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
                               const std::vector<float>& free_energy);
-    //! user interface and controlling function for density-based geometric clustering.\n\n
-    //! *parsed parameters*:\n
-    //!   - **file** : input file with coordinates\n
-    //!   - **free-energy-input**: previously computed free energies (input)\n
-    //!   - **free-energy**: computed free energies (output)\n
-    //!   - **population**: computed populations (output)\n
-    //!   - **output**: clustered trajectory\n
-    //!   - **radii**: list of radii for free energy / population computations (input)\n
-    //!   - **radius**: radius for clustering (input)\n
-    //!   - **nearest-neighbors-input**: previously computed nearest neighbor list (input)\n
-    //!   - **nearest-neighbors**: nearest neighbor list (output)\n
-    //!   - **threshold-screening**: option for automated free energy threshold screening (input)\n
-    //!   - **threshold**: threshold for single run with limited free energy (input)\n
-    //!   - **only-initial**: if true, do not fill microstates up to barriers,
+    //! \brief user interface and controlling function for density-based geometric clustering.
+    //! \param file input file with coordinates
+    //! \param free-energy-input previously computed free energies (input)
+    //! \param free-energy computed free energies (output)
+    //! \param population computed populations (output)
+    //! \param output clustered trajectory
+    //! \param radii list of radii for free energy / population computations (input)
+    //! \param radius radius for clustering (input)
+    //! \param nearest-neighbors-input previously computed nearest neighbor list (input)
+    //! \param nearest-neighbors nearest neighbor list (output)
+    //! \param threshold-screening option for automated free energy threshold screening (input)
+    //! \param threshold threshold for single run with limited free energy (input)
+    //! \param only-initial if true, do not fill microstates up to barriers,
     //!                       but keep initial clusters below free energy cutoff (bool flag)
     void
     main(boost::program_options::variables_map args);

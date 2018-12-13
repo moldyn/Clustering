@@ -29,50 +29,44 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/program_options.hpp>
 /*! \file
- * \brief Dynamical Coring
+ * \brief Noise Assignment
  *
- * \sa \link Clustering::Coring
+ * \sa \link Clustering::Noise
  */
-
 namespace Clustering {
   /*!
-   * \brief functions related to dynamical coring
+   * \brief functions related to noise assignment
    *
-   * This module contains all functions for finding the optimal coring time and
-   * dynamical coring. The underlaying principal is to define dynamical cores.
-   * In contrast to geometrical cores, this algorithm scales linear with the
-   * the number of frames. The idea is to require after a transition to stay
-   * at least for a certain time (coring time) in the new state, otherwise
-   * the transition is identified as intrastate fluctuation and the frames are
-   * are assigned to the previous state. A more in detail discussion can be
-   * found in Nagel19.
+   * This module contains all function for identifying and dynamically
+   * reassigning noise. The underlaying principal is to assign low populated
+   * regions dynamically to the previous state, to improve the meta-stability
+   * of the resulting states.
+   * In Nagel19 it was shown that this works better than coring in case of low
+   * dimensional input. I.e., if the input is not homogeniously distributed in
+   * the input coordinates.
    */
-  namespace Coring {
-    //! store the waiting time distribution for each state with time vs count.
-    typedef std::map<std::size_t, float> WTDMap;
+  namespace Noise {
+    //! map for sorting clusters by population
+    typedef std::map<int,unsigned int> CounterClustMap;
 
     /*!
-     * \brief compute the waiting time distribution for single state
-     *
-     * \param streaks array with all wainting times
-     */    
-    WTDMap
-    compute_wtd(std::list<std::size_t> streaks);
-
-    /*!
-     * \brief controlling function and user interface for boundary corrections
+     * \brief controlling function and user interface for noise assignment
      *
      * \param states single column file with state information.
-     * \param windows double column file with states and their coring time
-     * \param distribution generate and write waiting time distributions to file.
-     * \param output file name to store resulting trajectory.
+     * \param basename basename used in 'clustering network' (def.: 'clust.').
+     * \param cmin population threshold in percent below which an geometrically
+     *            isolated cluster gets assigned as noise.
      * \param concat-nframes no. of frames per trajectory.
      * \param concat-limits length of concated trajectories.
+     * \param output file name to store resulting trajectory.
      * \param cores file name to store resulting cores.
      * \return void
+     * \note This code needs to be executed from the same directory as clustering
+     *       density
+     * \warning This function is still in beta.
      */
     void
     main(boost::program_options::variables_map args);
-  } // end namespace Coring
+  } // end namespace Noise
 } // end namespace Clustering
 

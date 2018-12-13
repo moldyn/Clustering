@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #else
   #define ASSUME_ALIGNED(c) (c) = (float*) __builtin_assume_aligned( (c), DC_MEM_ALIGNMENT)
 #endif
+/*! \file
+ * \brief Tools mainly for IO and some other functions
+ *
+ * \sa \link Clustering::Tools
+ */
 
 namespace Clustering {
-//! additional tools used throughout the *clustering* package
+/*!
+ * \brief additional tools used throughout the *clustering* package
+ *
+ * This module contains helper functions. Most of them are for reading or
+ * writing files.
+ */
 namespace Tools {
   //! matches neighbor's frame id to distance
   using Neighbor = std::pair<std::size_t, float>;
@@ -56,16 +66,17 @@ namespace Tools {
   using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
   //! write populations as column into given file
   void
-  write_pops(std::string fname, std::vector<std::size_t> pops);
+  write_pops(std::string fname, std::vector<std::size_t> pops, std::string header_comment);
   //! write free energies as column into given file
   void
-  write_fes(std::string fname, std::vector<float> fes);
+  write_fes(std::string fname, std::vector<float> fes, std::string header_comment);
   //! read states from trajectory (given as plain text file)
   std::vector<std::size_t>
   read_clustered_trajectory(std::string filename);
   //! write state trajectory into plain text file
   void
-  write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj);
+  write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
+                             std::string header_comment);
   //! read single column of numbers from given file. number type (int, float, ...) given as template parameter
   template <typename NUM>
   std::vector<NUM>
@@ -73,14 +84,20 @@ namespace Tools {
   //! write single column of numbers to given file. number type (int, float, ...) given as template parameter
   template <typename NUM>
   void
-  write_single_column(std::string filename, std::vector<NUM> dat, bool with_scientific_format=false);
+  write_single_column(std::string filename, std::vector<NUM> dat,
+                      std::string header_comment, bool with_scientific_format=false);
   //! write key-value map to plain text file with key as first and value as second column
   template <typename KEY, typename VAL>
   void
-  write_map(std::string filename, std::map<KEY, VAL> mapping);
+  write_map(std::string filename, std::map<KEY, VAL> mapping,
+            std::string header_comment, bool val_then_key=false);
   //! read free energies from plain text file
   std::vector<float>
   read_free_energies(std::string filename);
+  //! read conact limits
+  //! takes length of the single trajectories.
+  std::vector<std::size_t>
+  read_concat_limits(std::string filename);
   //! read neighborhood info from plain text file
   //! (two different neighborhoods: nearest neighbor (NN) and NN with higher density)
   std::pair<Neighborhood, Neighborhood>
@@ -90,7 +107,8 @@ namespace Tools {
   void
   write_neighborhood(const std::string fname,
                      const Neighborhood& nh,
-                     const Neighborhood& nh_high_dens);
+                     const Neighborhood& nh_high_dens,
+                     std::string header_comment);
   //! compute microstate populations from clustered trajectory
   std::map<std::size_t, std::size_t>
   microstate_populations(std::vector<std::size_t> traj);
@@ -143,6 +161,10 @@ namespace Tools {
   template <typename T>
   std::vector<T>
   unique_elements(std::vector<T> xs);
+  //! check if concat limits were passed correctly
+  void
+  check_concat_limits(std::vector<std::size_t> concat_limits,
+                      std::size_t n_frames);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
 

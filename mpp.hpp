@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net) All rights reserved.
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -35,9 +36,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/numeric/ublas/io.hpp>
 
 #include "tools.hpp"
+/*! \file
+ * \brief Most Probable Path Clustering
+ *
+ * \sa \link Clustering::MPP
+ */
 
 namespace Clustering {
-  //! functions related to "Most Probable Path"-clustering
+  /*!
+   * \brief functions related to "Most Probable Path"-clustering
+   *
+   * This module contains all function for dynamical clustering. In contrast to
+   * density-based clustering, can it only be applied to previously clustered
+   * trajectories. The idea is to create, based on a microstate input, a
+   * coarse-grained model (macrostates).
+   * The most probable path depends strongly on the selected timescale (mpp
+   * time). If the input was dynamically cored, the mpp time needs to be
+   * greater than the coring time.
+   */
   namespace MPP {
     //! BOOST implementation of a sparse matrix for floats
     using SparseMatrixF = boost::numeric::ublas::mapped_matrix<float>;
@@ -111,17 +127,19 @@ namespace Clustering {
                                    float q_min,
                                    std::vector<float> free_energy);
     /*!
-     * MPP clustering control function and user interface\n
-     * 
-     * *parsed arguments*:
-     *   - **basename**: name format for output files
-     *   - **input**: input file with microstate trajectory
-     *   - **lagtime**: lag for transition estimation in units of frame numbers
-     *   - **qmin-from**: lower limit for metastability (Q_min)
-     *   - **qmin-to**: upper limit for metastability (Q_min)
-     *   - **qmin-step**: stepping for metastability (Q_min)
-     *   - **concat-limits**: discontinuities for concatenated, non-uniformly long trajectories
-     *   - **concat-nframes**: number of frames per sub-trajectory for concatenated, uniformly long trajectories
+     * \brief MPP clustering control function and user interface
+     *
+     * \param input input file with microstate trajectory
+     * \param basename name format for output files
+     * \param lagtime lag for transition estimation in units of frame numbers
+     * \param qmin-from lower limit for metastability (Q_min)
+     * \param qmin-to upper limit for metastability (Q_min)
+     * \param qmin-step stepping for metastability (Q_min)
+     * \param concat-nframes no. of frames per trajectory.
+     * \param concat-limits length of concated trajectories.
+     * \return void
+     * \note Lagtime should be greater than the coring time/ smallest
+     *       timescale.
      */
     void
     main(boost::program_options::variables_map args);

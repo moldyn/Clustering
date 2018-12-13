@@ -25,6 +25,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "logger.hpp"
 #include "density_clustering_common.hpp"
+#include <iomanip>
 
 #ifdef DC_USE_MPI
   #include "density_clustering_mpi.hpp"
@@ -66,6 +67,11 @@ namespace Density {
                                                        , free_energy_threshold
                                                        , n_rows
                                                        , initial_clusters);
+    Clustering::logger(std::cout) << "    " << std::setw(6)
+                                  << Clustering::Tools::stringprintf("%.3f", free_energy_threshold)
+                                  << " " << std::setw(9)
+                                  << Clustering::Tools::stringprintf("%i", first_frame_above_threshold)
+                                  << std::endl;
 #ifdef DC_USE_MPI
     if (mpi_node_id == MAIN_PROCESS) {
 #endif
@@ -85,7 +91,7 @@ namespace Density {
 #ifdef DC_USE_MPI
       if (mpi_node_id == MAIN_PROCESS) {
 #endif
-        logger(std::cout) << "initial merge iteration" << std::endl;
+//        logger(std::cout) << "initial merge iteration" << std::endl;
 #ifdef DC_USE_MPI
       }
 #endif

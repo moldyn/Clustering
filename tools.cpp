@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,6 +24,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "tools.hpp"
+#include "logger.hpp"
 
 #include <cmath>
 #include <stdarg.h>
@@ -38,55 +39,27 @@ min_multiplicator(unsigned int orig
 };
 
 void
-write_fes(std::string fname, std::vector<float> fes) {
-  std::ofstream ofs(fname);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    ofs << std::scientific;
-    for (float f: fes) {
-      ofs << f << "\n";
-    }
-  }
+write_fes(std::string filename, std::vector<float> fes, std::string header_comment) {
+  header_comment.append("#\n# free energy of each frame\n");
+  write_single_column<float>(filename, fes, header_comment, true);
 }
 
 void
-write_pops(std::string fname, std::vector<std::size_t> pops) {
-  // technically the same ...
-  write_clustered_trajectory(fname, pops);
+write_pops(std::string filename, std::vector<std::size_t> pops, std::string header_comment) {
+  header_comment.append("#\n# point density of each frame\n");
+  write_single_column<std::size_t>(filename, pops, header_comment, false);
 }
 
 std::vector<std::size_t>
 read_clustered_trajectory(std::string filename) {
-  std::vector<std::size_t> traj;
-  std::ifstream ifs(filename);
-  if (ifs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    while (ifs.good()) {
-      std::size_t buf;
-      ifs >> buf;
-      if ( ! ifs.fail()) {
-        traj.push_back(buf);
-      }
-    }
-  }
-  return traj;
+  return read_single_column<std::size_t>(filename);
 }
 
 void
-write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj) {
-  std::ofstream ofs(filename);
-  if (ofs.fail()) {
-    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
-    exit(EXIT_FAILURE);
-  } else {
-    for (std::size_t c: traj) {
-      ofs << c << "\n";
-    }
-  }
+write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
+                           std::string header_comment) {
+  header_comment.append("#\n# state/cluster frames are assigned to\n");
+  write_single_column<std::size_t>(filename, traj, header_comment, false);
 }
 
 //// from: https://github.com/lettis/Kubix
@@ -120,16 +93,16 @@ read_free_energies(std::string filename) {
 }
 
 std::pair<Neighborhood, Neighborhood>
-read_neighborhood(const std::string fname) {
+read_neighborhood(const std::string filename) {
   Neighborhood nh;
   Neighborhood nh_high_dens;
-  std::ifstream ifs(fname);
+  std::ifstream ifs(filename);
   if (ifs.fail()) {
-    std::cerr << "error: cannot open file '" << fname << "' for reading." << std::endl;
+    std::cerr << "error: cannot open file '" << filename << "' for reading." << std::endl;
     exit(EXIT_FAILURE);
   } else {
     std::size_t i=0;
-    while (ifs.good()) {
+    while (!ifs.eof() && !ifs.bad()) {
       std::size_t buf1;
       float buf2;
       std::size_t buf3;
@@ -142,17 +115,43 @@ read_neighborhood(const std::string fname) {
         nh[i] = std::pair<std::size_t, float>(buf1, buf2);
         nh_high_dens[i] = std::pair<std::size_t, float>(buf3, buf4);
         ++i;
+      } else {  // if conversion error, skip (comment) line
+        ifs.clear();
+        ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       }
     }
   }
   return {nh, nh_high_dens};
 }
 
+std::vector<std::size_t>
+read_concat_limits(std::string filename) {
+  std::vector<std::size_t> concat_limits = read_single_column<std::size_t>(filename);
+
+  for (std::size_t i=0; i+1 < concat_limits.size(); ++i){
+    concat_limits[i+1] += concat_limits[i];
+  }
+
+  return concat_limits;
+}
+
 void
-write_neighborhood(const std::string fname,
+write_neighborhood(const std::string filename,
                    const Neighborhood& nh,
-                   const Neighborhood& nh_high_dens) {
-  std::ofstream ofs(fname);
+                   const Neighborhood& nh_high_dens,
+                   std::string header_comment) {
+  std::ofstream ofs(filename);
+  if (ofs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  header_comment.append("#\n# column definitions:\n"
+                        "#        nn = nearest neighbor\n"
+                        "#     nn_hd = nearest neighbor with higher density\n"
+                        "#     id(i) = id/line number of i\n"
+                        "#   dsqr(i) = squared euclidean distance to i\n#\n"
+                        "# id(nn)  dsqr(nn) id(nn_hd) dsqr(nn_hd)\n");
+  ofs << header_comment;
   auto p = nh.begin();
   auto p_hd = nh_high_dens.begin();
   while (p != nh.end() && p_hd != nh_high_dens.end()) {
@@ -178,6 +177,25 @@ microstate_populations(std::vector<std::size_t> traj) {
   }
   return populations;
 }
+
+void
+check_concat_limits(std::vector<std::size_t> concat_limits, std::size_t n_frames) {
+  if (concat_limits.back() < n_frames) {
+    Clustering::logger(std::cout) << "warning: last " << n_frames - concat_limits.back()
+                                  << " frames are ignored. check concat-limits/nframes"
+                                  << std::endl;
+  }
+  if (concat_limits.front() == 0) {
+    Clustering::logger(std::cout) << "warning: first trajectory is of zero length. check\n"
+                                  << "         help for correct usage of --concat-limits"
+                                  << std::endl;
+  }
+  if (concat_limits.back() > n_frames) {
+    Clustering::logger(std::cout) << "warning: limits are larger than the file length.\n"
+                                  << "         Check your limits!" <<std::endl;
+  }
+}
+
 
 } // end namespace Tools
 } // end namespace Clustering

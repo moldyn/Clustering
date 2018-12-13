@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, Florian Sittel (www.lettis.net)
+Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,14 +24,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*!\file
+ * \brief Wrapper for *clustering* package
  *
- * The main function of 'clustering' is essentially being a wrapper around the different sub-modules:
- *   - **density**: for density-based clustering on the given geometric space
- *   - **network**: for the network/microstate generation from density-based clustering results
- *   - **mpp**:     for Most Probable Path clustering of microstates
- *   - **coring**:  for boundary corrections of clustered state trajectories
- *   - **filter**:  for fast filtering of coordinates, order parameters, etc. based on\n
- *                  a given state trajectory (i.e. clustering result)
+ * The main function of *clustering* is essentially being a wrapper around the different sub-modules:
+ * density, network, mpp, coring, noise and filter.
+ * \sa \link main()
  */
 
 #include "config.hpp"
@@ -47,17 +44,30 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "network_builder.hpp"
 #include "state_filter.hpp"
 #include "coring.hpp"
+#include "noise.hpp"
 // toolset
 #include "logger.hpp"
 #include "tools.hpp"
 
 #include <omp.h>
+#include <time.h>
 #include <boost/program_options.hpp>
-
+/*! \brief Parses option and execute corresponding sub-module
+ *
+ * This method parses the arguments and calls the corresponding sub-modules.
+ * \param density for density-based clustering on the given geometric space
+ * \param network for the network/microstate generation from density-based clustering results
+ * \param mpp for Most Probable Path clustering of microstates
+ * \param coring for boundary corrections of clustered state trajectories
+ * \param noise for defining and dynamically reassigning noise
+ * \param filter for fast filtering of coordinates, order parameters, etc. based on\n
+ *               a given state trajectory (i.e. clustering result)
+ */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string general_help = 
-    "clustering - a classification framework for MD data\n"
+  std::string general_help =
+    "\nclustering 0.13: a classification framework for MD data\n"
+    "Copyright (c) 2015-2018, Florian Sittel and Daniel Nagel\n"
     "\n"
     "modes:\n"
     "  density: run density clustering\n"
@@ -65,6 +75,7 @@ int main(int argc, char* argv[]) {
     "  mpp:     run MPP (Most Probable Path) clustering\n"
     "           (based on density-results)\n"
     "  coring:  boundary corrections for clustering results.\n"
+    "  noise:   defining and dynamically reassigning noise.\n"
     "  filter:  filter phase space (e.g. dihedrals) for given state\n"
     "\n"
     "usage:\n"
@@ -74,7 +85,7 @@ int main(int argc, char* argv[]) {
     "  clustering density -h\n"
   ;
 
-  enum {DENSITY, MPP, NETWORK, FILTER, CORING} mode;
+  enum {DENSITY, MPP, NETWORK, FILTER, CORING, NOISE} mode;
 
 #ifdef USE_CUDA
   // check for CUDA-enabled GPUs (will fail if none found)
@@ -97,6 +108,8 @@ int main(int argc, char* argv[]) {
       mode = FILTER;
     } else if (str_mode.compare("coring") == 0) {
       mode = CORING;
+    } else if (str_mode.compare("noise") == 0) {
+      mode = NOISE;
     } else {
       std::cerr << "\nerror: unrecognized mode '" << str_mode << "'\n\n";
       std::cerr << general_help;
@@ -117,8 +130,8 @@ int main(int argc, char* argv[]) {
   desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
-    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius.")
     // optional
+    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius. If not used, the lumping radius will be used instead.")
     ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(),
                                           "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
                                           "set -T -1 for default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"
@@ -142,14 +155,14 @@ int main(int argc, char* argv[]) {
   // MPP options
   b_po::options_description desc_mpp (std::string(argv[1]).append(
     "\n\n"
-    "TODO: description for MPP"
+    "performs a most probable path (MPP) clustering based on the given lag time."
     "\n"
     "options"));
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers.")
+    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers. Note: Lagtime should be greater than the coring time/ smallest timescale. ")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
     ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
     ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
@@ -171,19 +184,22 @@ int main(int argc, char* argv[]) {
   // network options
   b_po::options_description desc_network (std::string(argv[1]).append(
     "\n\n"
-    "TODO: description for network builder"
+    "create a network from screening data."
     "\n"
     "options"));
   desc_network.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
+    ("minpop,p", b_po::value<std::size_t>()->required(),
+          "(required): minimum population of node to be considered for network.")
     // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust.\%0.2f"),
-          "(optional): basename of input files (default: clust.\%0.2f).")
+    ("basename,b", b_po::value<std::string>()->default_value("clust"),
+          "(optional): basename of input files (default: clust).")
+    ("output,o", b_po::value<std::string>()->default_value("network"),
+          "(optional): basename of output files (default: network).")
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
     ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
-    ("minpop,p", b_po::value<std::size_t>()->default_value(1),
-          "(optional): minimum population of node to be considered for network (default: 1).")
+    ("network-html,n", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
@@ -217,9 +233,8 @@ int main(int argc, char* argv[]) {
   desc_coring.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
         "show this help.")
-    // optional
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory")
+        "(required): file with state information (i.e. clustered trajectory)")
     ("windows,w", b_po::value<std::string>()->required(), 
         "(required): file with window sizes."
         "format is space-separated lines of\n\n"
@@ -230,6 +245,7 @@ int main(int argc, char* argv[]) {
         "3 40\n"
         "4 60\n\n"
         "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states")
+    // optional
     ("output,o", b_po::value<std::string>(),
         "(optional): cored trajectory")
     ("distribution,d", b_po::value<std::string>(),
@@ -239,11 +255,42 @@ int main(int argc, char* argv[]) {
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (optional, file): file with frame ids (base 0) of first frames per (not equally sized) sub-trajectory for concatenated trajectory files.")
+      "input (file): file with sizes of individual (not equally sized)"
+      " sub-trajectories for concatenated trajectory files. e.g.: for a"
+      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
         "verbose mode: print runtime information to STDOUT.")
   ;
+  // noise options
+  b_po::options_description desc_noise (std::string(argv[1]).append(
+    "\n\n"
+    "defining and dynamically reassigning noise for clustering results."
+    "\n"
+    "options"));
+  desc_noise.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false),
+        "show this help.")
+    ("states,s", b_po::value<std::string>()->required(),
+        "(required): file with state information (i.e. clustered trajectory")
+    // optional
+    ("basename,b", b_po::value<std::string>()->default_value("clust."),
+          "(optional): basename of input files (default: clust.) used to determine isolated clusters")
+    ("cmin,c", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): population (in percent) threshold below which an isolated cluster is assigned as noise.(default: 0.1).")
+    ("output,o", b_po::value<std::string>(),
+        "(optional): noise-reassigned trajectory")
+    ("cores", b_po::value<std::string>(),
+        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+    ("concat-nframes", b_po::value<std::size_t>(),
+      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+      "input (file): file with sizes of individual (not equally sized)"
+      " sub-trajectories for concatenated trajectory files. e.g.: for a"
+      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+    // defaults
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+        "verbose mode: print runtime information to STDOUT.")
+  ;  
   // parse cmd arguments           
   b_po::options_description desc;  
   switch(mode){                    
@@ -262,6 +309,9 @@ int main(int argc, char* argv[]) {
     case CORING:
       desc.add(desc_coring);
       break;
+    case NOISE:
+      desc.add(desc_noise);
+      break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;
       return EXIT_FAILURE;
@@ -270,9 +320,10 @@ int main(int argc, char* argv[]) {
     b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
     b_po::notify(args);
   } catch (b_po::error& e) {
-    if ( ! args["help"].as<bool>()) {
+// TODO: this is just a temporal solution
+//    if ( ! args["help"].as<bool>()) {
       std::cerr << "\nerror parsing arguments:\n\n" << e.what() << "\n\n" << std::endl;
-    }
+//    }
     std::cerr << desc << std::endl;
     return EXIT_FAILURE;
   }
@@ -284,6 +335,18 @@ int main(int argc, char* argv[]) {
   if (args.count("verbose")) {
     Clustering::verbose = args["verbose"].as<bool>();
   }
+  // print head
+  std::string leading_whitespace(20, ' ');
+  std::string leading_whitespace2nd(20 + (20-strlen(argv[1]))/2, ' ');
+  Clustering::logger(std::cout) << "\n" << leading_whitespace
+                                << "~~~ clustering v0.13 ~~~\n"
+                                << leading_whitespace2nd << "~ " << argv[1] << " ~\n\n"
+                                << "~~~ using for parallization: ";
+#ifdef USE_CUDA
+      Clustering::logger(std::cout) << "CUDA" << std::endl;
+#else
+      Clustering::logger(std::cout) << "cpu" << std::endl;
+#endif
   // setup OpenMP
   int n_threads = 0;
   if (args.count("nthreads")) {
@@ -292,6 +355,23 @@ int main(int argc, char* argv[]) {
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
   }
+  // generate header comment
+  std::ostringstream header;
+  time_t rawtime;
+  time(&rawtime);
+  struct tm * timeinfo = localtime(&rawtime);
+  header << "# clustering v0.13 - " << argv[1] << "\n"
+         << "#\n"
+         << "# Created " << asctime(timeinfo)
+         << "# by following command:\n#\n# ";
+  std::vector<std::string> arguments(argv, argv + argc);
+  for (std::string& arg_string : arguments){
+      header << arg_string << " ";
+  }
+  header << "\n#\n# Copyright (c) 2015-2018 Florian Sittel and Daniel Nagel\n"
+         << "# please cite the corresponding paper, "
+         << "see https://github.com/moldyn/clustering\n";
+  args.insert(std::make_pair("header", b_po::variable_value(header.str(), false)));
   // run selected subroutine
   switch(mode) {
     case DENSITY:
@@ -312,6 +392,9 @@ int main(int argc, char* argv[]) {
       break;
     case CORING:
       Clustering::Coring::main(args);
+      break;
+    case NOISE:
+      Clustering::Noise::main(args);
       break;
     default:
       std::cerr << "error: unknown mode. this should never happen." << std::endl;

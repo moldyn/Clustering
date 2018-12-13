@@ -35,6 +35,8 @@ cp -r clustering.cpp\
       tools.hxx\
       coring.cpp\
       coring.hpp\
+      noise.cpp\
+      noise.hpp\
       embedded_cytoscape.hpp\
       doc\
       doxygen.config\
