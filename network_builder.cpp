@@ -36,7 +36,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/progress.hpp>
+//#include <boost/progress.hpp>
 #include <omp.h>
 
 
@@ -312,10 +312,9 @@ namespace {
     // may be multiple trees because there may be multiple nodes that have max FE.
     Node fake_root;
     std::size_t network_size = network.size();
-    boost::progress_display show_progress(network_size);
+    //boost::progress_display show_progress(network_size);
     for (auto from_to: network) {
-      ++show_progress;
-      std::string ws(60, ' ');
+      //++show_progress;
 
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
