@@ -164,7 +164,8 @@ int main(int argc, char* argv[]) {
     "options"));
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    ("input,i", b_po::value<std::string>()->required(), "input (required): initial state definition.")
+    ("states,s", b_po::value<std::string>()->required(),
+        "(required): file with state information (i.e. clustered trajectory")
     ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
     ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers. Note: Lagtime should be greater than the coring time/ smallest timescale. ")
     ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
@@ -254,13 +255,13 @@ int main(int argc, char* argv[]) {
         "* 20\n"
         "3 40\n"
         "4 60\n\n"
-        "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states")
+        "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states.")
     // optional
     ("output,o", b_po::value<std::string>(),
         "(optional): cored trajectory")
     ("distribution,d", b_po::value<std::string>(),
         "(optional): write waiting time distributions to file.")
-    ("cores,c", b_po::value<std::string>(),
+    ("cores", b_po::value<std::string>(),
         "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
     ("concat-nframes", b_po::value<std::size_t>(),
       "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
@@ -284,13 +285,13 @@ int main(int argc, char* argv[]) {
     ("help,h", b_po::bool_switch()->default_value(false),
         "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory")
+        "(required): file with state information (i.e. clustered trajectory)")
+    ("output,o", b_po::value<std::string>()->required(),
+        "(required): noise-reassigned trajectory")
     // optional
-    ("basename,b", b_po::value<std::string>()->default_value("clust."),
-          "(optional): basename of input files (default: clust.) used to determine isolated clusters")
+    ("basename,b", b_po::value<std::string>()->default_value("clust"),
+          "(optional): basename of input files (default: clust) used to determine isolated clusters")
     ("cmin,c", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): population (in percent) threshold below which an isolated cluster is assigned as noise.(default: 0.1).")
-    ("output,o", b_po::value<std::string>(),
-        "(optional): noise-reassigned trajectory")
     ("cores", b_po::value<std::string>(),
         "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
     ("concat-nframes", b_po::value<std::size_t>(),

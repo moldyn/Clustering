@@ -493,13 +493,13 @@ namespace Clustering {
       using Clustering::Tools::write_single_column;
       using Clustering::Tools::write_map;
       // load initial trajectory, free energies, etc
-      std::string basename = args["basename"].as<std::string>();
+      std::string basename = args["output"].as<std::string>();
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
       std::string header_comment = args["header"].as<std::string>();
       Clustering::logger(std::cout) << "~~~ reading files\n"
-                                    << "    trajectory from: " << args["input"].as<std::string>()
+                                    << "    trajectory from: " << args["states"].as<std::string>()
                                     << std::endl;
       std::vector<std::size_t> traj;
       traj = read_clustered_trajectory(args["input"].as<std::string>());
