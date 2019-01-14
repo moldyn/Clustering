@@ -92,19 +92,19 @@ include_directories(${CMAKE_BINARY_DIR}/generated/)
 find_package (Boost 1.49 COMPONENTS program_options system filesystem REQUIRED)
 include_directories (${Boost_INCLUDE_DIR})
 
-add_subdirectory(coords_file)
+add_subdirectory(src/coords_file)
 
 
-set(CLUSTERING_SRCS clustering.cpp
-                    density_clustering.cpp
-                    density_clustering_common.cpp
-                    mpp.cpp
-                    network_builder.cpp
-                    state_filter.cpp
-                    coring.cpp
-                    noise.cpp
-                    tools.cpp
-                    logger.cpp)
+set(CLUSTERING_SRCS src/clustering.cpp
+                    src/density_clustering.cpp
+                    src/density_clustering_common.cpp
+                    src/mpp.cpp
+                    src/network_builder.cpp
+                    src/state_filter.cpp
+                    src/coring.cpp
+                    src/noise.cpp
+                    src/tools.cpp
+                    src/logger.cpp)
 
 set(CLUSTERING_LIBS ${Boost_LIBRARIES} coords_file)
 
@@ -118,8 +118,8 @@ if(${USE_CUDA})
   #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-g -G")
 
   set (CLUSTERING_SRCS ${CLUSTERING_SRCS}
-                       density_clustering_cuda.cu
-                       density_clustering_cuda_kernels.cu)
+                       src/density_clustering_cuda.cu
+                       src/density_clustering_cuda_kernels.cu)
 
   set (CLUSTERING_LIBS ${CLUSTERING_LIBS} ${CUDA_LIBRARIES})
   include_directories (${CUDA_INCLUDE_DIRS})
@@ -153,5 +153,5 @@ install(TARGETS ${PROGNAME} RUNTIME DESTINATION .)
 # create source-doc with doxygen
 add_custom_target(doc
                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                  COMMAND doxygen doxygen.config)
+                  COMMAND doxygen doxygenNew.config)
 
