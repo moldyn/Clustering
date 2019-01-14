@@ -497,18 +497,26 @@ namespace Clustering {
       std::map<std::size_t, std::pair<std::size_t, float>> transitions;
       std::map<std::size_t, std::size_t> max_pop;
       std::map<std::size_t, float> max_qmin;
-      std::string header_comment = args["header"].as<std::string>();
       Clustering::logger(std::cout) << "~~~ reading files\n"
                                     << "    trajectory from: " << args["states"].as<std::string>()
                                     << std::endl;
       std::vector<std::size_t> traj;
-      traj = read_clustered_trajectory(args["input"].as<std::string>());
+      traj = read_clustered_trajectory(args["states"].as<std::string>());
+
+      // read previously used parameters
+      std::string header_comment = args["header"].as<std::string>();
+      std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
+      Clustering::Tools::read_comments(args["states"].as<std::string>(), commentsMap);
+
       std::size_t n_frames = traj.size();
       Clustering::logger(std::cout) << "    free energy from: "
                                     << args["free-energy-input"].as<std::string>()
                                     << std::endl;
       std::string fname_fe_in = args["free-energy-input"].as<std::string>();
       std::vector<float> free_energy = read_free_energies(fname_fe_in);
+      //check if input is consistent
+      Clustering::Tools::read_comments(args["free-energy-input"].as<std::string>(), commentsMap);
+
       float q_min_from = args["qmin-from"].as<float>();
       float q_min_to = args["qmin-to"].as<float>();
       float q_min_step = args["qmin-step"].as<float>();
@@ -532,12 +540,16 @@ namespace Clustering {
 
       SparseMatrixF trans_prob;
       bool tprob_given = args.count("tprob");
+      Clustering::logger(std::cout) << "~~~ transition matrix" << std::endl;
       if (tprob_given) {
         // read transition matrix from file
         std::string tprob_fname = args["tprob"].as<std::string>();
+        Clustering::logger(std::cout) << "    read from " << tprob_fname << "\n"
+                                      << "     lagtime -l will be ignored." << std::endl;
         trans_prob = read_transition_probabilities(tprob_fname);
       } else {
         // compute transition matrix from trajectory
+        Clustering::logger(std::cout) << "    compute it" << std::endl;
         auto microstate_names = std::set<std::size_t>(traj.begin(), traj.end());
         if (diff_sized_chunks) {
           trans_prob = row_normalized_transition_probabilities(
@@ -559,6 +571,12 @@ namespace Clustering {
                                                              , trans_prob
                                                              , q_min
                                                              , free_energy);
+
+        std::string header_qmin = header_comment;
+        Clustering::Tools::append_commentsMap(header_qmin, commentsMap);
+        header_qmin.append(Clustering::Tools::stringprintf(
+                "#\n# mpp specific parameters: \n"
+                "#    qmin = %0.3f \n", q_min));
         // reuse updated transition matrix in next iteration
         trans_prob = std::get<2>(traj_sinks_tprob);
         // write trajectory at current Qmin level to file
@@ -566,7 +584,7 @@ namespace Clustering {
         write_single_column(stringprintf("%s_traj_%0.3f.dat"
                                        , basename.c_str()
                                        , q_min)
-                          , traj, header_comment);
+                          , traj, header_qmin);
         // save transitions (i.e. lumping of states)
         std::map<std::size_t, std::size_t> sinks = std::get<1>(traj_sinks_tprob);
         for (auto from_to: sinks) {
@@ -578,7 +596,7 @@ namespace Clustering {
         write_map<std::size_t, std::size_t>(stringprintf("%s_pop_%0.3f.dat"
                                                        , basename.c_str()
                                                        , q_min)
-                                          , pops, header_comment);
+                                          , pops, header_qmin);
         // collect max. pops + max. q_min per microstate
         for (std::size_t id: std::set<std::size_t>(traj.begin(), traj.end())) {
           max_pop[id] = pops[id];
@@ -597,6 +615,7 @@ namespace Clustering {
               << "\n";
         }
       }
+      Clustering::Tools::append_commentsMap(header_comment, commentsMap);
       write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop, header_comment);
       write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin, header_comment);
     }

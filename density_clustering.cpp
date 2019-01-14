@@ -569,8 +569,15 @@ namespace Clustering {
 //      Clustering::logger(std::cout) << "reading coords" << std::endl;
       std::tie(coords, n_rows, n_cols) = read_coords<float>(input_file);
       std::string header_comment = args["header"].as<std::string>();
+      std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
       //// free energies
       std::vector<float> free_energies;
+
+      if (args.count("input") && (args.count("free-energy") || args.count("nearest-neighbors"))) {
+        std::cerr << "error: for input (-i) -D/-B should be used." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+
       Clustering::logger(std::cout) << "~~~ free energy and population" << std::endl;
       if (args.count("free-energy-input")) {
         Clustering::logger(std::cout) << "    re-using free energy: "
@@ -583,6 +590,8 @@ namespace Clustering {
           Clustering::logger(std::cout) << "warning: -p/-d flags are ignored" << std::endl;
         }
         free_energies = read_free_energies(args["free-energy-input"].as<std::string>());
+        // read previously used parameters
+        read_comments(args["free-energy-input"].as<std::string>(), commentsMap);
       } else if (args.count("free-energy") || args.count("population") || args.count("output")) {
         if (args.count("radii")) {
           Clustering::logger(std::cout) << "    calculating free energy and population" << std::endl;
@@ -623,19 +632,19 @@ namespace Clustering {
               std::string basename_pop = args["population"].as<std::string>() + "_%f";
               write_pops(Clustering::Tools::stringprintf(basename_pop, radius_pops.first),
                          radius_pops.second,
-                         header_comment);
+                         header_comment, commentsMap);
             }
             if (args.count("free-energy")) {
               std::string basename_fe = args["free-energy"].as<std::string>() + "_%f";
               write_fes(Clustering::Tools::stringprintf(basename_fe, radius_pops.first),
                         calculate_free_energies(radius_pops.second),
-                        header_comment);
+                        header_comment, commentsMap);
             }
           }
         } else {
           float radius_lump = 1.0;
           // if no radius passed, use clustering radius = lumping radius.
-          // TODO: Optimize, only sigma is needed. No need for fe, nn_hd
+          // TODO: Optimize, only sigma is needed. No need of fe, nn_hd
           if ( ! args.count("radius")) {
             Clustering::logger(std::cout) << "    computing lumping radius" << std::endl;
 
@@ -659,24 +668,26 @@ namespace Clustering {
             double sigma2 = compute_sigma2(nh);
             radius_lump = sqrt(4*sigma2);
             Clustering::logger(std::cout) << "        d_lump=" << radius_lump << std::endl;
+            commentsMap["lumping_radius"] = radius_lump;
           }
           Clustering::logger(std::cout) << "    calculating free energy and population" << std::endl;
           const float radius = (args.count("radius")) ? args["radius"].as<float>() : radius_lump;
           Clustering::logger(std::cout) << "    using radius: " << radius << std::endl;
+          commentsMap["clustering_radius"] = radius;
           // compute populations & free energies for clustering and/or saving
 //          Clustering::logger(std::cout) << "calculating populations" << std::endl;
           std::vector<std::size_t> pops = calculate_populations(coords, n_rows, n_cols, radius);
           if (args.count("population")) {
             Clustering::logger(std::cout) << "    storing population in: "
                                           << args["population"].as<std::string>() << std::endl;
-            write_pops(args["population"].as<std::string>(), pops, header_comment);
+            write_pops(args["population"].as<std::string>(), pops, header_comment, commentsMap);
           }
 //          Clustering::logger(std::cout) << "calculating free energies" << std::endl;
           free_energies = calculate_free_energies(pops);
           if (args.count("free-energy")) {
             Clustering::logger(std::cout) << "    storing free energy in: "
                                           << args["free-energy"].as<std::string>() << std::endl;
-            write_fes(args["free-energy"].as<std::string>(), free_energies, header_comment);
+            write_fes(args["free-energy"].as<std::string>(), free_energies, header_comment, commentsMap);
           }
         }
       }
@@ -691,6 +702,9 @@ namespace Clustering {
         auto nh_pair = read_neighborhood(args["nearest-neighbors-input"].as<std::string>());
         nh = nh_pair.first;
         nh_high_dens = nh_pair.second;
+
+        // check if nn is consistent with fe, otherwise warning will be printed
+        read_comments(args["nearest-neighbors-input"].as<std::string>(), commentsMap);
       } else if (args.count("nearest-neighbors") || args.count("output")) {
         if (args.count("radii")) {
             std::cerr << "error: nearest neighbor calculation cannot be done with\n"
@@ -708,10 +722,17 @@ namespace Clustering {
 #endif
         nh = std::get<0>(nh_tuple);
         nh_high_dens = std::get<1>(nh_tuple);
+
+        if (commentsMap["lumping_radius"] == 0.) {
+            double sigma2 = compute_sigma2(nh);
+            float radius_lump = sqrt(4*sigma2);
+            Clustering::logger(std::cout) << "    lumping radius: " << radius_lump << std::endl;
+            commentsMap["lumping_radius"] = radius_lump;
+        }
         if (args.count("nearest-neighbors")) {
           Clustering::logger(std::cout) << "    storing nearest neighbors in: "
                                         << args["nearest-neighbors"].as<std::string>() << std::endl;
-          Clustering::Tools::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens, header_comment);
+          Clustering::Tools::write_neighborhood(args["nearest-neighbors"].as<std::string>(), nh, nh_high_dens, header_comment, commentsMap);
         }
       }
       //// clustering
@@ -736,6 +757,9 @@ namespace Clustering {
           Clustering::logger(std::cout) << "    reading initial states: "
                                         << args["input"].as<std::string>() << std::endl;
           clustering = read_clustered_trajectory(args["input"].as<std::string>());
+
+          // read and check consistency of comments
+          read_comments(args["input"].as<std::string>(), commentsMap);
           Clustering::logger(std::cout) << "    assigning low density states to initial states" << std::endl;
           clustering = assign_low_density_frames(clustering
                                                , nh_high_dens
@@ -744,7 +768,7 @@ namespace Clustering {
           Clustering::logger(std::cout) << "    sorting and renaming states by decreasing population" << std::endl;
           clustering = sorted_cluster_names(clustering);
           Clustering::logger(std::cout) << "    storing states in: " << output_file << std::endl;
-          write_single_column<std::size_t>(output_file, clustering, header_comment);
+          write_clustered_trajectory(output_file, clustering, header_comment, commentsMap);
         } else if (args.count("threshold-screening")) {
           Clustering::logger(std::cout) << "\n~~~ free energy screening" << std::endl;
           std::vector<float> threshold_params = args["threshold-screening"].as<std::vector<float>>();
@@ -769,6 +793,10 @@ namespace Clustering {
             std::cerr << "error: -T can handle at maximum two digits." << std::endl;
             exit(EXIT_FAILURE);
           }
+          // set comments
+          commentsMap["screening_to"] = t_to;
+          commentsMap["screening_from"] = t_from;
+          commentsMap["screening_step"] = t_step;
           Clustering::logger(std::cout) << "\n        fe    frames" << std::endl;
           // upper limit extended to a 10th of the stepsize to
           // circumvent rounding errors when comparing on equality
@@ -783,8 +811,8 @@ namespace Clustering {
                                  , n_rows
                                  , n_cols
                                  , clustering);
-            write_single_column(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
-                              , clustering, header_comment);
+            write_clustered_trajectory(Clustering::Tools::stringprintf(output_file + ".%0.2f", t)
+                              , clustering, header_comment, commentsMap);
           }
         } else {
             std::cerr << "error: one of -T/-i is needed to generate output." << std::endl;

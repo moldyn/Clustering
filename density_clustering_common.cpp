@@ -68,7 +68,7 @@ namespace Density {
                                                        , n_rows
                                                        , initial_clusters);
     Clustering::logger(std::cout) << "    " << std::setw(6)
-                                  << Clustering::Tools::stringprintf("%.3f", free_energy_threshold)
+                                  << Clustering::Tools::stringprintf("%.2f", free_energy_threshold)
                                   << " " << std::setw(9)
                                   << Clustering::Tools::stringprintf("%i", first_frame_above_threshold)
                                   << std::endl;

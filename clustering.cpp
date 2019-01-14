@@ -385,6 +385,16 @@ int main(int argc, char* argv[]) {
          << "# please cite the corresponding paper, "
          << "see https://github.com/moldyn/clustering\n";
   args.insert(std::make_pair("header", b_po::variable_value(header.str(), false)));
+  // add parameters which should be read from comments
+  std::map<std::string,float> commentsMap = {{"clustering_radius", 0.},
+                                             {"lumping_radius", 0.},
+                                             {"screening_from", 0.},
+                                             {"screening_to", 0.},
+                                             {"screening_step", 0.},
+                                             {"minimal_population", 0.},
+                                             {"cmin", 0.},
+                                             {"single_coring_time", 0.}};
+  args.insert(std::make_pair("commentsMap", b_po::variable_value(commentsMap, false)));
   // run selected subroutine
   switch(mode) {
     case DENSITY:
