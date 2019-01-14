@@ -311,7 +311,7 @@ namespace {
     // build trees from given network with respective 'root' on top and at highest FE.
     // may be multiple trees because there may be multiple nodes that have max FE.
     Node fake_root;
-    std::size_t network_size = network.size();
+    //std::size_t network_size = network.size();
     //boost::progress_display show_progress(network_size);
     for (auto from_to: network) {
       //++show_progress;
