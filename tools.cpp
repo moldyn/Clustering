@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -39,13 +39,17 @@ min_multiplicator(unsigned int orig
 };
 
 void
-write_fes(std::string filename, std::vector<float> fes, std::string header_comment) {
+write_fes(std::string filename, std::vector<float> fes, std::string header_comment,
+          std::map<std::string,float> stringMap) {
+  append_commentsMap(header_comment, stringMap);
   header_comment.append("#\n# free energy of each frame\n");
   write_single_column<float>(filename, fes, header_comment, true);
 }
 
 void
-write_pops(std::string filename, std::vector<std::size_t> pops, std::string header_comment) {
+write_pops(std::string filename, std::vector<std::size_t> pops, std::string header_comment,
+           std::map<std::string,float> stringMap) {
+  append_commentsMap(header_comment, stringMap);
   header_comment.append("#\n# point density of each frame\n");
   write_single_column<std::size_t>(filename, pops, header_comment, false);
 }
@@ -57,8 +61,9 @@ read_clustered_trajectory(std::string filename) {
 
 void
 write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
-                           std::string header_comment) {
-  header_comment.append("#\n# state/cluster frames are assigned to\n");
+                           std::string header_comment, std::map<std::string,float> stringMap) {
+  append_commentsMap(header_comment, stringMap);
+  header_comment.append("#\n# state/cluster id frames are assigned to\n");
   write_single_column<std::size_t>(filename, traj, header_comment, false);
 }
 
@@ -139,12 +144,14 @@ void
 write_neighborhood(const std::string filename,
                    const Neighborhood& nh,
                    const Neighborhood& nh_high_dens,
-                   std::string header_comment) {
+                   std::string header_comment,
+                   std::map<std::string,float> stringMap) {
   std::ofstream ofs(filename);
   if (ofs.fail()) {
     std::cerr << "error: cannot open file '" << filename << "' for writing." << std::endl;
     exit(EXIT_FAILURE);
   }
+  append_commentsMap(header_comment, stringMap);
   header_comment.append("#\n# column definitions:\n"
                         "#        nn = nearest neighbor\n"
                         "#     nn_hd = nearest neighbor with higher density\n"
@@ -194,6 +201,78 @@ check_concat_limits(std::vector<std::size_t> concat_limits, std::size_t n_frames
     Clustering::logger(std::cout) << "warning: limits are larger than the file length.\n"
                                   << "         Check your limits!" <<std::endl;
   }
+}
+
+float
+read_next_float(std::ifstream &ifs) {
+  std::string s;
+  if (ifs.peek() != '\n') {
+    ifs >> std::ws;
+    while (!std::isdigit(ifs.peek()) && ifs.peek() != '\n') {
+      ifs >> s;
+      if (ifs.peek() != '\n') {
+        ifs >> std::ws;
+      }
+    }
+  }
+  float val;
+  // catch if line end was case
+  if (ifs.peek() == '\n') {
+    val = -1.;
+  } else {
+    ifs >> val;
+  }
+  return val;
+}
+
+void
+read_comments(std::string filename, std::map<std::string,float> &stringMap) {
+  std::vector<std::size_t> dat;
+  std::ifstream ifs(filename);
+  if (ifs.fail()) {
+    std::cerr << "error: cannot open file '" << filename << "'" << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    while (!ifs.eof() && !ifs.bad()) {
+      std::size_t buf;
+      ifs >> buf;
+      if (ifs.fail()) {
+        ifs.clear();
+        std::string s;
+        ifs >> s;
+        if (s == "#@" && ifs.peek() != '\n') {
+          ifs >> s;
+          for (auto & x : stringMap)
+          {
+            if (s == x.first) {
+              float val = read_next_float(ifs);
+              if ((x.second != 0) && (std::abs(x.second-val) > 0.001)) {
+                Clustering::logger(std::cout) << "warning: the values of " << x.first
+                                              << " are not in agreement\n"
+                                              << "        " << val << " vs. "
+                                              << x.second<< std::endl;
+              }
+              stringMap[x.first] = val;
+            }
+          }
+        }
+        ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+      }
+    }
+  }
+  return;
+}
+
+void
+append_commentsMap(std::string &header_comment, std::map<std::string,float> &stringMap) {
+  header_comment.append("#\n# The following comments are reused for identifying\n# user-based mistakes and should not be modified.\n");
+  for (auto &x : stringMap)
+  {
+    if (x.second != 0.) {
+      header_comment.append(stringprintf("#@   %s = %.5f\n", x.first.c_str(), x.second));
+    }
+  }
+  return;
 }
 
 

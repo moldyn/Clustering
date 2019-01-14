@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -66,17 +66,19 @@ namespace Tools {
   using Neighborhood = std::map<std::size_t, Clustering::Tools::Neighbor>;
   //! write populations as column into given file
   void
-  write_pops(std::string fname, std::vector<std::size_t> pops, std::string header_comment);
+  write_pops(std::string fname, std::vector<std::size_t> pops, std::string header_comment,
+             std::map<std::string,float> stringMap);
   //! write free energies as column into given file
   void
-  write_fes(std::string fname, std::vector<float> fes, std::string header_comment);
+  write_fes(std::string fname, std::vector<float> fes, std::string header_comment,
+            std::map<std::string,float> stringMap);
   //! read states from trajectory (given as plain text file)
   std::vector<std::size_t>
   read_clustered_trajectory(std::string filename);
   //! write state trajectory into plain text file
   void
   write_clustered_trajectory(std::string filename, std::vector<std::size_t> traj,
-                             std::string header_comment);
+                             std::string header_comment, std::map<std::string,float> stringMap);
   //! read single column of numbers from given file. number type (int, float, ...) given as template parameter
   template <typename NUM>
   std::vector<NUM>
@@ -108,7 +110,8 @@ namespace Tools {
   write_neighborhood(const std::string fname,
                      const Neighborhood& nh,
                      const Neighborhood& nh_high_dens,
-                     std::string header_comment);
+                     std::string header_comment,
+                     std::map<std::string,float> stringMap);
   //! compute microstate populations from clustered trajectory
   std::map<std::size_t, std::size_t>
   microstate_populations(std::vector<std::size_t> traj);
@@ -165,6 +168,15 @@ namespace Tools {
   void
   check_concat_limits(std::vector<std::size_t> concat_limits,
                       std::size_t n_frames);
+  //! read comments of stringMap from file. Comments should start with #@
+  void
+  read_comments(std::string filename, std::map<std::string,float> &stringMap);
+  //! read the next float of ifstream
+  float
+  read_next_float(std::ifstream &ifs);
+  //! append commentsMap to header comment
+  void
+  append_commentsMap(std::string &header_comment, std::map<std::string,float> &stringMap);
 } // end namespace 'Tools'
 } // end namespace 'Clustering'
 

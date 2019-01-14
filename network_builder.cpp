@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -36,6 +36,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+//#include <boost/progress.hpp>
 #include <omp.h>
 
 
@@ -180,9 +181,10 @@ namespace {
 
   void
   save_network_links(std::string fname, std::map<std::size_t, std::size_t> network,
-                     std::string header_comment) {
+                     std::string header_comment, std::map<std::string,float> commentsMap) {
     fname.append("_links.dat");
     Clustering::logger(std::cout) << "    saving links in: " << fname << std::endl;
+    Clustering::Tools::append_commentsMap(header_comment, commentsMap);
     header_comment.append("#\n# Name of the cluster connected to the name in next "
                           "higher free energy level\n# Named by the remapped clusters.\n#\n"
                           "# cluster_name(fe+step) cluster_name(fe)\n");
@@ -193,9 +195,11 @@ namespace {
   save_node_info(std::string fname,
                  std::map<std::size_t, float> free_energies,
                  std::map<std::size_t, std::size_t> pops,
-                 std::string header_comment) {
+                 std::string header_comment,
+                 std::map<std::string,float> commentsMap) {
     fname.append("_nodes.dat");
     Clustering::logger(std::cout) << "    saving nodes in: " << fname << std::endl;
+    Clustering::Tools::append_commentsMap(header_comment, commentsMap);
     header_comment.append("#\n# nodes\n");
     header_comment.append("#\n# Name of all clusters at a given free energies (fe) "
                           "with the corresponding populations pop.\n"
@@ -216,7 +220,8 @@ namespace {
   std::set<std::size_t>
   compute_and_save_leaves(std::string fname,
                           std::map<std::size_t, std::size_t> network,
-                          std::string header_comment) {
+                          std::string header_comment,
+                          std::map<std::string,float> commentsMap) {
     fname.append("_leaves.dat");
     Clustering::logger(std::cout) << "    saving leaves in: " << fname << std::endl;
     std::set<std::size_t> leaves;
@@ -232,6 +237,7 @@ namespace {
       }
     }
     std::vector<std::size_t> leaves_vec( leaves.begin(), leaves.end() );
+    Clustering::Tools::append_commentsMap(header_comment, commentsMap);
     header_comment.append("#\n# All network leaves, i.e. nodes (microstates) without child\n"
                           "# nodes at a lower free energy level. These microstates represent\n"
                           "# the minima of their local basins.\n#\n"
@@ -249,7 +255,8 @@ namespace {
                       float d_step,
                       std::string remapped_name,
                       std::size_t n_rows,
-                      std::string header_comment) {
+                      std::string header_comment,
+                      std::map<std::string,float> commentsMap) {
     fname.append("_end_node_traj.dat");
     Clustering::logger(std::cout) << "    saving end-node trajectory in: " << fname << std::endl;
     std::vector<std::size_t> traj(n_rows);
@@ -263,9 +270,11 @@ namespace {
         }
       }
     }
+    Clustering::Tools::append_commentsMap(header_comment, commentsMap);
     header_comment.append("#\n# All frames beloning to a leaf node are marked with\n"
                           "# the custer id. All others with zero.\n");
-    Clustering::Tools::write_clustered_trajectory(fname, traj, header_comment);
+    header_comment.append("#\n# state/cluster id frames are assigned to\n");
+    Clustering::Tools::write_single_column<std::size_t>(fname, traj, header_comment);
   }
   
   void
@@ -273,7 +282,7 @@ namespace {
                        std::map<std::size_t, std::size_t> network,
                        std::map<std::size_t, float> free_energies,
                        std::map<std::size_t, std::size_t> pops) {
-    Clustering::logger(std::cout) << "computing network visualization" << std::endl;
+    Clustering::logger(std::cout) << "\n~~~ computing network visualization" << std::endl;
     // set (global) values for min/max of free energies and populations
     FE_MAX = std::max_element(free_energies.begin(),
                               free_energies.end(),
@@ -303,9 +312,9 @@ namespace {
     // may be multiple trees because there may be multiple nodes that have max FE.
     Node fake_root;
     std::size_t network_size = network.size();
-    std::size_t i_frame = 0;
+    //boost::progress_display show_progress(network_size);
     for (auto from_to: network) {
-      std::cerr << ++i_frame << " / " << network_size << "\n";
+      //++show_progress;
 
       std::size_t i_from = from_to.first;
       std::size_t i_to = from_to.second;
@@ -325,6 +334,7 @@ namespace {
         parent_to->children[i_to].children[i_from] = {i_from, free_energies[i_from], pops[i_from]};
       }
     }
+    Clustering::logger(std::cout) << "    ...done" << std::endl;
     // write header
     fname.append("_visualization.html");
     std::ofstream ofs(fname);
@@ -385,6 +395,7 @@ namespace NetworkBuilder {
     std::size_t minpop = args["minpop"].as<std::size_t>();
     bool network_html = args["network-html"].as<bool>();
     std::string header_comment = args["header"].as<std::string>();
+    std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
 
     std::map<std::size_t, std::size_t> network;
     std::map<std::size_t, std::size_t> pops;
@@ -397,6 +408,7 @@ namespace NetworkBuilder {
                 << "       check basename (-b) and --min/--max/--step" << std::endl;
       exit(EXIT_SUCCESS);
     }
+    read_comments(fname_next, commentsMap);
     std::vector<std::size_t> cl_next = read_clustered_trajectory(fname_next);
     std::vector<std::size_t> cl_now;
     std::size_t max_id;
@@ -424,7 +436,8 @@ namespace NetworkBuilder {
         {
           write_clustered_trajectory(stringprintf(remapped_name, d),
                                      cl_now,
-                                     header_comment);
+                                     header_comment,
+                                     commentsMap);
         }
         #pragma omp section
         {
@@ -448,6 +461,7 @@ namespace NetworkBuilder {
     // set correct value for d_max for later reference
     d_max = d-d_step;
     // if minpop given: delete nodes and edges not fulfilling min. population criterium
+    commentsMap["minimal_population"] = minpop;
     if (minpop > 1) {
       Clustering::logger(std::cout) << "\n~~~ removing states with population p < "
                                     << minpop << std::endl;
@@ -476,16 +490,16 @@ namespace NetworkBuilder {
     }
     Clustering::logger(std::cout) << "\n~~~ storing output files" << std::endl;
     // save links (i.e. edges) as two-column ascii in a child -> parent manner
-    save_network_links(basename_output, network, header_comment);
+    save_network_links(basename_output, network, header_comment, commentsMap);
     // save id, population and free energy of nodes
-    save_node_info(basename_output, free_energies, pops, header_comment);
+    save_node_info(basename_output, free_energies, pops, header_comment, commentsMap);
     // compute and directly save network end-nodes (i.e. leaves of the network-tree)
     std::set<std::size_t> leaves = compute_and_save_leaves(basename_output,
-                                                           network, header_comment);
+                                                           network, header_comment, commentsMap);
     // save the trajectory consisting of the 'leaf-states'.
     // all non-leaf states are kept as non-assignment state '0'.
     save_traj_of_leaves(basename_output, leaves,
-                        d_min, d_max, d_step, remapped_name, n_rows, header_comment);
+                        d_min, d_max, d_step, remapped_name, n_rows, header_comment, commentsMap);
     // generate html-file with embedded javascript to visualize network
     if (network_html) {
       save_network_to_html(basename_output, network, free_energies, pops);

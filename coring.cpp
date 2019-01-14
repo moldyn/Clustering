@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -69,6 +69,9 @@ namespace Coring {
     std::set<std::size_t> state_names(states.begin(), states.end());
     std::size_t n_frames = states.size();
     std::string header_comment = args["header"].as<std::string>();
+    std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
+    // read previously used parameters
+    read_comments(args["states"].as<std::string>(), commentsMap);
     if (args.count("output") || args.count("distribution") || args.count("cores")) {
       // load concatenation limits to treat concatenated trajectories correctly
       // when performing dynamical corrections
@@ -144,6 +147,10 @@ namespace Coring {
             ++undefined_windows;
           }
         }
+        // if only single coring window is used
+        if (coring_windows.size() == 0) {
+          commentsMap["single_coring_time"] = size_for_all;
+        }
         header_comment.append(Clustering::Tools::stringprintf(
                 "#\n# coring specific parameters: \n"
                 "#    %i state-specific coring windows were read\n"
@@ -201,10 +208,12 @@ namespace Coring {
       if (args.count("output")) {
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
                                                       cored_traj,
-                                                      header_coring);
+                                                      header_coring,
+                                                      commentsMap);
       }
       // write core information to file
       if (args.count("cores")) {
+        append_commentsMap(header_coring, commentsMap);
         Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(),
                                                      cores,
                                                      header_coring,
@@ -226,6 +235,9 @@ namespace Coring {
           }
         }
         streaks[current_state].push_back(n_counts);
+
+        // append values to header comment
+        append_commentsMap(header_comment, commentsMap);
 
         std::map<std::size_t, WTDMap> etds;
         for (std::size_t state: state_names) {

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -55,9 +55,14 @@ namespace Noise {
     // shift cmin fomr [0,100] -> [0,1]
     float cmin = 0.01*args["cmin"].as<float>();
     std::string basename = args["basename"].as<std::string>();
+    basename.append(".");
     Clustering::verbose = args["verbose"].as<bool>();
     // generate header comment
     std::string header_comment = args["header"].as<std::string>();
+    std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
+    // read previously used parameters
+    read_comments(args["states"].as<std::string>(), commentsMap);
+    commentsMap["cmin"] = cmin;
     // noise state is 1 lower than lowest
     auto lowestState = std::min_element(states.begin(), states.end());
     std::size_t noiseState = *lowestState-1;
@@ -118,6 +123,7 @@ namespace Noise {
                             "# used for highest cluster file: %s\n", clust_filename.c_str()));
       Clustering::logger(std::cout) << "    highest cluster: " << clust_filename  << std::endl;
       std::vector<std::size_t> clust = Clustering::Tools::read_clustered_trajectory(clust_filename);
+      //TODO: check if parameters are identical to states ones
       if (n_frames != clust.size()) {
         std::cerr << "\n" << "error (noise): clust file is not of same length as state trajectory." << "\n\n";
         exit(EXIT_FAILURE);
@@ -189,10 +195,12 @@ namespace Noise {
       if (args.count("output")) {
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
                                                       noise_traj,
-                                                      header_comment);
+                                                      header_comment,
+                                                      commentsMap);
       }
       // write core information to file
       if (args.count("cores")) {
+        append_commentsMap(header_comment, commentsMap);
         Clustering::Tools::write_single_column<long>(args["cores"].as<std::string>(),
                                                      cores,
                                                      header_comment,
