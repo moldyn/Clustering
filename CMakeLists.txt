@@ -153,5 +153,5 @@ install(TARGETS ${PROGNAME} RUNTIME DESTINATION .)
 # create source-doc with doxygen
 add_custom_target(doc
                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                  COMMAND doxygen doxygenNew.config)
+                  COMMAND doxygen doxygen.config)
 
