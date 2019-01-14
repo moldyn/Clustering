@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015-2018, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -66,8 +66,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
   std::string general_help =
-    "\nclustering 0.13: a classification framework for MD data\n"
-    "Copyright (c) 2015-2018, Florian Sittel and Daniel Nagel\n"
+    "\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel\n"
     "\n"
     "modes:\n"
     "  density: run density clustering\n"
@@ -120,6 +120,8 @@ int main(int argc, char* argv[]) {
   b_po::positional_options_description pos_opts;
   // density options
   b_po::options_description desc_dens (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "perform clustering of MD data based on phase space densities.\n"
     "densities are approximated by counting neighboring frames inside\n"
@@ -154,6 +156,8 @@ int main(int argc, char* argv[]) {
   ;
   // MPP options
   b_po::options_description desc_mpp (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "performs a most probable path (MPP) clustering based on the given lag time."
     "\n"
@@ -173,16 +177,18 @@ int main(int argc, char* argv[]) {
       " sub-trajectories for concatenated trajectory files. e.g.: for a"
       " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
     ("tprob", b_po::value<std::string>(),
-     "input (file): initial transition probability matrix. "
+     "input (file): initial transition probability matrix. -l still needs to be given, but will be ignored.\n"
      "Format:three space-separated columns 'state_from' 'state_to' 'probability'")
     // defaults
-    ("basename", b_po::value<std::string>()->default_value("mpp"), "basename for output files (default: 'mpp').")
+    ("output,o", b_po::value<std::string>()->default_value("mpp"), " output (optional): basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),
                       "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // network options
   b_po::options_description desc_network (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "create a network from screening data."
     "\n"
@@ -199,12 +205,14 @@ int main(int argc, char* argv[]) {
     ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
     ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
     ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
-    ("network-html,n", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
+    ("network-html", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // filter options
   b_po::options_description desc_filter (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "filter phase space (e.g. dihedral angles, cartesian coords, etc.) for given state."
     "\n"
@@ -226,6 +234,8 @@ int main(int argc, char* argv[]) {
   ;
   // coring options
   b_po::options_description desc_coring (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "compute boundary corrections for clustering results."
     "\n"
@@ -264,6 +274,8 @@ int main(int argc, char* argv[]) {
   ;
   // noise options
   b_po::options_description desc_noise (std::string(argv[1]).append(
+    "\n\nclustering 1.0: a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
     "\n\n"
     "defining and dynamically reassigning noise for clustering results."
     "\n"
@@ -339,7 +351,7 @@ int main(int argc, char* argv[]) {
   std::string leading_whitespace(20, ' ');
   std::string leading_whitespace2nd(20 + (20-strlen(argv[1]))/2, ' ');
   Clustering::logger(std::cout) << "\n" << leading_whitespace
-                                << "~~~ clustering v0.13 ~~~\n"
+                                << "~~~ clustering v1.0 ~~~\n"
                                 << leading_whitespace2nd << "~ " << argv[1] << " ~\n\n"
                                 << "~~~ using for parallization: ";
 #ifdef USE_CUDA
@@ -360,7 +372,7 @@ int main(int argc, char* argv[]) {
   time_t rawtime;
   time(&rawtime);
   struct tm * timeinfo = localtime(&rawtime);
-  header << "# clustering v0.13 - " << argv[1] << "\n"
+  header << "# clustering v1.0 - " << argv[1] << "\n"
          << "#\n"
          << "# Created " << asctime(timeinfo)
          << "# by following command:\n#\n# ";
@@ -368,7 +380,7 @@ int main(int argc, char* argv[]) {
   for (std::string& arg_string : arguments){
       header << arg_string << " ";
   }
-  header << "\n#\n# Copyright (c) 2015-2018 Florian Sittel and Daniel Nagel\n"
+  header << "\n#\n# Copyright (c) 2015-2019 Florian Sittel and Daniel Nagel\n"
          << "# please cite the corresponding paper, "
          << "see https://github.com/moldyn/clustering\n";
   args.insert(std::make_pair("header", b_po::variable_value(header.str(), false)));
