@@ -1,0 +1,6 @@
+<map id="cl::Image2D" name="cl::Image2D">
+<area shape="rect" id="node5" href="$classcl_1_1CL__EXT__SUFFIX____VERSION__1__1__DEPRECATED.html" title="Class interface for GL 2D Image Memory objects. " alt="" coords="5,319,224,360"/>
+<area shape="rect" id="node2" href="$classcl_1_1Image.html" title="C++ base class for Image Memory objects. " alt="" coords="77,169,153,196"/>
+<area shape="rect" id="node3" href="$classcl_1_1Memory.html" title="Class interface for cl_mem. " alt="" coords="71,95,158,121"/>
+<area shape="rect" id="node4" href="$classcl_1_1detail_1_1Wrapper.html" title="cl::detail::Wrapper\l\&lt; cl_mem \&gt;" alt="" coords="51,5,179,47"/>
+</map>

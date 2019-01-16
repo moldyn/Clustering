@@ -1,0 +1,11 @@
+<map id="cl::Memory" name="cl::Memory">
+<area shape="rect" id="node3" href="$classcl_1_1Buffer.html" title="Class interface for Buffer Memory Objects. " alt="" coords="151,169,226,196"/>
+<area shape="rect" id="node6" href="$classcl_1_1Image.html" title="C++ base class for Image Memory objects. " alt="" coords="289,169,365,196"/>
+<area shape="rect" id="node2" href="$classcl_1_1detail_1_1Wrapper.html" title="cl::detail::Wrapper\l\&lt; cl_mem \&gt;" alt="" coords="194,5,322,47"/>
+<area shape="rect" id="node4" href="$classcl_1_1BufferGL.html" title="Class interface for GL Buffer Memory Objects. " alt="" coords="5,244,97,271"/>
+<area shape="rect" id="node5" href="$classcl_1_1BufferRenderGL.html" title="Class interface for GL Render Buffer Memory Objects. " alt="" coords="121,244,256,271"/>
+<area shape="rect" id="node7" href="$classcl_1_1Image2D.html" title="Class interface for 2D Image Memory objects. " alt="" coords="281,244,374,271"/>
+<area shape="rect" id="node9" href="$classcl_1_1Image3D.html" title="Class interface for 3D Image Memory objects. " alt="" coords="434,244,527,271"/>
+<area shape="rect" id="node8" href="$classcl_1_1CL__EXT__SUFFIX____VERSION__1__1__DEPRECATED.html" title="Class interface for GL 2D Image Memory objects. " alt="" coords="201,319,419,360"/>
+<area shape="rect" id="node10" href="$classcl_1_1Image3DGL.html" title="Class interface for GL 3D Image Memory objects. " alt="" coords="444,326,555,353"/>
+</map>

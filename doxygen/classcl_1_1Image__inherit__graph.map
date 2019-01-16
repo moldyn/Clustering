@@ -1,0 +1,8 @@
+<map id="cl::Image" name="cl::Image">
+<area shape="rect" id="node4" href="$classcl_1_1Image2D.html" title="Class interface for 2D Image Memory objects. " alt="" coords="85,244,179,271"/>
+<area shape="rect" id="node6" href="$classcl_1_1Image3D.html" title="Class interface for 3D Image Memory objects. " alt="" coords="239,244,332,271"/>
+<area shape="rect" id="node2" href="$classcl_1_1Memory.html" title="Class interface for cl_mem. " alt="" coords="147,95,234,121"/>
+<area shape="rect" id="node3" href="$classcl_1_1detail_1_1Wrapper.html" title="cl::detail::Wrapper\l\&lt; cl_mem \&gt;" alt="" coords="127,5,255,47"/>
+<area shape="rect" id="node5" href="$classcl_1_1CL__EXT__SUFFIX____VERSION__1__1__DEPRECATED.html" title="Class interface for GL 2D Image Memory objects. " alt="" coords="5,319,224,360"/>
+<area shape="rect" id="node7" href="$classcl_1_1Image3DGL.html" title="Class interface for GL 3D Image Memory objects. " alt="" coords="249,326,359,353"/>
+</map>

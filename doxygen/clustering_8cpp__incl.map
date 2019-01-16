@@ -1,4 +1,4 @@
-<map id="clustering.cpp" name="clustering.cpp">
+<map id="src/clustering.cpp" name="src/clustering.cpp">
 <area shape="rect" id="node3" href="$density__clustering_8hpp.html" title="Density&#45;based clustering. " alt="" coords="504,80,656,107"/>
 <area shape="rect" id="node11" href="$tools_8hpp.html" title="Tools mainly for IO and some other functions. " alt="" coords="340,162,415,189"/>
 <area shape="rect" id="node17" href="$logger_8hpp.html" title="Define global logger. " alt="" coords="22,319,104,345"/>

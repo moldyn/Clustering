@@ -1,6 +1,6 @@
-<map id="density_clustering_common.hpp" name="density_clustering_common.hpp">
-<area shape="rect" id="node2" href="$density__clustering_8cpp_source.html" title="density_clustering.cpp" alt="" coords="5,102,157,129"/>
-<area shape="rect" id="node3" href="$density__clustering__common_8cpp_source.html" title="density_clustering\l_common.cpp" alt="" coords="182,95,309,136"/>
-<area shape="rect" id="node4" href="$density__clustering__cuda_8hpp_source.html" title="density_clustering\l_cuda.hpp" alt="" coords="333,95,459,136"/>
-<area shape="rect" id="node5" href="$density__clustering__mpi_8cpp_source.html" title="density_clustering\l_mpi.cpp" alt="" coords="483,95,610,136"/>
+<map id="src/density_clustering_common.hpp" name="src/density_clustering_common.hpp">
+<area shape="rect" id="node2" href="$density__clustering_8cpp_source.html" title="src/density_clustering.cpp" alt="" coords="5,102,180,129"/>
+<area shape="rect" id="node3" href="$density__clustering__common_8cpp_source.html" title="src/density_clustering\l_common.cpp" alt="" coords="205,95,354,136"/>
+<area shape="rect" id="node4" href="$density__clustering__cuda_8hpp_source.html" title="src/density_clustering\l_cuda.hpp" alt="" coords="378,95,527,136"/>
+<area shape="rect" id="node5" href="$density__clustering__mpi_8cpp_source.html" title="src/density_clustering\l_mpi.cpp" alt="" coords="551,95,701,136"/>
 </map>

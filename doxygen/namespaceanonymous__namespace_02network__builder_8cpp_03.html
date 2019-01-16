@@ -29,7 +29,7 @@
         <nav class="navbar navbar-default" role="navigation">
             <div class="container">
                 <div class="navbar-header">
-                    <a class="navbar-brand">clustering 0.13_beta</a>
+                    <a class="navbar-brand">clustering 1.0</a>
                 </div>
             </div>
         </nav>
@@ -91,18 +91,18 @@ constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>fuzzy_equal
 <tr class="memitem:a72d60fbe8f7fd847a5f2226cf3769f25"><td class="memItemLeft" align="right" valign="top"><a id="a72d60fbe8f7fd847a5f2226cf3769f25"></a>
 std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;&lt;</b> (std::ostream &amp;os, const <a class="el" href="structanonymous__namespace_02network__builder_8cpp_03_1_1Node.html">Node</a> &amp;n)</td></tr>
 <tr class="separator:a72d60fbe8f7fd847a5f2226cf3769f25"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a22d3085937707ec8edeb4b5d9931631f"><td class="memItemLeft" align="right" valign="top"><a id="a22d3085937707ec8edeb4b5d9931631f"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>save_network_links</b> (std::string fname, std::map&lt; std::size_t, std::size_t &gt; network, std::string header_comment)</td></tr>
-<tr class="separator:a22d3085937707ec8edeb4b5d9931631f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa411a3948b31507cd25da025250a70f0"><td class="memItemLeft" align="right" valign="top"><a id="aa411a3948b31507cd25da025250a70f0"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>save_node_info</b> (std::string fname, std::map&lt; std::size_t, float &gt; free_energies, std::map&lt; std::size_t, std::size_t &gt; pops, std::string header_comment)</td></tr>
-<tr class="separator:aa411a3948b31507cd25da025250a70f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a31027b63b2cd649f610cfd98189ea8df"><td class="memItemLeft" align="right" valign="top"><a id="a31027b63b2cd649f610cfd98189ea8df"></a>
-std::set&lt; std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>compute_and_save_leaves</b> (std::string fname, std::map&lt; std::size_t, std::size_t &gt; network, std::string header_comment)</td></tr>
-<tr class="separator:a31027b63b2cd649f610cfd98189ea8df"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af6443aa139d60ec9db18fb3bddeb795c"><td class="memItemLeft" align="right" valign="top"><a id="af6443aa139d60ec9db18fb3bddeb795c"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>save_traj_of_leaves</b> (std::string fname, std::set&lt; std::size_t &gt; leaves, float d_min, float d_max, float d_step, std::string remapped_name, std::size_t n_rows, std::string header_comment)</td></tr>
-<tr class="separator:af6443aa139d60ec9db18fb3bddeb795c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4bac612e5aebfc30a1423aeb254ed407"><td class="memItemLeft" align="right" valign="top"><a id="a4bac612e5aebfc30a1423aeb254ed407"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>save_network_links</b> (std::string fname, std::map&lt; std::size_t, std::size_t &gt; network, std::string header_comment, std::map&lt; std::string, float &gt; commentsMap)</td></tr>
+<tr class="separator:a4bac612e5aebfc30a1423aeb254ed407"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a739c0ff125b473c52aeadbeebcda5c9b"><td class="memItemLeft" align="right" valign="top"><a id="a739c0ff125b473c52aeadbeebcda5c9b"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>save_node_info</b> (std::string fname, std::map&lt; std::size_t, float &gt; free_energies, std::map&lt; std::size_t, std::size_t &gt; pops, std::string header_comment, std::map&lt; std::string, float &gt; commentsMap)</td></tr>
+<tr class="separator:a739c0ff125b473c52aeadbeebcda5c9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a555f54cdf0738e005c9852966a122fdf"><td class="memItemLeft" align="right" valign="top"><a id="a555f54cdf0738e005c9852966a122fdf"></a>
+std::set&lt; std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>compute_and_save_leaves</b> (std::string fname, std::map&lt; std::size_t, std::size_t &gt; network, std::string header_comment, std::map&lt; std::string, float &gt; commentsMap)</td></tr>
+<tr class="separator:a555f54cdf0738e005c9852966a122fdf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa046a4b7011141d0433c79ee71b07e72"><td class="memItemLeft" align="right" valign="top"><a id="aa046a4b7011141d0433c79ee71b07e72"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>save_traj_of_leaves</b> (std::string fname, std::set&lt; std::size_t &gt; leaves, float d_min, float d_max, float d_step, std::string remapped_name, std::size_t n_rows, std::string header_comment, std::map&lt; std::string, float &gt; commentsMap)</td></tr>
+<tr class="separator:aa046a4b7011141d0433c79ee71b07e72"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c4b925e83033f9ed41b21a0b1529631"><td class="memItemLeft" align="right" valign="top"><a id="a5c4b925e83033f9ed41b21a0b1529631"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>save_network_to_html</b> (std::string fname, std::map&lt; std::size_t, std::size_t &gt; network, std::map&lt; std::size_t, float &gt; free_energies, std::map&lt; std::size_t, std::size_t &gt; pops)</td></tr>
 <tr class="separator:a5c4b925e83033f9ed41b21a0b1529631"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -137,7 +137,7 @@ float&#160;</td><td class="memItemRight" valign="bottom"><b>FE_MAX</b> = 0.0f</t
 </div>
 </div>
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Dec 12 2018 13:18:36 for clustering by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Jan 16 2019 13:44:41 for clustering by &#160;<a href="http://www.doxygen.org/index.html">
 doxygen
 </a> 1.8.13
 </small></address>

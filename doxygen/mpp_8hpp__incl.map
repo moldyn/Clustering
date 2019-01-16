@@ -1,4 +1,4 @@
-<map id="mpp.hpp" name="mpp.hpp">
+<map id="src/mpp.hpp" name="src/mpp.hpp">
 <area shape="rect" id="node10" href="$tools_8hpp.html" title="Tools mainly for IO and some other functions. " alt="" coords="395,87,470,114"/>
 <area shape="rect" id="node16" href="$tools_8hxx_source.html" title="tools.hxx" alt="" coords="558,169,632,196"/>
 <area shape="rect" id="node17" href="$logger_8hpp.html" title="Define global logger. " alt="" coords="226,244,308,271"/>

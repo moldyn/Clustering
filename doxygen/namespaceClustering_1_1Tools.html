@@ -29,7 +29,7 @@
         <nav class="navbar navbar-default" role="navigation">
             <div class="container">
                 <div class="navbar-header">
-                    <a class="navbar-brand">clustering 0.13_beta</a>
+                    <a class="navbar-brand">clustering 1.0</a>
                 </div>
             </div>
         </nav>
@@ -101,22 +101,22 @@ Functions</h2></td></tr>
 unsigned int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a0bb61c4850e5aacc81784374bfc84bce">min_multiplicator</a> (unsigned int orig, unsigned int mult)</td></tr>
 <tr class="memdesc:a0bb61c4850e5aacc81784374bfc84bce"><td class="mdescLeft">&#160;</td><td class="mdescRight">return minimum multiplicator to fulfill result * mult &gt;= orig <br /></td></tr>
 <tr class="separator:a0bb61c4850e5aacc81784374bfc84bce"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3b90311d696d2396c6e19ca3e32031bd"><td class="memItemLeft" align="right" valign="top"><a id="a3b90311d696d2396c6e19ca3e32031bd"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a3b90311d696d2396c6e19ca3e32031bd">write_fes</a> (std::string fname, std::vector&lt; float &gt; fes, std::string header_comment)</td></tr>
-<tr class="memdesc:a3b90311d696d2396c6e19ca3e32031bd"><td class="mdescLeft">&#160;</td><td class="mdescRight">write free energies as column into given file <br /></td></tr>
-<tr class="separator:a3b90311d696d2396c6e19ca3e32031bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa3cad8617b7a008c3c78975372b07f0a"><td class="memItemLeft" align="right" valign="top"><a id="aa3cad8617b7a008c3c78975372b07f0a"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#aa3cad8617b7a008c3c78975372b07f0a">write_pops</a> (std::string fname, std::vector&lt; std::size_t &gt; pops, std::string header_comment)</td></tr>
-<tr class="memdesc:aa3cad8617b7a008c3c78975372b07f0a"><td class="mdescLeft">&#160;</td><td class="mdescRight">write populations as column into given file <br /></td></tr>
-<tr class="separator:aa3cad8617b7a008c3c78975372b07f0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b597f6cf732252787a0825d204e9e72"><td class="memItemLeft" align="right" valign="top"><a id="a1b597f6cf732252787a0825d204e9e72"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a1b597f6cf732252787a0825d204e9e72">write_fes</a> (std::string fname, std::vector&lt; float &gt; fes, std::string header_comment, std::map&lt; std::string, float &gt; stringMap)</td></tr>
+<tr class="memdesc:a1b597f6cf732252787a0825d204e9e72"><td class="mdescLeft">&#160;</td><td class="mdescRight">write free energies as column into given file <br /></td></tr>
+<tr class="separator:a1b597f6cf732252787a0825d204e9e72"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adfe5b66dacf447f3612c975476c23ef2"><td class="memItemLeft" align="right" valign="top"><a id="adfe5b66dacf447f3612c975476c23ef2"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#adfe5b66dacf447f3612c975476c23ef2">write_pops</a> (std::string fname, std::vector&lt; std::size_t &gt; pops, std::string header_comment, std::map&lt; std::string, float &gt; stringMap)</td></tr>
+<tr class="memdesc:adfe5b66dacf447f3612c975476c23ef2"><td class="mdescLeft">&#160;</td><td class="mdescRight">write populations as column into given file <br /></td></tr>
+<tr class="separator:adfe5b66dacf447f3612c975476c23ef2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b0d69e356c4f5f9d472e547942c692b"><td class="memItemLeft" align="right" valign="top"><a id="a1b0d69e356c4f5f9d472e547942c692b"></a>
 std::vector&lt; std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a1b0d69e356c4f5f9d472e547942c692b">read_clustered_trajectory</a> (std::string filename)</td></tr>
 <tr class="memdesc:a1b0d69e356c4f5f9d472e547942c692b"><td class="mdescLeft">&#160;</td><td class="mdescRight">read states from trajectory (given as plain text file) <br /></td></tr>
 <tr class="separator:a1b0d69e356c4f5f9d472e547942c692b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a28aeccdffd6e82fa124ab31ced309b06"><td class="memItemLeft" align="right" valign="top"><a id="a28aeccdffd6e82fa124ab31ced309b06"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a28aeccdffd6e82fa124ab31ced309b06">write_clustered_trajectory</a> (std::string filename, std::vector&lt; std::size_t &gt; traj, std::string header_comment)</td></tr>
-<tr class="memdesc:a28aeccdffd6e82fa124ab31ced309b06"><td class="mdescLeft">&#160;</td><td class="mdescRight">write state trajectory into plain text file <br /></td></tr>
-<tr class="separator:a28aeccdffd6e82fa124ab31ced309b06"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab246073e193114ca4919949aade5b35c"><td class="memItemLeft" align="right" valign="top"><a id="ab246073e193114ca4919949aade5b35c"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#ab246073e193114ca4919949aade5b35c">write_clustered_trajectory</a> (std::string filename, std::vector&lt; std::size_t &gt; traj, std::string header_comment, std::map&lt; std::string, float &gt; stringMap)</td></tr>
+<tr class="memdesc:ab246073e193114ca4919949aade5b35c"><td class="mdescLeft">&#160;</td><td class="mdescRight">write state trajectory into plain text file <br /></td></tr>
+<tr class="separator:ab246073e193114ca4919949aade5b35c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aad36a443a7ef6ac063e57642a328e73c"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#aad36a443a7ef6ac063e57642a328e73c">stringprintf</a> (const std::string &amp;str,...)</td></tr>
 <tr class="memdesc:aad36a443a7ef6ac063e57642a328e73c"><td class="mdescLeft">&#160;</td><td class="mdescRight">printf-version for std::string  <a href="#aad36a443a7ef6ac063e57642a328e73c">More...</a><br /></td></tr>
 <tr class="separator:aad36a443a7ef6ac063e57642a328e73c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -128,8 +128,8 @@ std::vector&lt; float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a
 <tr class="separator:a05b17c6a715177971b9c22fa8a9e2e83"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9ad0033f4699017c30936d95626528b7"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a9ad0033f4699017c30936d95626528b7">read_concat_limits</a> (std::string filename)</td></tr>
 <tr class="separator:a9ad0033f4699017c30936d95626528b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8a6a07522f33767feb21096a32b14c5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a8a6a07522f33767feb21096a32b14c5a">write_neighborhood</a> (const std::string filename, const <a class="el" href="namespaceClustering_1_1Tools.html#ad2b6f4886446247db27ece196d76575c">Neighborhood</a> &amp;nh, const <a class="el" href="namespaceClustering_1_1Tools.html#ad2b6f4886446247db27ece196d76575c">Neighborhood</a> &amp;nh_high_dens, std::string header_comment)</td></tr>
-<tr class="separator:a8a6a07522f33767feb21096a32b14c5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aae8af70ddbeb7fe84c330307f3bf1040"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#aae8af70ddbeb7fe84c330307f3bf1040">write_neighborhood</a> (const std::string filename, const <a class="el" href="namespaceClustering_1_1Tools.html#ad2b6f4886446247db27ece196d76575c">Neighborhood</a> &amp;nh, const <a class="el" href="namespaceClustering_1_1Tools.html#ad2b6f4886446247db27ece196d76575c">Neighborhood</a> &amp;nh_high_dens, std::string header_comment, std::map&lt; std::string, float &gt; stringMap)</td></tr>
+<tr class="separator:aae8af70ddbeb7fe84c330307f3bf1040"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a74a491ebb15a6a1adb058861e4d2f53f"><td class="memItemLeft" align="right" valign="top"><a id="a74a491ebb15a6a1adb058861e4d2f53f"></a>
 std::map&lt; std::size_t, std::size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a74a491ebb15a6a1adb058861e4d2f53f">microstate_populations</a> (std::vector&lt; std::size_t &gt; traj)</td></tr>
 <tr class="memdesc:a74a491ebb15a6a1adb058861e4d2f53f"><td class="mdescLeft">&#160;</td><td class="mdescRight">compute microstate populations from clustered trajectory <br /></td></tr>
@@ -138,6 +138,18 @@ std::map&lt; std::size_t, std::size_t &gt;&#160;</td><td class="memItemRight" va
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a8222d1cbceb6cfdb7231942241703551">check_concat_limits</a> (std::vector&lt; std::size_t &gt; concat_limits, std::size_t n_frames)</td></tr>
 <tr class="memdesc:a8222d1cbceb6cfdb7231942241703551"><td class="mdescLeft">&#160;</td><td class="mdescRight">check if concat limits were passed correctly <br /></td></tr>
 <tr class="separator:a8222d1cbceb6cfdb7231942241703551"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4a646a700668bc4ee3fffe46a21b927e"><td class="memItemLeft" align="right" valign="top"><a id="a4a646a700668bc4ee3fffe46a21b927e"></a>
+float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a4a646a700668bc4ee3fffe46a21b927e">read_next_float</a> (std::ifstream &amp;ifs)</td></tr>
+<tr class="memdesc:a4a646a700668bc4ee3fffe46a21b927e"><td class="mdescLeft">&#160;</td><td class="mdescRight">read the next float of ifstream <br /></td></tr>
+<tr class="separator:a4a646a700668bc4ee3fffe46a21b927e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a75c50cc781b274e31cc52498181fc06b"><td class="memItemLeft" align="right" valign="top"><a id="a75c50cc781b274e31cc52498181fc06b"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a75c50cc781b274e31cc52498181fc06b">read_comments</a> (std::string filename, std::map&lt; std::string, float &gt; &amp;stringMap)</td></tr>
+<tr class="memdesc:a75c50cc781b274e31cc52498181fc06b"><td class="mdescLeft">&#160;</td><td class="mdescRight">read comments of stringMap from file. Comments should start with #@ <br /></td></tr>
+<tr class="separator:a75c50cc781b274e31cc52498181fc06b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a09a51c8cdeffea8d32d64217781d9f34"><td class="memItemLeft" align="right" valign="top"><a id="a09a51c8cdeffea8d32d64217781d9f34"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a09a51c8cdeffea8d32d64217781d9f34">append_commentsMap</a> (std::string &amp;header_comment, std::map&lt; std::string, float &gt; &amp;stringMap)</td></tr>
+<tr class="memdesc:a09a51c8cdeffea8d32d64217781d9f34"><td class="mdescLeft">&#160;</td><td class="mdescRight">append commentsMap to header comment <br /></td></tr>
+<tr class="separator:a09a51c8cdeffea8d32d64217781d9f34"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a91d14784fa0154679137d3147a6945ef"><td class="memTemplParams" colspan="2"><a id="a91d14784fa0154679137d3147a6945ef"></a>
 template&lt;typename NUM &gt; </td></tr>
 <tr class="memitem:a91d14784fa0154679137d3147a6945ef"><td class="memTemplItemLeft" align="right" valign="top">std::vector&lt; NUM &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespaceClustering_1_1Tools.html#a91d14784fa0154679137d3147a6945ef">read_single_column</a> (std::string filename)</td></tr>
@@ -288,7 +300,7 @@ template&lt;typename NUM &gt; </div>
 </div><div class="memdoc">
 <p>read conact limits takes length of the single trajectories. </p>
 
-<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00128">128</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00133">133</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
 
 </div>
 </div>
@@ -342,7 +354,7 @@ template&lt;typename NUM &gt; </div>
 </div><div class="memdoc">
 <p>read neighborhood info from plain text file (two different neighborhoods: nearest neighbor (NN) and NN with higher density) </p>
 
-<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00096">96</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00101">101</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
 
 </div>
 </div>
@@ -382,12 +394,12 @@ template&lt;typename NUM &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>resulting string The function internally calls sprintf, but converts the result to a c++ string and returns that one. Problems of memory allocation are taken care of automatically. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00075">75</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00080">80</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
 
 </div>
 </div>
-<a id="a8a6a07522f33767feb21096a32b14c5a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8a6a07522f33767feb21096a32b14c5a">&#9670;&nbsp;</a></span>write_neighborhood()</h2>
+<a id="aae8af70ddbeb7fe84c330307f3bf1040"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aae8af70ddbeb7fe84c330307f3bf1040">&#9670;&nbsp;</a></span>write_neighborhood()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -414,7 +426,13 @@ template&lt;typename NUM &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">std::string&#160;</td>
-          <td class="paramname"><em>header_comment</em>&#160;</td>
+          <td class="paramname"><em>header_comment</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::map&lt; std::string, float &gt;&#160;</td>
+          <td class="paramname"><em>stringMap</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -425,7 +443,7 @@ template&lt;typename NUM &gt; </div>
 </div><div class="memdoc">
 <p>write neighborhood info to plain text file (two different neighborhoods: nearest neighbor (NN) and NN with higher density) </p>
 
-<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00139">139</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="tools_8cpp_source.html#l00144">144</a> of file <a class="el" href="tools_8cpp_source.html">tools.cpp</a>.</p>
 
 </div>
 </div>
@@ -438,7 +456,7 @@ template&lt;typename NUM &gt; </div>
 </div>
 </div>
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Dec 12 2018 13:18:36 for clustering by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Wed Jan 16 2019 13:44:41 for clustering by &#160;<a href="http://www.doxygen.org/index.html">
 doxygen
 </a> 1.8.13
 </small></address>

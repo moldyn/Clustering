@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['node',['Node',['../structanonymous__namespace_02network__builder_8cpp_03_1_1Node.html',1,'anonymous_namespace{network_builder.cpp}']]]
+  ['boxgrid',['BoxGrid',['../namespaceClustering_1_1Density.html#structClustering_1_1Density_1_1BoxGrid',1,'Clustering::Density']]]
 ];
