@@ -35,13 +35,13 @@ code documentation in html.
 
 # Citations
 The underlying methods are based on the following articles:
+  - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
+    Metastable Conformational States of Proteins*,
+    J. Chem. Theory Comput., 12, 2426; DOI: 10.1021/acs.jctc.5b01233
   - A. Jain and G. Stock, *Hierarchical folding free energy landscape of HP35
     revealed by most probable path clustering*,
     J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: 10.1021/jp410398a
-  - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
-    Metastable Conformational States of Proteins*,
-    J. Chem. Theory Comput., Article ASAP; DOI: 10.1021/acs.jctc.5b01233
-  - D. Nagel, A. Weber, B. Lickert and G. Stock, *Dynamical coring of Markov state models*, Submitted
+  - D. Nagel, A. Weber, B. Lickert and G. Stock, *Dynamical coring of Markov state models*, J. Chem. Phys, Accepted
 
 We kindly ask you to cite these articles if you use this software package for
 published works.
