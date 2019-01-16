@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Dynamical
+            Coring</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Dynamical Coring</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          In <a
+            href="http://www.moldyn.uni-freiburg.de/publications/papers/149-pre-WA.pdf"
+            class="link link--light">Nagel et al., 2019</a> this method was
+          described in detail. It was shown, that it significantly improves the
+          markovianity of the resulting microstates. It is a dynamical boarder
+          correction methods which counts transitions only if they reach the
+          dynamical core, remain longer than \(\tau_\text{cor}\) in it.
+        </p>
+
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering noise -s state_file
+                 -w window_file
+                 -o output
+                 -d Wi_output
+                 --cores output_cores
+                 --concat-nframes NFRAMES
+                 --concat-limits limit_file
+                 -v</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}s :}\)</td>
+              <td>The name(path) of the clusterd state trajectory file.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}w :}\) </td>
+              <td>The name(path) to the window size file. The file should be
+                formatted as a two-column file assigning to each state a coring
+                time \(\tau_\text{cor}\):
+                <p style="text-align:center;">STATE_ID TAU_COR</p>
+                use * as STATE_ID to match all (other) states.
+                e.g.:
+                <p style="text-align:center;">
+                  \({}^*\ 20\)<br>
+                  \(3\ 40\)<br>
+                  \(4\ 60\)</p>
+                matches 40 frames to state 3, 60 frames to state 4
+                and 20 frames to all the other states.
+
+              </td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}nframes:}\) </td>
+              <td>The number of frames per (equally sized) sub-trajectories for
+                concatenated trajectory files.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}limits:}\) </td>
+              <td>The name(path) to the limit file. It should be a single column
+                file with the length of each trajectory. for a concatenated
+                trajectory of three chunks of sizes 100, 50 and 300 frames: '100
+                50 300'.</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Output Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}o}\)</td>
+              <td>Filename for the output file of the noise corrected
+                microstates.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}d}\)</td>
+              <td>Basename for the probability distributions \(W_i(t)\).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}cores}\)</td>
+              <td>Filename where the microstate trajectory is stored with all
+                frames which are not in the core regions denoted by \(-1\).</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Miscellaneous Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}v}\)</td>
+              <td>Verbose mode with some output.</td>
+            </tr>
+          </table>
+
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Detailed Description</h2>
+        <p>
+          Transitions between states usually do not occur in a direct and
+          discrete manner.
+          Rather, the system goes into a 'transition zone', where frames are
+          alternating
+          fast between two states before staying in the new state.
+          These alternations severely change the dynamical description of the
+          system and
+          produce artificially short life times.
+          You can use variable dynamic coring to correct for these boundary
+          artifacts.
+          Here, 'dynamic' means that we refer to the core of a state, if the
+          system stays
+          inside for a given amount of time (the so-called coring time). Thus, we check
+          dynamic
+          properties instead of geometric ones.</p>
+        <p>
+          To identify the optimal coring time \(\tau_\text{cor}\), run the
+          coring-algorithm for several coring times and plot the probability
+          \(W_i(t)\) to stay in state \(i\) for duration \(t\) (without
+          considering back transitions). The optimal coring time is the lowest
+          that matches an exponential decay.
+          To produce probability distribution for different coring times,
+          write a
+          \(\mathtt{win}\) file with the content</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  * CORING_TIME
+             </code>
+            </pre>
+        </div>
+        <p>where \(\mathtt{CORING\_TIME}\) is the croing time given as number of
+          frames.
+          The star means, that we treat all states with the same coring time.
+          Even though, the coring time can be specified separatly for all states, it
+          is recommended to take a common time.
+
+            Then run the command with the \(\mathtt{\mbox{-}d}\) flag and
+            without the \(\mathtt{\mbox{-}o}\).</p>
+        <p>
+          This produces several files of the format
+          \(\mathtt{Wi\_CORING\_TIME}\).
+          Repeat this process several times for different choices of coring time
+          in the
+          \(\mathtt{win}\) file.</p>
+        <p>
+          After the generation of the probability \(W_i(t)\) files, plot them
+          (e.g. with matplotlib) and select the window size that shows an exponential
+          decay. In most cases it is sufficient to take the same window for all
+          states. Select the window such that it shows an exponential decay for
+          all microstates. In the following figures the probabilities for the first
+          two states are shown,</p>
+        <figure>
+          <img src="figures/coring.png" alt="finding coring time">
+        </figure>
+        <p>where see that \(\tau_{cor}=4\,[\text{frames}]\) is sufficient.</p>
+        <p>
+          When you have selected proper windows sizes for all states, rewrite
+          your
+          \(\mathtt{win}\) file to reflect these. For three different states
+          \(1, 2\,\&\,3\), e.g. you could write</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  1 100
+  2 200
+  3 75
+             </code>
+            </pre>
+        </div>
+        <p>for window sizes of 100 frames for state 1, 200 frames for state 2
+          and 75
+          frames for state 3.</p>
+          <p>
+            Finally, to produce the cored cluster trajectory, run the command
+            with the \(\mathtt{\mbox{-}o}\) flag and without the
+            \(\mathtt{\mbox{-}d}\) flag.</p>
+        </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

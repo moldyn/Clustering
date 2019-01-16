@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Generate
+            Clusters</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Generate Clusters via Free Energy Screening
+      </h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+
+          In this step all geometrically connected regions are identified. Those
+          are determined for all points below a free energy threshold
+          \(\tilde{G}\). This is repeated consequently for all values threshold
+          specified with \(\mathtt{\mbox{-}T}\).
+
+          <section class="js-section">
+            <h2 class="section__title">Execution</h2>
+            <div class="code__block code__block--notabs">
+              <pre class="code code--block code--block--tabs">
+             <code>
+clustering density -f coordinate_file
+                   -T from_fe step_fe [to_fe]
+                   -r radius
+                   -d/-D free_energy_file
+                   -b/-B nearest_neighbor_file
+                   -o output_basename
+                   -n N
+                   -v</code>
+            </pre>
+            </div>
+          </section>
+          <section class="js-section">
+            <h2 class="section__title">Parameters</h2>
+
+            <h4 class="section__title">Input Parameters</h4>
+            <table>
+              <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}f :}\)</td>
+                <td>The name(path) of the input coordinates. The dimension
+                  should not exceed 10.</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}T :}\)</td>
+                <td>The screening of the free energy landscape. format: FROM
+                  STEP TO; e.g.: \(\mathtt{\mbox{-}T\ 0.1\ 0.1\ 11.1}\). Set
+                  \(\mathtt{\mbox{-}T\ \mbox{-}1}\) for default values: FROM
+                  \(=0.1\), STEP \(=0.1\), TO \(=G_\text{max}\). If TO is not
+                  given, e.g.: '\(\mathtt{\mbox{-}T\ 0.2\ 0.4}\)', than TO
+                  \(=G_\text{max}\) to start at \(0.2\) and go
+                  to \(G_\text{max}\) at steps of \(0.4\).</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}r :}\) </td>
+                <td>The cluster radius \(R\) (same unit as input) used for
+                  calculating the free energy and the nearest neighbor with
+                  lower
+                  energy. If this flag is not set the lumping radius
+                  \(d_\text{lump}\)
+                  will be used, so \(R=d_\text{lump}\). This will be ignored if
+                  used
+                  together with \(\mathtt{\mbox{-}D}\).</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}D :}\)</td>
+                <td>Filename to read the free energies from. This should be used
+                  with \(\mathtt{\mbox{-}B}\) and a nearest neighbor file
+                  generated with the same cluster radius, otherwise use
+                  \(\mathtt{\mbox{-}b}\). If used, \(\mathtt{\mbox{-}r}\) is
+                  ignored.</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}B :}\)</td>
+                <td>Filename to read the nearest neighbors from. This should be
+                  used with \(\mathtt{\mbox{-}D}\) and a nearest neighbor file
+                  generated with the same clustering radius, or together with
+                  \(\mathtt{\mbox{-}r}\) and \(\mathtt{\mbox{-}d}\). This option
+                  is ignored if \(\mathtt{\mbox{-}R}\) is set.</td>
+              </tr>
+            </table>
+
+            <h4 class="section__title">Output Parameters</h4>
+            <table>
+              <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}o}\)</td>
+                <td>This is the basename of the cluster output files. For each
+                  free energy threshold a file with the found clusters is saved,
+                  e.g. for \(\Delta \tilde{G}=2.6\) a file named
+                  \(\mathtt{basename.2.60}\) is generated. \(0\) corresponds to
+                  frames with a higher free energy than the current threshold
+                  \(\Delta \tilde{G}\).</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}p}\)</td>
+                <td>Filename for the output file of the populations for the
+                  given radius. This option is ignored if not given together
+                  with \(\mathtt{\mbox{-}d}\).</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}d}\)</td>
+                <td>Filename for the output file of the free energies. The same
+                  as \(\mathtt{\mbox{-}D}\), but generates the free energies for
+                  the given radius.</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}b}\)</td>
+                <td>Filename for the output file of the nearest neighbors. The
+                  same as \(\mathtt{\mbox{-}B}\), but the nearest neighbors get
+                  generated for the given radius.</td>
+              </tr>
+            </table>
+
+            <h4 class="section__title">Miscellaneous Parameters</h4>
+            <table>
+              <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}n}\)</td>
+                <td>The number of parallel threads to use (for SMP machines).
+                  This is ignored if CUDA is used.</td>
+              </tr>
+              <tr>
+                <td>\(\mathtt{\mbox{-}v}\)</td>
+                <td>Verbose mode with some output.</td>
+              </tr>
+            </table>
+          </section>
+          <section class="js-section">
+            <h2 class="section__title">Detailed Description</h2>
+
+            <p>
+              Before we explain the procedure, we want to note here that
+              clusters do not correspond to states. Clusters just separate the
+              space into geometrically connected regions. Those are per
+              construction separated at the highest available free energy, while
+              states are separated at all barriers. Therefore, gathers the major
+              cluster normally up to \(90\%\) of the total population.
+
+              <figure>
+                <img src="figures/clusterVsstates.png" alt="Generating clusters"
+                  class="fe-size">
+              </figure>
+            </p>
+            <p>
+              Given the readily computed free energies (\(\mathtt{\mbox{-}d}\))
+              and neighborhoods (\(\mathtt{\mbox{-}b}\)) per frame for the
+              selected radius, we continue the clustering by screening the free
+              energy landscape. This means, we choose a (initially low) free
+              energy cutoff \(\tilde{G}\), select all frames below and combine
+              them into clusters, if they are geometrically connected with
+              respect to the lumping distance \(d_\text{lump}=2\sigma\), which
+              is automatically computed for the given data set. \(\sigma\)
+              denotes here the standard deviation of the nearest neighbor
+              distances. An illustration is provided in the following figures.
+              If the threshold raises previous clusters can be merged.</p>
+            <figure>
+              <img src="figures/generateClusters1.png" alt="Generating clusters"
+                class="fe-size">
+              <img src="figures/generateClusters2.png" alt="Generating clusters"
+                class="fe-size">
+              <img src="figures/generateClusters3.png" alt="Generating clusters"
+                class="fe-size">
+            </figure>
+            <p>
+              This is done repeatedly, with increasing free energy cutoffs. The
+              end result will be multiple plain-text files, one for each cutoff,
+              that define cluster trajectories. Their format is a single column
+              of integers, which act as a membership id of the given frame
+              (identified by the row number) to a certain cluster. For each
+              file, the microstate ids start with the value 1 and are numbered
+              incrementally. All frames above the given free energy threshold
+              are denoted by \(0\), which acts as a kind of melting pot for
+              frames with unknown affiliation.</p>
+            <p>
+              Do not worry if there are still frames denoted by \(0\) in the
+              cluster file of highest free energy. The <i>clustering</i> program
+              rounds the maximum free energy to 2 decimal places for screening,
+              which may result in a cutoff that is slightly lower than the true
+              maximum. Thus there may be frames left, which are not assigned to
+              a cluster since they are not below the cutoff.</p>
+            <p>
+              However, since we are going to generate states from selecting the
+              basins of the clusters and 'filling up' the free energy landscape
+              from bottom to top, these states are not interesting on their own,
+              anyhow, and will be assigned to a distinct state in the next step.
+
+          </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

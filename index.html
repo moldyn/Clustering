@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering - A highly optimized package for generating optimal
+    microstates</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/railscasts.min.css">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-landing.css">
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <nav>
+    <!-- <div class="logo"></div> -->
+    <div></div>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="docIndex.html" class="link link--dark"><i
+            class="fa fa-book"></i> Documentation</a></li>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+    </ul>
+  </nav>
+  <div class="hero">
+    <h1 class="hero__title">Clustering</h1>
+    <p class="hero__description">A highly optimized package for generating
+      optimal microstates.</p>
+  </div>
+  <div class="hero__terminal">
+    <pre>
+        <!-- Place your demo code here -->
+        <code class="shell-session clustering"></code>
+      </pre>
+  </div>
+  <div class="wrapper">
+    <div class="installation">
+      <h3 class="section__title">Installation</h3>
+      <div class="tab__container">
+        <ul class="tab__menu">
+          <li class="tab active" data-tab="linux">linux</li>
+          <li class="tab" data-tab="mac">mac</li>
+        </ul>
+        <pre class="nohighlight code">
+            <code class="tab__pane active linux">
+                $ git clone https://github.com/moldyn/Clustering.git<br>
+                $ cd clustering<br>
+                $ mkdir build<br>
+                $ cd build<br>
+                $ cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path <br>
+                $ make
+            </code>
+            <code class="tab__pane mac">Mac is not supported, but should work. Good luck!</code>
+          </pre>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature__item">
+        <h3 class="section__title"><i class="fa fa-bolt"></i> Fast & Light</h3>
+        <p>Highly optimized C++11 code which can be easily executed on remote.
+        </p>
+      </div>
+      <div class="feature__item">
+        <h3 class="section__title"><i class="fa fa-user"></i> User-friendly</h3>
+        <p>The user interface was completely revised to reduce mistakes and make
+          it more intuitive.</p>
+      </div>
+      <div class="feature__item">
+        <h3 class="section__title"> <i class="fa fa-rocket"></i> Parallelized
+        </h3>
+        <p>This package gets the best performance out of your hardware by
+          running in parallel based on OpenMP and CUDA.</p>
+      </div>
+      <div class="feature__item">
+        <h3 class="section__title"><i class="fa fa-eye"></i> Open-Source</h3>
+        <p>The methods are reliable and comprehensible documented with doxygen.
+        </p>
+      </div>
+      <div class="feature__item">
+        <h3 class="section__title"><i class="fa fa-university"></i> Theoretical
+          foundation</h3>
+        <p>All implemented methods were discussed and published in well-known
+          journals.</p>
+      </div>
+      <div class="feature__item">
+        <h3 class="section__title"><i class="fa fa-coffee"></i> Made with love
+        </h3>
+        <p>This package was made with a lot of love and coffee. We care about it,
+          because we use it frequently.</p>
+      </div>
+    </div>
+    <!--
+      <div class="keybinding">
+        <ul class="keybinding__detail">
+          <h3 class="keybinding__title">Default Keybindings</h3>
+          <li>Quit without saving <span class="keybinding__label">Ctrl+C</span></li>
+          <li>Save <span class="keybinding__label">Cmd+S</span></li>
+          <li>Save and Quit <span class="keybinding__label">Ctrl+D</span></li>
+          <li>Undo <span class="keybinding__label">Cmd+Z</span></li>
+        </ul>
+        <ul class="keybinding__detail">
+          <h3 class="keybinding__title">Markdown Keybindings</h3>
+          <li><span class="keybinding__label">Ctrl+A</span> Insert Link Markdown</li>
+          <li><span class="keybinding__label">Ctrl+I</span> Insert Image Markdown</li>
+          <li><span class="keybinding__label">Ctrl+V</span> Insert YouTube Video</li>
+          <li><span class="keybinding__label">Ctrl+T</span> Insert Table</li>
+        </ul>
+      </div> -->
+    <div class="callout">
+      <p>Read our documentation for further information.</p>
+      <a href="docIndex.html" class="button--primary">Get Started</a>
+    </div>
+  </div>
+  <div class="changelog">
+    <div class="wrapper">
+      <h3 class="section__title">Changelog</h3>
+      <div class="changelog__item">
+        <div class="changelog__meta">
+          <h4 class="changelog__title">v1.0</h4>
+          <small class="changelog__date">1/14/2019</small>
+        </div>
+        <div class="changelog__detail">
+          <ul>
+            <li>Improved UI</li>
+            <li>Added noise module</li>
+            <li>Improved concat limits</li>
+            <li>Added comments in output</li>
+            <li>Bug fixes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="changelog__item">
+        <div class="changelog__meta">
+          <h4 class="changelog__title">v0.13</h4>
+          <small class="changelog__date">05/16/2017</small>
+        </div>
+        <div class="changelog__detail">
+          <ul>
+            <li>Complete rewrittend density module</li>
+            <li>Added CUDA support</li>
+            <li>Added MPP by Jain et al.</li>
+            <li>Multiple bug fixed</li>
+          </ul>
+        </div>
+      </div>
+      <div class="changelog__callout">
+        <a href="https://github.com/moldyn/Clustering/releases"
+          class="button--secondary">Checkout Full Log</a>
+      </div>
+    </div>
+  </div>
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

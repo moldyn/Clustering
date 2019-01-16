@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Noise
+            Correction</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Dynamical Noise Correction</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          In <a
+            href="http://www.moldyn.uni-freiburg.de/publications/papers/149-pre-WA.pdf"
+            class="link link--light">Nagel et al., 2019</a> it was emphasized,
+          that dimensionality reduction methods, such as PCA or tICA, suffer
+          artefacts on the barriers. Those frames should be identified as noise
+          and assigned dynamically. It should be used together with
+          \(\mathtt{coring}\) which is the more powerful tool.
+        </p>
+
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering noise -s state_file
+                 -c cmin
+                 -b basename
+                 -o output
+                 --cores output_cores
+                 --concat-nframes NFRAMES
+                 --concat-limits limit_file
+                 -v</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}s :}\)</td>
+              <td>The name(path) of the clusterd state trajectory file.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}c :}\) </td>
+              <td>The population threshold (in percent) below which an isolated
+                cluster is assigned as noise. (Default: \(0.1\)).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}b :}\) </td>
+              <td>The basename of the input cluster files used to determine
+                isolated clusters. (Default: \(\mathtt{clust}\)).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}nframes:}\) </td>
+              <td>The number of frames per (equally sized) sub-trajectories for
+                concatenated trajectory files.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}limits:}\) </td>
+              <td>The name(path) to the limit file. It should be a single column
+                file with the length of each trajectory. for a concatenated
+                trajectory of three chunks of sizes 100, 50 and 300 frames: '100
+                50 300'.</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Output Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}o}\)</td>
+              <td>Filename for the output file of the noise corrected
+                microstates.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}cores}\)</td>
+              <td>Filename where the microstate trajectory is stored with all
+                noise frames denoted by \(-1\).</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Miscellaneous Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}v}\)</td>
+              <td>Verbose mode with some output.</td>
+            </tr>
+          </table>
+
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Detailed Description</h2>
+          <p>
+            On the barriers we are facing a poor sampling. Therefore, also due
+            to projection artefacts, frames can be assigned to the wrong state.
+            To avoid this, we simply reassign those frames dynamically instead
+            of geometrically. This was proposed in <a href=""
+              class="link link--light">Nagel et al., 2019</a>.
+            We use the following definition of noise:</p>
+          <ul>
+            <li>All geometrically isolated clusters with population lower than
+              \(\mathtt{c_\text{min}}\) are assigned as noise.</li>
+            <li>They are assigned dynamically (in the sense of coring) to the
+              previously visited state.</li>
+          </ul>
+          <p>Where \(\mathtt{c_\text{min}}\) is given in percent of the total
+            population. This has an impact of</p>
+          <ul>
+            <li>\(\approx5\%\) of total frames</li>
+            <li>improves the Markovianity in some systems</li>
+          </ul>
+        </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,615 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Tutorial</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Preparing the data</li>
+            <li class="js-btn">Free energy</li>
+            <li class="js-btn">Generate clusters</li>
+            <li class="js-btn">Build network</li>
+            <li class="js-btn">Generate microsates</li>
+            <li class="js-btn">Noise correction</li>
+            <li class="js-btn">Dynamical coring</li>
+            <li class="js-btn">Dynamical clustering</li>
+          </ul>
+        </li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Tutorial</h2>
+      <p>This tutorial gives a short introduction into the basic usage. For
+        further information, please read the manual pages of the corresponding
+        module.</p>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+
+        <p>
+          This tutorial explains how to use the <i>clustering</i> program
+          provided at
+          <a href="https://github.com/moldyn/Clustering"
+            class="link link--light">
+            github.com/moldyn/clustering
+          </a>.
+          A general introduction to the idea of dimensionality reduction and
+          clustering
+          can be found in
+          <a href="https://aip.scitation.org/doi/10.1063/1.5049637"
+            class="link link--light">
+            Sittel et al., 2018.
+          </a>
+          <br><br>
+          The density-based clustering algorithm used in the module
+          \(\mathtt{density}\) consists
+          of four parts:
+        </p>
+        <ol>
+          <li>Calculate the free energy for each point based on the local point
+            density.</li>
+          <li>Scan the free energy landscape (from minimal to maximal value)
+            and assign all points into geometrical clusters. If a point \(i\)
+            is geometrically close to an existing cluster
+            (\(d_{ij}\lt d_\text{lump}\)), it is assigned to it. Otherwise it
+            forms a new cluster.</li>
+          <li>Scan another time through the free energy to identify
+            the seeds of microstates.</li>
+          <li>The microstates are formed by assigning every point that is not
+            yet part of a seed
+            to its geometrically closest neighbor with lower energy. This
+            guarantees that the
+            barriers are cut at the edges.</li>
+        </ol>
+        <p>
+          Each of these steps will be discussed in detail
+          in the following.
+          Afterwards we discuss two methods which improve the microstate
+          definitions on the
+          barriers, namely \(\mathtt{noise}\) and \(\mathtt{coring}\). Further,
+          we present the most
+          probable path algorithm (\(\mathtt{mpp}\)) to dynamically lump the
+          microstates into macrostates.
+        </p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Preparing the data</h2>
+        <p>
+          Apply a suitable dimension reduction method (e.g. PCA) on the data and
+          select a
+          limited number of essential coordinates. For more information on PCA
+          see
+          <a href="https://moldyn.github.io/FastPCA">FastPCA</a>. It is
+          important not to exceed the maximum dimensionality for the given
+          sampling
+          when using a density-based clustering approach.
+          Too high dimensionality will suffer from the 'Curse of Dimensionaliy'.
+          A good estimate, e.g. for a six dimensional data set is a sampling of
+          \(\gt 10^6\)
+          frames.</p>
+        <p>
+          The input data for the <i>clustering</i> package needs to be
+          column-oriented,
+          space-separated plain text. It is possible to use concatenated
+          trajectory files.</p>
+        <p>
+          From now on, let's assume we have prepared input data for
+          <i>clustering</i> in
+          the file \(\mathtt{coords}\). Further, we assume that it is a single
+          trajectory. Otherwise, the
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}limits}\) or
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}nframes}\) needs to be used
+          in the steps \(\mathtt{noise}\) and \(\mathtt{coring}\).
+
+          If you do not yet have suitable data, you download the example data
+          set.
+
+          Download the data, e.g., with \(\mathtt{wget}\), unpack it with
+          \(\mathtt{bzip2}\) and create a symlink called \(\mathtt{coords}\) to
+          be in line with
+          the rest of the tutorial:
+        </p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+     <code>
+       wget http://www.moldyn.uni-freiburg.de/software/aib9.pca.reduced.bz2
+
+       bunzip2 aib9.pca.reduced.bz2
+
+       ln -s aib9.pca.reduced coords
+     </code>
+    </pre>
+        </div>
+        <p>
+          If your computer is missing any of these programs, install them (or
+          let the
+          sysadmin do it). If they are not available, you are probably not able
+          to install the package.
+
+          The data consists of \(\sim 1.4 \cdot 10^6\) frames of a simulation of
+          the
+          peptide Aib9 (for more information on this data set, see <a
+            href="https://pubs.acs.org/doi/abs/10.1021%2Fct501156t"
+            class="link link--light">Buchenberg et al., 2015</a>),
+          reduced to four essential coordinates based on a principal
+          component analysis using dihedral angles.
+          The following figure shows the 2D projections along principal
+          components
+          \(x_1, x_2\) and \(x_3,x_4\) to give an impression of the free energy
+          landscape.
+        </p>
+        <figure>
+          <img src="figures/coords_contour.png" alt="FEL of Aib9">
+        </figure>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Calculating the free energy and nearest
+          neighbors</h2>
+        <p>
+          Other than k-means, this density-based clustering algorithms estimates
+          the optimal seeds of the microstates. Those are regions with local
+          high density representing local minima in the free energy landscape.
+          Latter is calculated with
+          $$
+          G_{R}(\vec{r})= - \ln (P_R(\vec{r})/P_{R}^{\text{max}}),
+          $$
+          where \(P_{R}(\vec{r})\) is the local population at the point
+          \(\vec{r}\) with respect to the sphere of radius \(R\).
+        </p>
+        <p>
+          The coordinate file named \(\mathtt{coords}\) is the only needed input
+          for generating the free energy/ population and nearest neighbor files.
+          This can be done simply by running:</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+             clustering density -f coords -p pop -d fe -b nn -v
+             </code>
+            </pre>
+        </div>
+        <p>
+          In <a
+            href="http://www.moldyn.uni-freiburg.de/publications/papers/149-pre-WA.pdf"
+            class="link link--light">Nagel et al., 2019</a>
+          it was shown that in most cases the lumping radius
+          \(d_\text{lump}\) is a good choice for the clustering radius \(R\).
+          Hence, we do not use the flag \(\mathtt{\mbox{-}r}\) here to set
+          \(R = d_\text{lump}\). Nonetheless, in some cases (eg. if the sampling
+          is relatively high and the dimensionality rather small) \(R\) should be
+          chosen differently.</p>
+        <p>
+
+          This code generates the population file \(\mathtt{pop}\), the free
+          energy file \(\mathtt{fe}\) and the four column nearest neighbor file
+          \(\mathtt{nn}\).
+
+          This step is here only for pedagogical reasons. If we replace in the
+          next step \(\mathtt{\mbox{-}D}\)/\(\mathtt{\mbox{-}B}\) with
+          \(\mathtt{\mbox{-}d}\)/\(\mathtt{\mbox{-}b}\) we can achieve both
+          steps within one.</p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Energy Screening - Generating Clusters</h2>
+        <p>
+          Before we explain the procedure, we want to note here that clusters do
+          not correspond to states. Clusters just separate the space into
+          geometrically connected regions. Those are per construction separated
+          at the highest (considered) free energy, while states are separated at
+          all barriers. At the highest free energy, when all trajectory points
+          are considered, the main cluster usually contains up to \(90\%\) of
+          all frames. This is illustrated in the following figure.
+        </p>
+        <figure>
+          <img src="figures/clusterVsstates.png" alt="Generating clusters"
+            class="fe-size">
+        </figure>
+        <p>
+          Given the readily computed free energies (\(\mathtt{\mbox{-}d}\)) and
+          neighborhoods (\(\mathtt{\mbox{-}b}\)) per frame for the selected
+          radius, we continue the clustering by screening the free energy
+          landscape. This means, we choose a (initially low) free energy cutoff
+          \(\tilde{G}\) and select all frames below. They are combined into clusters,
+          if they are geometrically connected with respect to the lumping
+          distance \(d_\text{lump}=2\sigma\). The latter is automatically computed
+          from the MD data. \(\sigma\) denotes here the standard deviation
+          of the nearest neighbor distances. An illustration is provided in the
+          following figures. If the threshold raises, previous clusters can be
+          merged.</p>
+        <figure>
+          <img src="figures/generateClusters1.png" alt="Generating clusters"
+            class="fe-size">
+          <img src="figures/generateClusters2.png" alt="Generating clusters"
+            class="fe-size">
+          <img src="figures/generateClusters3.png" alt="Generating clusters"
+            class="fe-size">
+        </figure>
+        <p>
+          This is done repeatedly, with increasing free energy cutoffs. The end
+          result will be multiple plain-text files, one for each cutoff, that
+          define cluster trajectories. Their format is a single column of
+          integers, which act as a membership id of the given frame (identified
+          by the row number) to a certain cluster. For each file, the microstate
+          ids start with the value 1 and are numbered incrementally. All frames
+          above the given free energy threshold are denoted by \(0\), which acts
+          as a kind of melting pot for frames with unknown affiliation.</p>
+        <p>
+          Do not worry if there are still frames denoted by \(0\) in the cluster
+          file of the highest free energy. The <i>clustering</i> program rounds
+          the maximum free energy to 2 decimal places for screening, which may
+          result in a cutoff that is slightly lower than the true maximum. Thus,
+          there may be frames left, which are not assigned to a cluster since
+          they are not below the cutoff.</p>
+        <p>
+          However, since we are going to generate states from selecting the
+          basins of the clusters and 'filling up' the free energy landscape from
+          bottom to top, these states are not interesting on their own, anyhow,
+          and will be assigned to a distinct state in the next step.
+        </p>
+        <p>
+          The coordinate file named \(\mathtt{coords}\), the previous generated
+          free energy (\(\mathtt{fe}\)) and nearest neighbors (\(\mathtt{nn}\))
+          files are all needed for generating the clusters. This can be done
+          simply by running:</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+                clustering density -f coords -T -1 -D fe -B nn -o cluster -v
+             </code>
+            </pre>
+        </div>
+        <p>With \(\mathtt{\mbox{-}T\ \mbox{-}1}\) the default screening step width
+          of \(0.1\) is selected and \(\mathtt{\mbox{-}o\ cluster}\) sets the
+          basename of the generated output files. If you do not have calculated
+          the free energy file and the nearest neighbor yet, just substitute
+          \(\mathtt{\mbox{-}D}\)/\(\mathtt{\mbox{-}B}\) with
+          \(\mathtt{\mbox{-}d}\)/\(\mathtt{\mbox{-}b}\).
+
+          In this step clusters (geometrically connected regions) are generated
+          for all points below the free energy threshold (e.g. for
+          \(\mathtt{cluster.2.6}\) all points with free energy \(\Delta G \le
+          2.6\, \text{k}T\) are used. The files are single column files.
+        </p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Building a network</h2>
+        <p>
+          The net result of the screening process is a list of files (here:
+          \(\mathtt{cluster.^*}\)) defining the cluster membership per frame for
+          different free energy thresholds. Using these memberships, we can
+          derive a network of microstates that reflects their respective
+          geometrical similarity. The network has a (multi-)tree structure, with
+          nodes defining separate microstates at the various free energy levels.
+          In case two (or more) clusters grow big enough to be geometrically
+          close, they will be merged into a single node at the free energy
+          level, at which they are not distinguishable from a single state.
+        </p>
+        <p>
+          If the metastable states of the free energy landscape are
+          geometrically diverse enough, the network will form several trees in
+          parallel, without them being joined at the highest free energy level.
+          Of course, you can add a virtual root node at a free energy level
+          above the maximum to join all trees into a single tree, however this
+          has to be done manually. The <i>clustering</i> program will not
+          artificially join the separate trees.
+        </p>
+        <p>
+          This is the first step to get states out of the clusters. The idea is
+          to identify local minima in the free energy landscape. Here we scan
+          again through the free energy landscape.
+
+          A cluster is accepted as node if it:</p>
+        <ul>
+          <li> is geometrically disconnected to all accepted clusters (nodes)
+          </li>
+          <li> is not at highest free energy</li>
+          <li> has a population higher than the minimal population
+            \(P_\text{min}\)</li>
+        </ul>
+        <p>
+          The concept of minimal population should be used carefully. It should
+          only be used to remove local fluctuation within a minimum and not to
+          lump close minima. Latter is non-physical and leads to bad defined
+          states. If one is interested in macrostates a dynamical clustering
+          method, e.g. MPP, should be used. In the following figures we compare
+          the number of resulting states \(k\) with the minimal population
+          \(P_\text{min}\). For obtaining this plot we used \(\mathtt{noise}\)
+          with \(c_\text{min}=0.1\).
+        </p>
+        <figure>
+          <img src="figures/kofpmin_log.png" alt="k vs pmin" class="fe-size">
+          <img src="figures/kofpmin.png" alt="k vs pmin" class="fe-size">
+        </figure>
+        <p>One should always choose an \(P_\text{min}\) value large enough to avoid
+          the initial drop (shown in the first figure). Depending on the desired
+          coarse-graining, one can pick a value in the range of
+          \(P_\text{min}\in[4\cdot10^{-4}-0.2]\). In the following we take
+          \(P_\text{min}=500\)</p>
+        <p>
+          Once we have the clusters, we need to generate states. The first step
+          is to identify the local minima of the free energy landscape. This is
+          achieved by running</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+              clustering network -p 500 --network-html --basename cluster -v 
+             </code>
+            </pre>
+        </div>
+        <p>The minimal population \(\mathtt{\mbox{-}p}\) should be selected high
+          enough to guarantee that all local fluctuations are ignored, but no
+          minima.</p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Generate microstate trajectory</h2>
+        <p>
+          By defining the clustered trajectory of basin centers, we seed the
+          clustering process with a limited number of microstates.
+          The <i>clustering</i> program will use this information to assign
+          all unassigned frames to one of these microstates.
+          This is done by 'filling' the basins, i.e. starting at the
+          unassigned frame of the lowest free energy, it will identify the
+          closest microstate and add the given frame to its population.
+          With the updated clustering trajectory, this process is repeated
+          until no frame is left unassigned.</p>
+        <p>
+          To separate the tree at its 'leaf-branches', i.e., to assign all
+          frames in the
+          trajectory to a distinct microstate, run</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering density -f coords -i network_end_node_traj.dat -D fe -B nn -o microstates -v
+             </code>
+            </pre>
+        </div>
+        <p>The end result of the geometric, density-based clustering is the
+          \(\mathtt{microstates}\)
+          file, which holds a single column with microstate id / frame, where
+          the row
+          number equals the according frame number. The resulting microstates
+          ids
+          are ordered by their population.</p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Noise correction</h2>
+        <p>
+          On the barriers we are facing a poor sampling. Therefore, also due to
+          projection artefacts, frames can be assigned to the wrong state. To
+          avoid this, we simply reassign those frames dynamically instead of
+          geometrically. This was proposed in <a href=""
+            class="link link--light">Nagel et al., 2019</a>.
+          We use the following definition of noise:</p>
+        <ul>
+          <li>All geometrically isolated clusters with population lower than
+            \(\mathtt{c_\text{min}}\) are assigned as noise.</li>
+          <li>They are assigned dynamically (in the sense of coring) to the
+            previously visited state.</li>
+        </ul>
+        <p>Where \(\mathtt{c_\text{min}}\) is given in percent of the total
+          population. This has an impact of</p>
+        <ul>
+          <li>\(\approx5\%\) of total frames</li>
+          <li>improves the Markovianity in some systems</li>
+        </ul>
+        <p>
+          This all can be achieved by running</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+clustering noise -s microstates -c 0.1 -o microstatesNoise --basename cluster
+             </code>
+            </pre>
+        </div>
+        <p>The result is the
+          \(\mathtt{microstatesNoise}\)
+          file, which holds a single column with microstate id / frame, where
+          the row
+          number equals the according frame number.</p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Dynamical coring</h2>
+        <p>
+          Transitions between states usually do not occur in a direct and
+          discrete manner.
+          Rather, the system goes into a 'transition zone', where frames are
+          alternating
+          fast between two states before staying in the new state.
+          These alternations severely change the dynamical description of the
+          system and
+          produce artificially short life times.
+          You can use variable dynamic coring to correct for these boundary
+          artifacts.
+          Here, 'dynamic' means that we refer to the core of a state, if the
+          system stays
+          inside for a given amount of time (the so-called coring time). Thus, we check
+          dynamic
+          properties instead of geometric ones.</p>
+        <p>
+          To identify the optimal coring time \(\tau_\text{cor}\), run the
+          coring-algorithm for several coring times and plot the probability
+          \(W_i(t)\) to stay in state \(i\) for duration \(t\) (without
+          considering back transitions). The optimal coring time is the lowest
+          that matches an exponential decay.
+          To produce probability distribution for different coring times,
+          write a
+          \(\mathtt{win}\) file with the content</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  * CORING_TIME
+             </code>
+            </pre>
+        </div>
+        <p>where \(\mathtt{CORING\_TIME}\) is the croing time given as number of
+          frames.
+          The star means, that we treat all states with the same coring time.
+          Even though, the coring time can be specified separatly for all states, it
+          is recommended to take a common time.
+
+          Then run the command</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering coring -s microstatesNoise -w win -d Wi -v
+             </code>
+            </pre>
+        </div>
+        <p>
+          This produces several files of the format
+          \(\mathtt{Wi\_CORING\_TIME}\).
+          Repeat this process several times for different choices of coring time
+          in the
+          \(\mathtt{win}\) file.</p>
+        <p>
+          After the generation of the probability \(W_i(t)\) files, plot them
+          (e.g. with matplotlib) and select the window size that shows an exponential
+          decay. In most cases it is sufficient to take the same window for all
+          states. Select the window such that it shows an exponential decay for
+          all microstates. In the following figures the probabilities for the first
+          two states are shown,</p>
+        <figure>
+          <img src="figures/coring.png" alt="finding coring time">
+        </figure>
+        <p>where see that \(\tau_{cor}=4\,[\text{frames}]\) is sufficient.</p>
+        <p>
+          When you have selected proper windows sizes for all states, rewrite
+          your
+          \(\mathtt{win}\) file to reflect these. For three different states
+          \(1, 2\,\&\,3\), e.g. you could write</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  1 100
+  2 200
+  3 75
+             </code>
+            </pre>
+        </div>
+        <p>for window sizes of 100 frames for state 1, 200 frames for state 2
+          and 75
+          frames for state 3.</p>
+        <p>
+          Finally, to produce the cored cluster trajectory, run</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering coring -s microstatesNoise -w win -o microstatesFinal -v
+             </code>
+            </pre>
+        </div>
+      </section>
+
+      <section class="js-section">
+        <h2 class="section__title">Dynamical clustering - MPP</h2>
+        <p>
+          This method was proposed in <a
+            href="http://pubs.acs.org/doi/abs/10.1021/jp410398a"
+            class="link link--light">Jain et al., 2014</a>. 
+          To get a dynamical description of the state space, use the
+          \(\mathtt{MPP}\) method to
+          cluster the geometric microstates by their respective transition
+          probabilities.
+          This way, we identify the dynamically more stable from the less stable
+          states.
+          The most important parameter for MPP is the lagtime
+          \(\tau_\text{mpp}\), which is - for the
+          <i>clustering</i> program - always given in numbers of frames.
+          The lagtime in units of time is trivially given by its value in
+          numbers of
+          frames multiplied by the time step of the underlying simulation.</p>
+        <p>
+          The lagtime is the amount of time (or number of frames) that is
+          skipped when
+          calculating transition probabilities from one state to another.
+          In effect, timescales below the given lagtime are discarded and the
+          dynamical
+          clustering will only be able to describe processes of length higher
+          than the
+          given lagtime. It acts as a control parameter to blend out
+          (uninteresting)
+          processes on too short timescales and focus on processes of essential
+          motion,
+          which typically happen at longer timescales as the simulation
+          stepping.</p>
+        <p>
+          Additionally, at a high enough lagtime the system will be
+          approximately
+          markovian, resulting in a discrete set of states well described by
+          markovian
+          dynamics.</p>
+        <p>
+          To run MPP, use the command</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering mpp -s microstatesFinal -D fe -l 25 -v
+             </code>
+            </pre>
+        </div>
+        <p> where \(\mathtt{\mbox{-}l}\) is the lagtime in units of frames.</p>
+        <p>
+          The MPP run generates lots of new files, per default called
+          \(\mathtt{mpp\_pop\_^*}\) and
+          \(\mathtt{mpp\_traj\_^*}\). The star stands for the metastability
+          (\(Q_\text{min}\)-value)
+          of the run. The
+          \(\mathtt{{}^*pop^*}\)-files hold the population information of the clusters
+          for the given metastibility, while the \(\mathtt{{}^*traj^*}\)-files
+          are the resulting cluster trajectories.</p>
+        <p>
+          The metastability value controls, how stable a state has to be to remain as
+          single state. All states with a stability less then the given
+          \(Q_\text{min}\)-value will be lumped according to their most probable state-path.</p><p>
+          Let's assume from now on that the clustering resolution of choice is given at
+          a metastability of 0.80. Thus, the clustered trajectory is in the file
+          \(\mathtt{mpp\_traj\_0.80}\).</p>
+        </section        
+      </article>
+    </div>
+
+    <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a href="https://tympanus.net/codrops/" target="_blank" class="link link--light">Codrops</a></footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+    <script src="scribbler.js"></script>
+  </body>
+</html>

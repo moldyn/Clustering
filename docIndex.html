@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Get Started</a>
+          <ul>
+            <li class="js-btn selected">Advantages</li>
+            <li class="js-btn">Installation</li>
+            <li class="js-btn">Licensing</li>
+          </ul>
+        </li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Get Started</h2>
+      <p>This software package provides highly efficient tools for robust and stable
+        clustering of molecular dynamics (MD) trajectories including boarder
+        correction methods. With this package one can obtain well-defined
+        microstates from low-dimensional (\(d\lesssim10\)) input coordinates. This
+        reduction can be achieved eg. via principal component analysis (<a
+          href="https://moldyn.github.io/FastPCA/"
+          class="link link--light">PCA</a>) using either
+        interatom distances or backbone dihedral angles as input
+        coordinates.
+
+      </p>
+      <p>The shell commands invoking the <i>clustering</i> program are written
+        in
+        multiple lines to emphasize the single parameters and options given to
+        the
+        program. This is, however, only for better readability in this tutorial.
+        All commands should be executed in a single line, without the additional
+        line
+        breaks.</p>
+
+      <section class="js-section">
+        <h2 class="section__title">Advantages</h2>
+        <p>The main advantage of our density-based clustering algorithm,
+          <a href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.5b01233"
+            class="link link--light">Sittel et al., 2016</a>, over the widely used
+          k-means is that it cuts by design the microstates at the energy
+          barriers. Therewith, we ensure that there are no intrastate barriers
+          which leads to an optimal assignment in the sense of Markovianity.
+          Hence, it is typically sufficient to split the MD data in approx. 50-100 states.
+          For achieving similar Markovianity, k-means may need several
+          thousands of states where, even for \(10^7\) frames, most
+          transitions are poorly sampled.</p>
+        <p>Scaling asymptotically with \(N \log{N}\) and applying GPU
+          acceleration, the algorithm manages to cluster \(\ge10^7\)
+          points in six dimensions in a couple of hours on a desktop computer.</p>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Installation</h2>
+        <h4 class="section__title">Requirements</h4>
+        <ul>
+          <li>BOOST >= 1.49</li>
+          <li>cmake >= 2.8</li>
+          <li>a recent GCC compiler (e.g. GNU g++ >= 4.9, must support C++11
+            standard)</li>
+          <li>CUDA >= 9.1 (optional)</li>
+        </ul>
+        <h4 class="section__title">Compilation</h4>
+        <p>Both vectorization and parallelization are supported. The cmake-flags
+          are listed below the code block.</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+              <code>
+                # download the package and enter directory
+                $ git clone https://github.com/moldyn/Clustering.git
+                $ cd Clustering
+
+                # generate and enter build directory
+                $ mkdir build
+                $ cd build
+
+                # setup compilation and compile
+                $ cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path
+                $ make
+
+                # optinal installation
+                $ make install
+              </code>
+            </pre>
+          <h4 class="section__title">CUDA</h4>
+          <p>The density-based clustering <i>clustering density</i> can be
+            parallized with CUDA 9 (and OpenMP). Note, CUDA 9 supports only
+            gcc5! Therefore, following flags need to be set with cmake</p>
+          <pre class="code code--block">
+              <code>
+                -DUSE_CUDA=1 -DCMAKE_C_COMPILER=/path/to/gcc-5 -DCMAKE_CXX_COMPILER=/path/to/g++-5
+              </code>
+            </pre>
+          <h4 class="section__title">Vectorization</h4>
+          <p>The <i>clustering</i> package supports modern vectorization
+            technologies. If you have a modern computer with vectorizing
+            instruction sets (SSE2, SSE4_2, AVX, ...), set the following
+            cmake-option</p>
+          <pre class="code code--block">
+              <code>
+                -DCPU_ACCELERATION=VEC
+              </code>
+            </pre>
+          <p>where VEC is one of: SSE2, SSE4_1, SSE4_2 or AVX. If a unsupported
+            option is set, it will raise an segmentation fault.</p>
+        </div>
+      </section>
+      <section class="js-section">
+        <h2 class="section__title">Licensing</h2>
+        <h4 class="section__title">Citation</h4>
+        <p>The underlying methods are based on the following articles:</p>
+        <ul>
+          <li>F. Sittel and G. Stock, <i>Robust Density-Based Clustering to
+              Identify Metastable Conformational States of Proteins</i>, J.
+            Chem. Theory Comput., 12, 2426, 2016; DOI:
+            <a href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.5b01233"
+            class="link link--light">10.1021/acs.jctc.5b01233</a>
+          </li>
+          <li>A. Jain and G. Stock, <i>Hierarchical folding free energy
+              landscape of HP35 revealed by most probable path clustering</i>,
+            J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI:
+            <a href="http://pubs.acs.org/doi/abs/10.1021/jp410398a"
+            class="link link--light">10.1021/jp410398a</a>
+          </li>
+          <li>D. Nagel, A. Weber, B. Lickert and G. Stock, <i>Dynamical coring
+              of Markov state models</i>, J. Chem. Phys, Accepted</li>
+        </ul>
+        <p>We kindly ask you to cite these articles if you use this software
+          package for published works.</p>
+
+        <h4 class="section__title">License</h4>
+        <p>This project was created by <a href="https://github.com/lettis"
+            class="link link--light">lettis</a> and is currently maintained by
+          <a href="https://github.com/moldyn-nagel"
+            class="link link--light">moldyn-nagel</a>.<br>
+          Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel All rights
+          reserved.<br>
+          Redistribution and use in source and binary forms, with or without
+          modification, are permitted provided that the following conditions are
+          met:<br>
+          Redistributions of source code must retain the above copyright notice,
+          this list of conditions and the following disclaimer.<br>
+          Redistributions in binary form must reproduce the above copyright
+          notice, this list of conditions and the following disclaimer in the
+          documentation and/or other materials provided with the
+          distribution.<br><br>
+          THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+          "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+          LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+          A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+          HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+          SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+          LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+          DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+          THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+          (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+          OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        </p>
+      </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

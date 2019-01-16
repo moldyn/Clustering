@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i>
+          Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a>
+      </li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Dynamical
+            Clustering</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Dynamical Clustering via most probable
+        path algorithm</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          This method was proposed in <a
+            href="http://pubs.acs.org/doi/abs/10.1021/jp410398a"
+            class="link link--light">Jain et al., 2014</a>. It lumps
+          microstates into macrostates by their dynamical
+          connectivity.
+        </p>
+
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering mpp -s state_file
+               -D free_energy_file
+               -l lagtime
+               --qmin-from FROM
+               --qmin-to TO
+               --qmin-step STEP
+               --concat-nframes NFRAMES
+               --concat-limits limit_file
+               --tprob transition_matrix
+               -o output_basename
+               -n N
+               -v</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}s :}\)</td>
+              <td>The name(path) of the clusterd state trajectory
+                file.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}D :}\)</td>
+              <td>Filename to read the free energies from.</td>
+            </tr>
+            <tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}l :}\)</td>
+              <td>Lagtime \(\tau_\text{mpp}\) to be used for
+                generating a transition matrix [in frames].</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}qmin\mbox{-}from :}\) </td>
+              <td>Initial value of metastability \(Q_\text{min}\).
+                (Default: \(0.01\)).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}qmin\mbox{-}to :}\) </td>
+              <td>Final value of metastability \(Q_\text{min}\).
+                (Default: \(1.00\)).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}qmin\mbox{-}step :}\) </td>
+              <td>Stepwidth, starting from
+                \(\mathtt{\mbox{--}qmin\mbox{-}from}\).
+                (Default: \(0.01\)).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}nframes:}\)
+              </td>
+              <td>The number of frames per (equally sized)
+                sub-trajectories for concatenated trajectory
+                files.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}limits:}\)
+              </td>
+              <td>The name(path) to the limit file. It should be a
+                single column file with the length of each
+                trajectory. for a concatenated trajectory of
+                three chunks of sizes 100, 50 and 300 frames:
+                '100 50 300'.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}tprob:}\) </td>
+              <td> Initial transition probability matrix.
+                Format:three space-separated columns <p
+                  style="text-align:center;">STATE_FROM
+                  STATE_TO PROBABILITY</p>
+              </td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Output Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}o}\)</td>
+              <td>Basename for the output files. (Default:
+                \(\mathtt{mpp}\))</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Miscellaneous Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            <tr>
+              <td>\(\mathtt{\mbox{-}n}\)</td>
+              <td>The number of parallel threads to use (for SMP
+                machines). This is ignored if CUDA is used.</td>
+            </tr>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}v}\)</td>
+              <td>Verbose mode with some output.</td>
+            </tr>
+          </table>
+
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Detailed Description</h2>
+          <p>
+            To get a dynamical description of the state space, the
+            \(\mathtt{MPP}\) method can be used. The geometric
+            microstates are lumped by their respective transition
+            probabilities.
+            This way, we identify the dynamically more stable from
+            the less stable states.
+            The most important parameter for MPP is the lagtime
+            \(\tau_\text{mpp}\), which is - for the
+            <i>clustering</i> program - always given in numbers of
+            frames.
+            The lagtime \(\tau_\text{mpp}\) in units of time is
+            trivially given by its value in numbers of
+            frames multiplied by the time step of the underlying
+            simulation.</p>
+          <p>
+            The lagtime \(\tau_\text{mpp}\) is the amount of time
+            (or number of frames) that is skipped when
+            calculating transition probabilities from one state to
+            another.
+            In effect, timescales below the given lagtime are
+            discarded and the dynamical
+            clustering will only be able to describe processes of
+            length higher then the
+            given lagtime. It acts as a control parameter to blend
+            out (uninteresting)
+            processes on too short timescales and focus on processes
+            of essential motion,
+            which typically happen at longer timescales as the
+            simulation stepping.</p>
+          <p>
+            Additionally, at a high enough lagtime the system will
+            be approximately
+            markovian, resulting in a discrete set of states well
+            described by markovian
+            dynamics.</p>
+          <p>
+            The MPP run generates lots of new files, per default
+            called \(\mathtt{mpp\_pop\_^*}\) and
+            \(\mathtt{mpp\_traj\_^*}\). The star stands for the
+            metastability (\(Q_\text{min}\)-value)
+            of the run. The
+            \(\mathtt{{}^*pop^*}\)-files hold the population
+            information of the clusters for the given metastibility,
+            while the \(\mathtt{{}^*traj^*}\)-files are the resulting
+            cluster trajectories.</p>
+		  <p>
+			The metastability value controls, how stable a state has to be to remain as
+			single state. All states with a stability less then the given
+			\(Q_\text{min}\)-value will be lumped according to their most probable state-path.</p>
+		</section>
+      </article>
+    </div>
+
+    <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a href="https://tympanus.net/codrops/" target="_blank" class="link link--light">Codrops</a><br><a href="http://www.moldyn.uni-freiburg.de/impressum.html" class="link link--light">Impressum</a></footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+    <script src="scribbler.js"></script>
+  </body>
+</html>

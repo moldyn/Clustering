@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Free Energy</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Generate Free Energy and Nearest Neighbors</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          Other than k-means, this density-based clustering algorithms estimates
+          the optimal seeds of the microstates, based on the free energy
+          landscape. Regions with local high density representing local minima
+          in the free energy landscape. Latter is calculated with
+          $$
+          G_{R}(\vec{r})= - \ln (P_R(\vec{r})/P_{R}^{\text{max}}),
+          $$
+          where \(P_{R}(\vec{r})\) is the local population at the point
+          \(\vec{r}\) with respect to the sphere of radius \(R\).
+        </p>
+
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering density -f coordinate_file
+                   -r/-R radius/radii
+                   -p population_file
+                   -d/-D free_energy_file
+                   -b/-B nearest_neighbor_file
+                   -n N
+                   -v</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}f :}\)</td>
+              <td>The name(path) of the input coordinates. The dimension should
+                not exceed 10.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}r :}\) </td>
+              <td>The cluster radius \(R\) (same unit as input) used for
+                calculating the free energy and the nearest neighbor with lower
+                energy. If this flag is not set the lumping radius
+                \(d_\text{lump}\)
+                will be used, so \(R=d_\text{lump}\). This will be ignored if
+                used
+                together with \(\mathtt{\mbox{-}D}\).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}R :}\)</td>
+              <td> Same as \(\mathtt{\mbox{-}r}\) but takes several radii and
+                add those to the output names \(\mathtt{\mbox{-}p}\),
+                \(\mathtt{\mbox{-}d}\). With this option \(\mathtt{\mbox{-}B}\)
+                and \(\mathtt{\mbox{-}b}\) are ignored!</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}D :}\)</td>
+              <td>Filename to read the free energies from. This should be used
+                with \(\mathtt{\mbox{-}B}\) and a nearest neighbor file
+                generated with the same cluster radius, otherwise use
+                \(\mathtt{\mbox{-}b}\). If used,
+                \(\mathtt{\mbox{-}r}\)/\(\mathtt{\mbox{-}R}\) are ignored.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}B :}\)</td>
+              <td>Filename to read the nearest neighbors from. This should be
+                used with \(\mathtt{\mbox{-}D}\) and a nearest neighbor file
+                generated with the same clustering radius, or together with
+                \(\mathtt{\mbox{-}r}\) and \(\mathtt{\mbox{-}d}\). This option
+                is ignored if \(\mathtt{\mbox{-}R}\) is set.</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Output Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}p}\)</td>
+              <td>Filename for the output file of the populations for the given
+                radius.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}d}\)</td>
+              <td>Filename for the output file of the free energies. The same as
+                \(\mathtt{\mbox{-}D}\), but generates the free energies for the
+                given radius.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}b}\)</td>
+              <td>Filename for the output file of the nearest neighbors. The
+                same as \(\mathtt{\mbox{-}B}\), but the nearest neighbors get
+                generated for the given radius.</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Miscellaneous Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}n}\)</td>
+              <td>The number of parallel threads to use (for SMP machines). This
+                is ignored if CUDA is used.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}v}\)</td>
+              <td>Verbose mode with some output.</td>
+            </tr>
+          </table>
+
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Detailed Description</h2>
+
+          <p>The algorithm can be split into several steps. The order listed
+            here represents the order in which the code is executed.</p>
+          <dl>
+
+            <dt>1.</dt>
+            <dd>\(\mathtt{\mbox{-}f}\): Read in the position of each trajectory
+              point in the multidimensional space from the coords file</dd>
+            <dt>2.a</dt>
+            <dd>\(\mathtt{\mbox{-}D}\): If this flag is provided, the free
+              energies are read from the given file and the following points
+              (2.b) are skipped.</dd>
+            <dt>2.b.1</dt>
+            <dd>\(\mathtt{\mbox{-}r}\)/\(\mathtt{\mbox{-}R}\): If one of this
+              flag is used, it loops over all passed values by setting the value
+              as clustering radius \(R\) (same dimension as input coordinates,
+              see -f) and performs 2.b.2-2.b.3. Otherwise, the clustering radius
+              will be set as the lumping radius, so \(R=d_\text{lump}\).</dd>
+            <dt>2.b.2</dt>
+            <dd>\(\mathtt{\mbox{-}p}\): For each point \(\vec{r}_i\) in the
+              trajectory, count the number of points (neighbourhood population)
+              \(P_{R}(\vec{r}_i)\) within a hypersphere with radius \(R\) around
+              the point \(\vec{r}_i\). This can be expressed as
+              $$
+              P_{R}(\vec{r}_i)= \sum_{j\neq i}^{N} \theta (R- d(\vec{r}_j
+              ,\vec{r}_i))
+              $$
+              where \(N\) is the total number of trajectory points, \(\theta\)
+              is the heavyside step function, and \(d(\vec{r}_j ,\vec{r}_i)\) is
+              the distance between point \(\vec{r}_j\) and the center of the
+              hypersphere \(\vec{r}_i\) (measured by the N-dimensional euclidean
+              norm). <br>
+              This generates the population output file, here stored with the
+              given output name \(\mathtt{\mbox{-}p}\). It is a single column
+              file with the population = number of points within the hypersphere
+              for each trajectory frame as values.</dd>
+            <dt>2.b.3</dt>
+            <dd>\(\mathtt{\mbox{-}d}\): Calculate the free energy \(G_R
+              (\textbf{r})/\text{k}T\) for each point as
+              $$
+              G_{R}(\textbf{r})= - \ln (P_R(\textbf{r})/P_{R}^{\text{max}}),
+              $$
+              where \(P_{R}^{\text{max}}\) is the highest maximum population of
+              any point in the trajectory; this ensures that the frame with
+              highest point density will be assigned the lowest free energy
+              \(F_{R}(\textbf{r})=0\).<br>
+              This will be stored in the output name given by
+              \(\mathtt{\mbox{-}d}\) in a single column file with a free energy
+              value for each frame of the trajectory.</dd>
+            <dt>3.a</dt>
+            <dd>\(\mathtt{\mbox{-}B}\): If this flag is provided, the nearest
+              neighbors and the nearest neighbors with lower free energies are
+              read from the given file and the following point (3.b) is skipped.
+              This option can not be combined with \(\mathtt{\mbox{-}R}\).</dd>
+            <dt>3.b</dt>
+            <dd>\(\mathtt{\mbox{-}b}\): For each frame of the trajectory, find
+              the closest point (called nearest neighbor, abbreviated
+              \(\text{nn}\)) and the squared distance to it \(d^{2}_\text{nn}\),
+              as well as the nearest neighbor that has a higher density/ lower
+              free energy (abbreviated \(\text{nn}_\text{hd}\)) and the distance
+              to it. It should be noted that the latter depends indirectly on
+              the choice of the clustering Radius \(R\), due to the dependence
+              on the free energies. The distance is again the euclidian distance
+              in N dimensions.
+              This generates the output file \(\mathtt{\mbox{-}b}\), a four
+              column file with the information: <br>
+              <p style="text-align:center;">
+                \(\text{ID of }\text{nn} \quad\quad d^{2}_\text{nn} \quad\quad
+                \text{ID of }\text{nn}_\text{hd} \quad\quad
+                d^{2}_{\text{nn}_\text{hd}}\)
+              </p>
+              The ID of a frame corresponds to its row in the trajectory file.
+              This option can not be combined with \(\mathtt{\mbox{-}R}\).<dd>
+          </dl>
+        </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,280 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Build Network</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+            <li class="js-btn">Detailed Description</li>
+          </ul>
+        </li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Building a Network</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          In this step a network representation of the previously obtained
+          clusters is build. This enables us to find the local minima of the
+          free energy landscape.
+        </p>
+
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering network -p minimal_population
+                   -o output_basename
+                   -b basename
+                   --min fe_min
+                   --step fe_step
+                   --max fe_max
+                   --network-html
+                   -v</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}p :}\)</td>
+              <td>Minimal population defines the critical population limit that
+                a cluster can form a seed. Default is \(1\).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}b :}\)</td>
+              <td>Specify the basename of cluster output files. In general it is
+                the previously used option of output.(see <a
+                  href="docScreening.html" class="link link--light">previous
+                  step</a> \(\mathtt{\mbox{-}o}\)). Default: \(\mathtt{clust}\).
+              </td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}min :}\)</td>
+              <td>Specify from which free energy it starts (see <a
+                  href="docScreening.html" class="link link--light">previous
+                  step</a> \(\mathtt{\mbox{-}T}\)). Default: \(0.10\).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}step :}\)</td>
+              <td>Specify the step width in which the free energy is scanned
+                (see <a href="docScreening.html"
+                  class="link link--light">previous step</a>
+                \(\mathtt{\mbox{-}T}\)). Default: \(0.00\), which corresponds to
+                highest free energy.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}max :}\)</td>
+              <td>Specify the final free energy it should scan (see <a
+                  href="docScreening.html" class="link link--light">previous
+                  step</a> \(\mathtt{\mbox{-}T}\)). Default: \(0.10\).</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Output Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}o}\)</td>
+              <td>Basename for the output files. Default: \(\mathtt{network}\).
+                radius.</td>
+            </tr>
+          </table>
+
+          <h4 class="section__title">Miscellaneous Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}network\mbox{-}html}\)</td>
+              <td>If this flag is set, a html representation of the network will
+                be generated. For many states (low value of
+                \(\mathtt{\mbox{-}p}\) this may take long.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}v}\)</td>
+              <td>Verbose mode with some output.</td>
+            </tr>
+          </table>
+
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Detailed Description</h2>
+          <p>
+            The net result of the screening process is a list of files (here:
+            \(\mathtt{cluster.^*}\)) defining the cluster membership per frame
+            for different free energy thresholds. Using these memberships, we
+            can derive a network of microstates that reflects their respective
+            geometrical similarity. The network has a (multi-)tree structure,
+            with nodes defining separate microstates at the various free energy
+            levels. In case two (or more) clusters grow big enough to be
+            geometrically close, they will be merged into a single node at the
+            free energy level, at which they are not distinguishable from a
+            single state.
+          </p>
+          <p>
+            If the metastable states of the free energy landscape are
+            geometrically diverse enough, the network will form several trees in
+            parallel, without them being joined at the highest free energy
+            level. Of course, you can add a virtual root node at a free energy
+            level above the maximum to join all trees into a single tree,
+            however this has to be done manually. The <i>clustering</i> program
+            will not artificially join the separate trees.
+          </p>
+          <p>
+            This is the first step to get states out of the clusters. The idea
+            is to identify local minima in the free energy landscape. Here we
+            scan again through the free energy landscape.
+
+            A cluster is accepted as node if it:</p>
+          <ul>
+            <li> is geometrically disconnected to all accepted clusters (nodes)
+            </li>
+            <li> is not at highest free energy</li>
+            <li> has a population higher than the minimal population
+              \(P_\text{min}\)</li>
+          </ul>
+          <p>
+            The concept of minimal population should be used carefully. It
+            should only be used to remove local fluctuation within a minimum and
+            not to lump close minima. Latter is non physical and leads to bad
+            defined states. If one is interested in macrostates a dynamical
+            clustering method, e.g. MPP, should be used.
+          </p>
+          <p>
+            Once we have the clusters we need to generate states. The first step
+            is to identify the local minima of the free energy landscape. This
+            is achieved by running</p>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block">
+             <code>
+              clustering network -p 500 --network-html --basename cluster -v 
+             </code>
+            </pre>
+          </div>
+          <p>The minimal population \(\mathtt{\mbox{-}p}\) should be selected
+            high enough to guarantee that all local fluctuations are ignored,
+            but no minima.</p>
+
+          <p>This command generates many output files. For the sake of
+            readability we assume that the output basename was set to the
+            default value. In the following we will discuss them briefly:</p>
+          <ul>
+            <li>\(\mathtt{remapped\_basename.*}\): These are essentially
+              identical to the input files (\(\mathtt{basename.*}\), but differ
+              in an important aspect: every id at a high(er) free energy level,
+              that has already been assigned to a microstate at a lower level
+              will be given a new, unique id to distinguish the states at every
+              free energy level from each other. This is necessary, since the
+              various input files define microstates only locally, at their
+              respective free energy level - and all of them use the same range
+              of integers (\(1 \ldots N\)) as ids.
+            </li>
+            <li>\(\mathtt{network\_nodes.dat}\): The different nodes of the
+              network, representing the microstates at different free energy
+              levels. The file contains all nodes with id, free energy level and
+              population.</li>
+            <li>\(\mathtt{network\_links.dat}\): The links connecting the
+              network nodes. This file holds the information which microstates
+              will be lumped together at higher free energy levels.</li>
+            <li>\(\mathtt{network\_leaves.dat}\): All network leaves, i.e. nodes
+              (microstates) without child nodes at a lower free energy level.
+              These microstates represent the minima of their local basins.</li>
+            <li>\(\mathtt{network\_end\_node\_traj.dat}\): A clustered
+              trajectory, in which all frames belonging to the end nodes (or
+              leaves) are marked by their respective microstate id. All frames,
+              that do not belong to a leaf, will be marked as zero. This
+              trajectory will act as a seed for the complete separation of the
+              free energy landscape into different microstates, assigning every
+              single frame to a suitable state.</li>
+            <li>\(\mathtt{network\_visualization.html}\): This file is only
+              generate if \(\mathtt{\mbox{--}network\mbox{-}html}\) flag is
+              used. Open this file with a modern web browser to get a simple
+              representation of the generated network. An example is shown in
+              the following figure. Rendering will only work in reasonable time,
+              if the number of microstates is not too high. You can control this
+              with the \(\mathtt{\mbox{-}p}\) option. Controls: Single left
+              click on a node for detailed information. Press and hold left on
+              empty area until cursor is marked by a circle to drag the network.
+              Use mouse wheel to zoom in and out.</li>
+          </ul>
+          <figure>
+            <img src="figures/fel_tree.png" alt="Network of free energy"
+              class="fetree-size">
+          </figure>
+        </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>
