@@ -30,7 +30,7 @@ details in performing a complete clustering run from trajectory to markov state 
 
 The source code itself is additionally documented via doxygen. Run 'make doc' in
 the build directory (see below for installation intructions) to compile the source
-code documentation in html.
+code documentation in html. Otherwise, it can be viewed [here](https://moldyn.github.io/Clustering/doxygen/index.html).
 
 
 # Citations
