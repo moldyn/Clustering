@@ -25,7 +25,7 @@ Computationally demanding functions are parallelized using CUDA or OpenMP.
 # Documentation
 All options are well documented and may be viewed by 'clustering -h'.
 
-The 'doc' directory includes an extensive tutorial which describes all technical
+A documentation can be found on the project [page](https://moldyn.github.io/Clustering/docIndex.html), including an extensive [tutorial](https://moldyn.github.io/Clustering/docTutorial.html) which describes all technical
 details in performing a complete clustering run from trajectory to markov state model.
 
 The source code itself is additionally documented via doxygen. Run 'make doc' in
