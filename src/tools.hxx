@@ -71,7 +71,7 @@ read_coords(std::string filename, std::vector<std::size_t> usecols) {
     ifs.clear();
     ifs.seekg(0, std::ios::beg);
   }
-  Clustering::logger(std::cout) << "    with dimesions: " << n_rows << "x"
+  Clustering::logger(std::cout) << "    with dimensions: " << n_rows << "x"
                                 << n_cols << "\n" << std::endl;
   std::map<std::size_t, bool> col_used;
   if (usecols.size() == 0) {
