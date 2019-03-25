@@ -418,14 +418,19 @@ namespace NetworkBuilder {
     // at different thresholds uses the same ids starting with 0.
     const float prec = d_step / 10.0f;
     if (d_max == 0.0f) {
-      // default: collect all until MAX_FE
-      d_max = std::numeric_limits<float>::max();
+      if (commentsMap["screening_to"] > 0) {
+          // only read corresponding FE files
+          d_max = commentsMap["screening_to"] + d_step;
+      } else {
+          // default: collect all until MAX_FE
+          d_max = std::numeric_limits<float>::max();
+      }
     } else {
       d_max += d_step;
     }
     float d;
     Clustering::logger(std::cout) << "~~~ remapping cluster files and generating network" << std::endl;
-    for (d=d_min; ! fuzzy_equal(d, d_max, prec) && b_fs::exists(fname_next); d += d_step) {
+    for (d=d_min; d < d_max - prec && b_fs::exists(fname_next); d += d_step) {
       Clustering::logger(std::cout) << "    " << fname_next << " -> "
                                     << stringprintf(remapped_name, d)<< std::endl;
       cl_now = cl_next;
