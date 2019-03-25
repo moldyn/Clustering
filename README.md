@@ -37,11 +37,12 @@ code documentation in html. Otherwise, it can be viewed [here](https://moldyn.gi
 The underlying methods are based on the following articles:
   - F. Sittel and G. Stock, *Robust Density-Based Clustering to Identify
     Metastable Conformational States of Proteins*,
-    J. Chem. Theory Comput., 12, 2426; DOI: 10.1021/acs.jctc.5b01233
+    J. Chem. Theory Comput., 12, 2426; DOI: [10.1021/acs.jctc.5b01233](https://pubs.acs.org/doi/abs/10.1021/acs.jctc.5b01233)
   - A. Jain and G. Stock, *Hierarchical folding free energy landscape of HP35
     revealed by most probable path clustering*,
-    J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: 10.1021/jp410398a
-  - D. Nagel, A. Weber, B. Lickert and G. Stock, *Dynamical coring of Markov state models*, J. Chem. Phys, Accepted
+    J. of Phys. Chem. B, 118, 7750 - 7760, 2014; DOI: [10.1021/jp410398a](https://pubs.acs.org/doi/abs/10.1021/jp410398a)
+  - D. Nagel, A. Weber, B. Lickert and G. Stock, *Dynamical coring of Markov state models*,
+    J. Chem. Phys., 150, 094111, 2019; DOI: [10.1063/1.5081767](https://aip.scitation.org/doi/10.1063/1.5081767)
 
 We kindly ask you to cite these articles if you use this software package for
 published works.
@@ -50,7 +51,7 @@ published works.
 # Licensing
 This project was created by [lettis](http://www.lettis.net) and is currently maintained by [moldyn-nagel](https://github.com/moldyn-nagel).
 
-Copyright (c) 2015-2018, [Florian Sittel](http://www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2019, [Florian Sittel](http://www.lettis.net) and Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
