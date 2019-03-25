@@ -188,8 +188,10 @@ namespace Coring {
             current_core = states[i];
             cores[i] = current_core;
           } else {
-            ++changed_frames;
             cores[i] = -1;
+          }
+          if (current_core != states[i]) {
+            ++changed_frames;
           }
           cored_traj[i] = current_core;
         }
