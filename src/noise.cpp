@@ -97,17 +97,29 @@ namespace Noise {
                                                  // is not ordered on some file systems
 //      std::cout << " basename: " << basename << "\n";
 //      std::cout << " v.end(): " << v.back().string() << "\n";      
-      // iterate reverse
+      // iterate reverse over all files in directory
       std::string clust_filename;
-      std::size_t found;
+      std::size_t found = std::string::npos;
       for (vec::reverse_iterator it(v.rbegin()), it_end(v.rend()); it != it_end; ++it)
       {
         std::ostringstream oss;
         oss << *it;
         std::string file_str = oss.str();
-                
+
         found = file_str.rfind(basename);
         if (found!=std::string::npos) {
+          // if commentsMap is provided, check if found fe > fe_max
+          if (commentsMap.count("screening_to") && commentsMap.count("screening_step")) {
+            float fe_max;
+            try{
+              fe_max = std::stof(file_str.substr(found+basename.length(),file_str.length()-found-basename.length()-1));
+              if (fe_max > commentsMap["screening_to"] + commentsMap["screening_step"]){
+                continue;
+              }
+            } catch (...) {
+                continue;
+            }
+          }
           clust_filename = file_str.substr(found,file_str.length()-found-1);
           break;
         }
@@ -123,7 +135,8 @@ namespace Noise {
                             "# used for highest cluster file: %s\n", clust_filename.c_str()));
       Clustering::logger(std::cout) << "    highest cluster: " << clust_filename  << std::endl;
       std::vector<std::size_t> clust = Clustering::Tools::read_clustered_trajectory(clust_filename);
-      //TODO: check if parameters are identical to states ones
+      // check if parameters are identical to states ones
+      read_comments(clust_filename, commentsMap);
       if (n_frames != clust.size()) {
         std::cerr << "\n" << "error (noise): clust file is not of same length as state trajectory." << "\n\n";
         exit(EXIT_FAILURE);
