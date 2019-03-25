@@ -331,12 +331,13 @@ int main(int argc, char* argv[]) {
   }
   try {
     b_po::store(b_po::command_line_parser(argc, argv).options(desc).run(), args);
+    if (args["help"].as<bool>()) {
+      std::cout << desc << std::endl;
+      return EXIT_SUCCESS;
+    }
     b_po::notify(args);
   } catch (b_po::error& e) {
-// TODO: this is just a temporal solution
-//    if ( ! args["help"].as<bool>()) {
-      std::cerr << "\nerror parsing arguments:\n\n" << e.what() << "\n\n" << std::endl;
-//    }
+    std::cerr << "\nerror parsing arguments:\n\n" << e.what() << "\n\n" << std::endl;
     std::cerr << desc << std::endl;
     return EXIT_FAILURE;
   }
