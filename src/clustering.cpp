@@ -65,10 +65,22 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
+  std::string version_number = "v1.0.1";
+  // generate header string
+  std::string leading_whitespace(25 - (19 + version_number.size())/2, ' ');
+  std::ostringstream header_ostring;
+  header_ostring << "\n" << leading_whitespace
+                 << "~~~ clustering " + version_number + " ~~~\n";
+  if (argc > 2){
+    std::string leading_whitespace2nd(25 - (4 + strlen(argv[1]))/2, ' ');
+    header_ostring << leading_whitespace2nd << "~ " << argv[1] << " ~\n";
+  }
+  std::string clustering_copyright =
+    header_ostring.str() + ""
+    "\nclustering " + version_number + ": a classification framework for MD data\n"
+    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel\n\n";
   std::string general_help =
-    "\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel\n"
-    "\n"
+    clustering_copyright +
     "modes:\n"
     "  density: run density clustering\n"
     "  network: build network from density clustering results\n"
@@ -119,16 +131,14 @@ int main(int argc, char* argv[]) {
   b_po::variables_map args;
   b_po::positional_options_description pos_opts;
   // density options
-  b_po::options_description desc_dens (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_dens (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "perform clustering of MD data based on phase space densities.\n"
     "densities are approximated by counting neighboring frames inside\n"
     "a n-dimensional hypersphere of specified radius.\n"
     "distances are measured with n-dim P2-norm.\n"
     "\n"
-    "options"));
+    "options");
   desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
@@ -155,13 +165,11 @@ int main(int argc, char* argv[]) {
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // MPP options
-  b_po::options_description desc_mpp (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_mpp (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "performs a most probable path (MPP) clustering based on the given lag time."
     "\n"
-    "options"));
+    "options");
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
@@ -187,13 +195,11 @@ int main(int argc, char* argv[]) {
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // network options
-  b_po::options_description desc_network (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_network (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "create a network from screening data."
     "\n"
-    "options"));
+    "options");
   desc_network.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("minpop,p", b_po::value<std::size_t>()->required(),
@@ -211,13 +217,11 @@ int main(int argc, char* argv[]) {
     ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
   ;
   // filter options
-  b_po::options_description desc_filter (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_filter (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "filter phase space (e.g. dihedral angles, cartesian coords, etc.) for given state."
     "\n"
-    "options"));
+    "options");
   desc_filter.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
           "show this help.")
@@ -234,13 +238,11 @@ int main(int argc, char* argv[]) {
           "list states and their populations")
   ;
   // coring options
-  b_po::options_description desc_coring (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_coring (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "compute boundary corrections for clustering results."
     "\n"
-    "options"));
+    "options");
   desc_coring.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
         "show this help.")
@@ -274,13 +276,11 @@ int main(int argc, char* argv[]) {
         "verbose mode: print runtime information to STDOUT.")
   ;
   // noise options
-  b_po::options_description desc_noise (std::string(argv[1]).append(
-    "\n\nclustering 1.0: a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel"
-    "\n\n"
+  b_po::options_description desc_noise (
+    clustering_copyright + std::string(argv[1]) + ": \n"
     "defining and dynamically reassigning noise for clustering results."
     "\n"
-    "options"));
+    "options");
   desc_noise.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
         "show this help.")
@@ -349,12 +349,9 @@ int main(int argc, char* argv[]) {
     Clustering::verbose = args["verbose"].as<bool>();
   }
   // print head
-  std::string leading_whitespace(20, ' ');
-  std::string leading_whitespace2nd(20 + (20-strlen(argv[1]))/2, ' ');
-  Clustering::logger(std::cout) << "\n" << leading_whitespace
-                                << "~~~ clustering v1.0 ~~~\n"
-                                << leading_whitespace2nd << "~ " << argv[1] << " ~\n\n"
-                                << "~~~ using for parallization: ";
+  Clustering::logger(std::cout) << "\n" << header_ostring.str()
+                                << "\n~~~ using for parallization: ";
+
 #ifdef USE_CUDA
       Clustering::logger(std::cout) << "CUDA" << std::endl;
 #else
@@ -373,7 +370,7 @@ int main(int argc, char* argv[]) {
   time_t rawtime;
   time(&rawtime);
   struct tm * timeinfo = localtime(&rawtime);
-  header << "# clustering v1.0 - " << argv[1] << "\n"
+  header << "# clustering " + version_number + " - " << argv[1] << "\n"
          << "#\n"
          << "# Created " << asctime(timeinfo)
          << "# by following command:\n#\n# ";
