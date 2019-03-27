@@ -269,10 +269,10 @@ int main(int argc, char* argv[]) {
           "basename of filtered data output (extended by e.g. "
           "basename.state5 for state 5) keeping file extension of input. If not "
           "specified, the inmput name will be used.")
-//    ("state,S", b_po::value<std::size_t>()->required(),
-//          "(required): state id of selected state.")
     ("selected-states,S", b_po::value<std::vector<std::size_t>>()->multitoken(),
           "state ids of selected states. Default all states.")
+    ("every-nth", b_po::value<std::size_t>()->default_value(1),
+          "Take only every nth frame. Default all frames.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
           "verbose mode: print runtime information to STDOUT.")

@@ -148,6 +148,11 @@ namespace Filter {
       }
       // filter data
       Clustering::logger(std::cout) << "\n~~~ filter states:" << std::endl;
+      std::size_t every_nth = args["every-nth"].as<std::size_t>();
+      if (every_nth > 1) {
+        Clustering::logger(std::cout) << "    use only every " << every_nth
+                                      << "th frame" << std::endl;
+      }
       for (std::size_t selected_state: selected_states){
         // open coords
         CoordsFile::FilePointer coords_in = CoordsFile::open(coords_name, "r");
@@ -161,9 +166,15 @@ namespace Filter {
                                       << " : "
                                       << output_name
                                       << std::endl;
+        std::size_t nth = 0;  // counting frames
         for (std::size_t s: states) {
           if (s == selected_state) {
-            coords_out->write(coords_in->next());
+            if ((nth % every_nth) == 0) {
+              coords_out->write(coords_in->next());
+            } else {
+              coords_in->next();
+            }
+            ++nth;
           } else {
             coords_in->next();
           }
