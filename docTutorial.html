@@ -56,6 +56,8 @@
         <li><a href="docNoise.html">Noise Correction</a></li>
         <li><a href="docCoring.html">Dynamical Coring</a></li>
         <li><a href="docMPP.html">Dynamical Clustering</a></li>
+        <li><a href="docFilter.html">Filter Data</a></li>
+        <li><a href="docStats.html">Show Stats</a></li>
       </ul>
     </aside>
     <article class="doc__content">
@@ -380,7 +382,7 @@
           minima.</p>
       </section>
       <section class="js-section">
-        <h2 class="section__title">Generate microstate trajectory</h2>
+        <h2 class="section__title">Generate a microstate trajectory</h2>
         <p>
           By defining the clustered trajectory of basin centers, we seed the
           clustering process with a limited number of microstates.
@@ -409,6 +411,18 @@
           number equals the according frame number. The resulting microstates
           ids
           are ordered by their population.</p>
+        <p>To get a first idea about the microstates one can simply run</p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering stats -s microstates
+             </code>
+            </pre>
+        </div>
+        <p>This returns the population of each state. Further, for all states
+          the number of entering is stated. This number should be much smaller
+          than the population, otherwise this indicates a short metastability.
+        </p>
       </section>
       <section class="js-section">
         <h2 class="section__title">Noise correction</h2>
@@ -537,6 +551,29 @@ clustering noise -s microstates -c 0.1 -o microstatesNoise --basename cluster -v
              </code>
             </pre>
         </div>
+        <p>If one wants to understand the effect of coring better, as a first
+          step one can take a look at the different statistics by running </p>
+        <div class="code__block code__block--notabs">
+          <pre class="code code--block">
+             <code>
+  clustering stats -s microstatesFinal
+             </code>
+            </pre>
+        </div>
+        <p> as well as for the uncored trajectory (\(\mathtt{microstates}\))
+          This reveals that the metastability highly improves due to coring.
+          It should be noted that if one wants to geometrically interpreted the
+          final states one can use the \(\mathtt{filter}\) module. Therewith,
+          one can get all frames of the input coordinates belonging to a certain
+          state. This module is also capable of splitting xtc (gromacs)
+          trajectories. Hence, if one uses the backbone dihedral angles to
+          cluster, one can easily split also the MD trajectory to further
+          investigate the states.</p>
+        <p>For a geometrical interpretation of the states one can also use the
+          <a href="https://github.com/moldyn/ramacolor"
+          class="link link--light">ramacolor script</a> which was introduced
+          in <a href="https://pubs.acs.org/doi/abs/10.1021/acs.jctc.5b01233"
+          class="link link--light">Sittel et al., 2016</a>.</p>
       </section>
 
       <section class="js-section">

@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering Documentation - a code documentation for the clustering
+    package</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link
+    href="https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800,900"
+    rel="stylesheet">
+  <link rel="stylesheet" href="scribbler-global.css">
+  <link rel="stylesheet" href="scribbler-doc.css">
+  <script
+    src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+    async></script>
+  <link rel="author" href="humans.txt">
+</head>
+
+<body>
+  <div class="doc__bg"></div>
+  <nav class="header">
+    <h1 class="logo">Clustering<span class="logo__thin"> Doc</span></h1>
+    <ul class="menu">
+      <div class="menu__item toggle"><span></span></div>
+      <li class="menu__item"><a href="https://github.com/moldyn/Clustering"
+          class="link link--dark"><i class="fa fa-github"></i> Github</a></li>
+      <li class="menu__item"><a href="index.html" class="link link--dark"><i
+            class="fa fa-home"></i> Home</a></li>
+    </ul>
+  </nav>
+  <div class="wrapper">
+    <aside class="doc__nav">
+      <ul>
+        <li><a href="docIndex.html">Get Started</a></li>
+        <li><a href="docTutorial.html">Tutorial</a></li>
+        <li><a href="docFEandNN.html">Free Energy</a></li>
+        <li><a href="docScreening.html">Generate Clusters</a></li>
+        <li><a href="docNetwork.html">Build Network</a></li>
+        <li><a href="docMicrostates.html">Generate Microstates</a></li>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+        <li><a href="docFilter.html">Filter Data</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Show Stats</a>
+          <ul>
+            <li class="js-btn selected">Introduction</li>
+            <li class="js-btn">Execution</li>
+            <li class="js-btn">Parameters</li>
+          </ul>
+        </li>
+      </ul>
+    </aside>
+    <article class="doc__content">
+      <h2 class="section__title">Show statistics of state trajectory</h2>
+      <section class="js-section">
+        <h2 class="section__title">Introduction</h2>
+        <p>
+          This tool is able to list the statistics of the state trajectory. It outputs the states sorted by the population. Further, it provides the number of entering a state.
+        </p>
+        <section class="js-section">
+          <h2 class="section__title">Execution</h2>
+          <div class="code__block code__block--notabs">
+            <pre class="code code--block code--block--tabs">
+             <code>
+clustering stats -s state_file</code>
+            </pre>
+          </div>
+        </section>
+        <section class="js-section">
+          <h2 class="section__title">Parameters</h2>
+
+          <h4 class="section__title">Input Parameters</h4>
+          <table>
+            <tr>
+              <th>Parameter</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}s :}\)</td>
+              <td>The name(path) of the clusterd state trajectory file.</td>
+            </tr>
+          </table>
+        </section>
+    </article>
+  </div>
+
+  <footer class="footer">Hosted on GitHub Pages — Scribbler Theme by <a
+      href="https://tympanus.net/codrops/" target="_blank"
+      class="link link--light">Codrops</a><br><a
+      href="http://www.moldyn.uni-freiburg.de/impressum.html"
+      class="link link--light">Impressum</a></footer>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js">
+  </script>
+  <script>
+  hljs.initHighlightingOnLoad();
+  </script>
+  <script src="scribbler.js"></script>
+</body>
+
+</html>

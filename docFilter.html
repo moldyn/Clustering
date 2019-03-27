@@ -41,48 +41,38 @@
         <li><a href="docScreening.html">Generate Clusters</a></li>
         <li><a href="docNetwork.html">Build Network</a></li>
         <li><a href="docMicrostates.html">Generate Microstates</a></li>
-        <li><a class="selectedMain" onclick="smoothScrollUp()">Noise
-            Correction</a>
+        <li><a href="docNoise.html">Noise Correction</a></li>
+        <li><a href="docCoring.html">Dynamical Coring</a></li>
+        <li><a href="docMPP.html">Dynamical Clustering</a></li>
+        <li><a class="selectedMain" onclick="smoothScrollUp()">Filter Data</a>
           <ul>
             <li class="js-btn selected">Introduction</li>
             <li class="js-btn">Execution</li>
             <li class="js-btn">Parameters</li>
-            <li class="js-btn">Detailed Description</li>
           </ul>
         </li>
-        <li><a href="docCoring.html">Dynamical Coring</a></li>
-        <li><a href="docMPP.html">Dynamical Clustering</a></li>
-        <li><a href="docFilter.html">Filter Data</a></li>
         <li><a href="docStats.html">Show Stats</a></li>
       </ul>
     </aside>
     <article class="doc__content">
-      <h2 class="section__title">Dynamical Noise Correction</h2>
+      <h2 class="section__title">Filter input coordinates by states</h2>
       <section class="js-section">
         <h2 class="section__title">Introduction</h2>
         <p>
-          In <a
-            href="http://www.moldyn.uni-freiburg.de/publications/papers/149-pre-WA.pdf"
-            class="link link--light">Nagel et al., 2019</a> it was emphasized,
-          that dimensionality reduction methods, such as PCA or tICA, suffer
-          artefacts on the barriers. Those frames should be identified as noise
-          and assigned dynamically. It should be used together with
-          \(\mathtt{coring}\) which is the more powerful tool.
+          This tool is able to split the input coordinates into the obtained
+          state trajectory. It is able to handle both, ascii and xtc files.
         </p>
-
         <section class="js-section">
           <h2 class="section__title">Execution</h2>
           <div class="code__block code__block--notabs">
             <pre class="code code--block code--block--tabs">
              <code>
-clustering noise -s state_file
-                 -c cmin
-                 -b basename
-                 -o output
-                 --cores output_cores
-                 --concat-nframes NFRAMES
-                 --concat-limits limit_file
-                 -v</code>
+clustering filter -s state_file
+                  -c coords
+                  -o output_basename
+                  -S selection_of_states
+                  --every-nth num
+                  -v</code>
             </pre>
           </div>
         </section>
@@ -101,25 +91,17 @@ clustering noise -s state_file
             </tr>
             <tr>
               <td>\(\mathtt{\mbox{-}c :}\) </td>
-              <td>The population threshold (in percent) below which an isolated
-                cluster is assigned as noise. (Default: \(0.1\)).</td>
+              <td>The name(path) of the input coordinates (either ascii or .xtc).</td>
             </tr>
             <tr>
-              <td>\(\mathtt{\mbox{-}b :}\) </td>
-              <td>The basename of the input cluster files used to determine
-                isolated clusters. (Default: \(\mathtt{clust}\)).</td>
+              <td>\(\mathtt{\mbox{-}S :}\) </td>
+              <td>Stats which are be used for filtering (Default: use all states).</td>
             </tr>
             <tr>
-              <td>\(\mathtt{\mbox{--}concat\mbox{-}nframes:}\) </td>
-              <td>The number of frames per (equally sized) sub-trajectories for
-                concatenated trajectory files.</td>
-            </tr>
-            <tr>
-              <td>\(\mathtt{\mbox{--}concat\mbox{-}limits:}\) </td>
-              <td>The name(path) to the limit file. It should be a single column
-                file with the length of each trajectory. for a concatenated
-                trajectory of three chunks of sizes 100, 50 and 300 frames: '100
-                50 300'.</td>
+              <td>\(\mathtt{\mbox{-}\mbox{-}every\mbox{-}nth :}\) </td>
+              <td>Write out only every nth frame. This can be useful to
+              directly open a splitted xtc file in VMD. (Default: use all
+              frames).</td>
             </tr>
           </table>
 
@@ -130,14 +112,8 @@ clustering noise -s state_file
               <th>Description</th>
             </tr>
             <tr>
-              <td>\(\mathtt{\mbox{-}o}\)</td>
-              <td>Filename for the output file of the noise corrected
-                microstates.</td>
-            </tr>
-            <tr>
-              <td>\(\mathtt{\mbox{--}cores}\)</td>
-              <td>Filename where the microstate trajectory is stored with all
-                noise frames denoted by \(-1\).</td>
+              <td>\(\mathtt{\mbox{-}o :}\) </td>
+              <td>The basename of the output files (Default: use input name).</td>
             </tr>
           </table>
 
@@ -152,29 +128,6 @@ clustering noise -s state_file
               <td>Verbose mode with some output.</td>
             </tr>
           </table>
-
-        </section>
-        <section class="js-section">
-          <h2 class="section__title">Detailed Description</h2>
-          <p>
-            On the barriers we are facing a poor sampling. Therefore, also due
-            to projection artefacts, frames can be assigned to the wrong state.
-            To avoid this, we simply reassign those frames dynamically instead
-            of geometrically. This was proposed in <a href=""
-              class="link link--light">Nagel et al., 2019</a>.
-            We use the following definition of noise:</p>
-          <ul>
-            <li>All geometrically isolated clusters with population lower than
-              \(\mathtt{c_\text{min}}\) are assigned as noise.</li>
-            <li>They are assigned dynamically (in the sense of coring) to the
-              previously visited state.</li>
-          </ul>
-          <p>Where \(\mathtt{c_\text{min}}\) is given in percent of the total
-            population. This has an impact of</p>
-          <ul>
-            <li>\(\approx5\%\) of total frames</li>
-            <li>improves the Markovianity in some systems</li>
-          </ul>
         </section>
     </article>
   </div>
