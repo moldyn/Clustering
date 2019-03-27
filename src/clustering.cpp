@@ -419,14 +419,15 @@ int main(int argc, char* argv[]) {
     Clustering::verbose = args["verbose"].as<bool>();
   }
   // print head
-  Clustering::logger(std::cout) << "\n" << header_ostring.str()
-                                << "\n~~~ using for parallization: ";
-
+  Clustering::logger(std::cout) << "\n" << header_ostring.str() << std::endl;
+  if (mode == DENSITY) {
+    Clustering::logger(std::cout) << "~~~ using for parallization: ";
 #ifdef USE_CUDA
       Clustering::logger(std::cout) << "CUDA" << std::endl;
 #else
       Clustering::logger(std::cout) << "cpu" << std::endl;
 #endif
+  }
   // setup OpenMP
   int n_threads = 0;
   if (args.count("nthreads")) {
