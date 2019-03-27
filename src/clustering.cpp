@@ -89,6 +89,7 @@ int main(int argc, char* argv[]) {
     "  coring:  boundary corrections for clustering results.\n"
     "  noise:   defining and dynamically reassigning noise.\n"
     "  filter:  filter phase space (e.g. dihedrals) for given state\n"
+    "  stats:   give statistics of state trajectory\n"
     "\n"
     "usage:\n"
     "  clustering MODE --option1 --option2 ...\n"
@@ -97,7 +98,7 @@ int main(int argc, char* argv[]) {
     "  clustering density -h\n"
   ;
 
-  enum {DENSITY, MPP, NETWORK, FILTER, CORING, NOISE} mode;
+  enum {DENSITY, MPP, NETWORK, FILTER, STATS, CORING, NOISE} mode;
 
 #ifdef USE_CUDA
   // check for CUDA-enabled GPUs (will fail if none found)
@@ -118,6 +119,8 @@ int main(int argc, char* argv[]) {
       mode = NETWORK;
     } else if (str_mode.compare("filter") == 0) {
       mode = FILTER;
+    } else if (str_mode.compare("stats") == 0) {
+      mode = STATS;
     } else if (str_mode.compare("coring") == 0) {
       mode = CORING;
     } else if (str_mode.compare("noise") == 0) {
@@ -227,15 +230,31 @@ int main(int argc, char* argv[]) {
           "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
           "(required): file with state information (i.e. clustered trajectory).")
-    ("coords,c", b_po::value<std::string>(),
-          "file with coordinates (either plain ASCII or GROMACS' xtc).")
+    ("coords,c", b_po::value<std::string>()->required(),
+          "(required): file with coordinates (either plain ASCII or GROMACS' xtc).")
     ("output,o", b_po::value<std::string>(),
-          "filtered data.")
-    ("state,S", b_po::value<std::size_t>(),
-          "state id of selected state.")
-            
-    ("list", b_po::bool_switch()->default_value(false),
-          "list states and their populations")
+          "basename of filtered data output (extended by e.g. "
+          "basename.state5 for state 5) keeping file extension of input. If not "
+          "specified, the inmput name will be used.")
+//    ("state,S", b_po::value<std::size_t>()->required(),
+//          "(required): state id of selected state.")
+    ("selected-states,S", b_po::value<std::vector<std::size_t>>()->multitoken(),
+          "state ids of selected states. Default all states.")
+    // defaults
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+          "verbose mode: print runtime information to STDOUT.")
+  ;
+  // stats options
+  b_po::options_description desc_stats (
+    clustering_copyright + std::string(argv[1]) + ": \n"
+    "list statistics and population of state trajectory."
+    "\n"
+    "options");
+  desc_stats.add_options()
+    ("help,h", b_po::bool_switch()->default_value(false),
+          "show this help.")
+    ("states,s", b_po::value<std::string>()->required(),
+          "(required): file with state information (i.e. clustered trajectory).")
   ;
   // coring options
   b_po::options_description desc_coring (
@@ -319,6 +338,9 @@ int main(int argc, char* argv[]) {
     case FILTER:
       desc.add(desc_filter);
       break;
+    case STATS:
+      desc.add(desc_stats);
+      break;
     case CORING:
       desc.add(desc_coring);
       break;
@@ -345,6 +367,10 @@ int main(int argc, char* argv[]) {
     std::cout << desc << std::endl;
     return EXIT_SUCCESS;
   }
+  // activate verbose mode for stats and change
+  if (mode == STATS) {
+    args.insert(std::make_pair("verbose", b_po::variable_value(true, false)));
+  }
   // setup defaults
   if (args.count("verbose")) {
     Clustering::verbose = args["verbose"].as<bool>();
@@ -365,6 +391,12 @@ int main(int argc, char* argv[]) {
   }
   if (n_threads > 0) {
     omp_set_num_threads(n_threads);
+  }
+  // separate between stats and filter
+  if (mode == STATS) {
+    args.insert(std::make_pair("list", b_po::variable_value(true, false)));
+  } else if (mode == FILTER) {
+    args.insert(std::make_pair("list", b_po::variable_value(false, false)));
   }
   // generate header comment
   std::ostringstream header;
@@ -409,6 +441,9 @@ int main(int argc, char* argv[]) {
       Clustering::NetworkBuilder::main(args);
       break;
     case FILTER:
+      Clustering::Filter::main(args);
+      break;
+    case STATS:
       Clustering::Filter::main(args);
       break;
     case CORING:

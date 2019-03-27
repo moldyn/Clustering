@@ -29,6 +29,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace Clustering {
 //! functionality for filtering coordinates or order parameters (ASCII or GROMACS' .xtc) based on state trajectory.
 namespace Filter {
+  void
+  //! print with fixed precision and width
+  fixedprint(double num, std::size_t prec, std::size_t width);
   /*!
    *  controlling function and user interface for state filtering.
    *
