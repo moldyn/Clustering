@@ -144,28 +144,45 @@ int main(int argc, char* argv[]) {
     "options");
   desc_dens.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
-    ("file,f", b_po::value<std::string>()->required(), "input (required): phase space coordinates (space separated ASCII).")
+    ("file,f", b_po::value<std::string>()->required(),
+          "input (required): phase space coordinates (space separated ASCII).")
     // optional
-    ("radius,r", b_po::value<float>(), "parameter: hypersphere radius. If not used, the lumping radius will be used instead.")
+    ("radius,r", b_po::value<float>(),
+          "parameter: hypersphere radius. If not used, the lumping radius "
+          "will be used instead.")
     ("threshold-screening,T", b_po::value<std::vector<float>>()->multitoken(),
-                                          "parameters: screening of free energy landscape. format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
-                                          "set -T -1 for default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"
-                                          "parameters may be given partially, e.g.: -T 0.2 0.4 to start at 0.2 and go to MAX_FE at steps 0.4.\n"
-                                          "for threshold-screening, --output denotes the basename only. output files will have the"
-                                          " current threshold limit appended to the given filename.")
-    ("output,o", b_po::value<std::string>(), "output (optional): clustering information.")
-    ("input,i", b_po::value<std::string>(), "input (optional): initial state definition.")
-    ("radii,R", b_po::value<std::vector<float>>()->multitoken(), "parameter: list of radii for population/free energy calculations "
-                                                                 "(i.e. compute populations/free energies for several radii in one go).")
-    ("population,p", b_po::value<std::string>(), "output (optional): population per frame (if -R is set: this defines only the basename).")
-    ("free-energy,d", b_po::value<std::string>(), "output (optional): free energies per frame (if -R is set: this defines only the basename).")
-    ("free-energy-input,D", b_po::value<std::string>(), "input (optional): reuse free energy info.")
-    ("nearest-neighbors,b", b_po::value<std::string>(), "output (optional): nearest neighbor info.")
-    ("nearest-neighbors-input,B", b_po::value<std::string>(), "input (optional): reuse nearest neighbor info.")
+          "parameters: screening of free energy landscape. "
+          "format: FROM STEP TO; e.g.: '-T 0.1 0.1 11.1'.\n"
+          "set -T -1 for default values: FROM=0.1, STEP=0.1, TO=MAX_FE.\n"
+          "parameters may be given partially, e.g.: -T 0.2 0.4 to start "
+          "at 0.2 and go to MAX_FE at steps 0.4.\n"
+          "for threshold-screening, --output denotes the basename only. "
+          "output files will have the "
+          "current threshold limit appended to the given filename.")
+    ("output,o", b_po::value<std::string>(),
+          "output (optional): clustering information.")
+    ("input,i", b_po::value<std::string>(),
+          "input (optional): initial state definition.")
+    ("radii,R", b_po::value<std::vector<float>>()->multitoken(),
+          "parameter: list of radii for population/free energy calculations "
+          "(i.e. compute populations/free energies for several radii in one go).")
+    ("population,p", b_po::value<std::string>(),
+          "output (optional): population per frame (if -R is set: "
+          "this defines only the basename).")
+    ("free-energy,d", b_po::value<std::string>(),
+          "output (optional): free energies per frame "
+          "(if -R is set: this defines only the basename).")
+    ("free-energy-input,D", b_po::value<std::string>(),
+          "input (optional): reuse free energy info.")
+    ("nearest-neighbors,b", b_po::value<std::string>(),
+          "output (optional): nearest neighbor info.")
+    ("nearest-neighbors-input,B", b_po::value<std::string>(),
+          "input (optional): reuse nearest neighbor info.")
     // defaults
     ("nthreads,n", b_po::value<int>()->default_value(0),
-                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
+          "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+          "verbose mode: print runtime information to STDOUT.")
   ;
   // MPP options
   b_po::options_description desc_mpp (
@@ -176,26 +193,37 @@ int main(int argc, char* argv[]) {
   desc_mpp.add_options()
     ("help,h", b_po::bool_switch()->default_value(false), "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory")
-    ("free-energy-input,D", b_po::value<std::string>()->required(), "input (required): reuse free energy info.")
-    ("lagtime,l", b_po::value<int>()->required(), "input (required): lagtime in units of frame numbers. Note: Lagtime should be greater than the coring time/ smallest timescale. ")
-    ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"), "initial Qmin value (default: 0.01).")
-    ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"), "final Qmin value (default: 1.00).")
-    ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"), "Qmin stepping (default: 0.01).")
+          "(required): file with state information (i.e. clustered trajectory")
+    ("free-energy-input,D", b_po::value<std::string>()->required(),
+          "input (required): reuse free energy info.")
+    ("lagtime,l", b_po::value<int>()->required(),
+          "input (required): lagtime in units of frame numbers. Note: Lagtime "
+          "should be greater than the coring time/ smallest timescale. ")
+    ("qmin-from", b_po::value<float>()->default_value(0.01, "0.01"),
+          "initial Qmin value (default: 0.01).")
+    ("qmin-to", b_po::value<float>()->default_value(1.0, "1.00"),
+          "final Qmin value (default: 1.00).")
+    ("qmin-step", b_po::value<float>()->default_value(0.01, "0.01"),
+          "Qmin stepping (default: 0.01).")
     ("concat-nframes", b_po::value<std::size_t>(),
-      "input (parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+          "input (parameter): no. of frames per (equally sized) sub-trajectory"
+          " for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (file): file with sizes of individual (not equally sized)"
-      " sub-trajectories for concatenated trajectory files. e.g.: for a"
-      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+          "input (file): file with sizes of individual (not equally sized)"
+          " sub-trajectories for concatenated trajectory files. e.g.: for a"
+          " concatenated trajectory of three chunks of sizes 100, 50 and 300 "
+          "frames: '100 50 300'")
     ("tprob", b_po::value<std::string>(),
-     "input (file): initial transition probability matrix. -l still needs to be given, but will be ignored.\n"
-     "Format:three space-separated columns 'state_from' 'state_to' 'probability'")
+          "input (file): initial transition probability matrix. "
+          "-l still needs to be given, but will be ignored.\n"
+          "Format:three space-separated columns 'state_from' 'state_to' 'probability'")
     // defaults
-    ("output,o", b_po::value<std::string>()->default_value("mpp"), " output (optional): basename for output files (default: 'mpp').")
+    ("output,o", b_po::value<std::string>()->default_value("mpp"),
+          "output (optional): basename for output files (default: 'mpp').")
     ("nthreads,n", b_po::value<int>()->default_value(0),
-                      "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
+          "number of OpenMP threads. default: 0; i.e. use OMP_NUM_THREADS env-variable.")
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+          "verbose mode: print runtime information to STDOUT.")
   ;
   // network options
   b_po::options_description desc_network (
@@ -212,12 +240,17 @@ int main(int argc, char* argv[]) {
           "(optional): basename of input files (default: clust).")
     ("output,o", b_po::value<std::string>()->default_value("network"),
           "(optional): basename of output files (default: network).")
-    ("min", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): minimum free energy (default:  0.10).")
-    ("max", b_po::value<float>()->default_value(0.0f, "0"), "(optional): maximum free energy (default:  0; i.e. max. available).")
-    ("step", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): free energy stepping (default: 0.10).")
-    ("network-html", b_po::bool_switch()->default_value(false), "Generate html visualization of fe tree.")
+    ("min", b_po::value<float>()->default_value(0.1f, "0.10"),
+          "(optional): minimum free energy (default:  0.10).")
+    ("max", b_po::value<float>()->default_value(0.0f, "0"),
+          "(optional): maximum free energy (default:  0; i.e. max. available).")
+    ("step", b_po::value<float>()->default_value(0.1f, "0.10"),
+          "(optional): free energy stepping (default: 0.10).")
+    ("network-html", b_po::bool_switch()->default_value(false),
+          "Generate html visualization of fe tree.")
     // defaults
-    ("verbose,v", b_po::bool_switch()->default_value(false), "verbose mode: print runtime information to STDOUT.")
+    ("verbose,v", b_po::bool_switch()->default_value(false),
+          "verbose mode: print runtime information to STDOUT.")
   ;
   // filter options
   b_po::options_description desc_filter (
@@ -264,35 +297,39 @@ int main(int argc, char* argv[]) {
     "options");
   desc_coring.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
-        "show this help.")
+          "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory)")
+          "(required): file with state information (i.e. clustered trajectory)")
     ("windows,w", b_po::value<std::string>()->required(), 
-        "(required): file with window sizes."
-        "format is space-separated lines of\n\n"
-        "STATE_ID WINDOW_SIZE\n\n"
-        "use * as STATE_ID to match all (other) states.\n"
-        "e.g.:\n\n"
-        "* 20\n"
-        "3 40\n"
-        "4 60\n\n"
-        "matches 40 frames to state 3, 60 frames to state 4 and 20 frames to all the other states.")
+          "(required): file with window sizes."
+          "format is space-separated lines of\n\n"
+          "STATE_ID WINDOW_SIZE\n\n"
+          "use * as STATE_ID to match all (other) states.\n"
+          "e.g.:\n\n"
+          "* 20\n"
+          "3 40\n"
+          "4 60\n\n"
+          "matches 40 frames to state 3, 60 frames to state 4 and 20 frames "
+          "to all the other states.")
     // optional
     ("output,o", b_po::value<std::string>(),
-        "(optional): cored trajectory")
+          "(optional): cored trajectory")
     ("distribution,d", b_po::value<std::string>(),
-        "(optional): write waiting time distributions to file.")
+          "(optional): write waiting time distributions to file.")
     ("cores", b_po::value<std::string>(),
-        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+          "(optional): write core information to file, i.e. trajectory with "
+          "state name if in core region or -1 if not in core region")
     ("concat-nframes", b_po::value<std::size_t>(),
-      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+          "input (optional parameter): no. of frames per (equally sized) "
+          "sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (file): file with sizes of individual (not equally sized)"
-      " sub-trajectories for concatenated trajectory files. e.g.: for a"
-      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+          "input (file): file with sizes of individual (not equally sized)"
+          " sub-trajectories for concatenated trajectory files. e.g.: for a"
+          " concatenated trajectory of three chunks of sizes 100, 50 and 300 "
+          "frames: '100 50 300'")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
-        "verbose mode: print runtime information to STDOUT.")
+          "verbose mode: print runtime information to STDOUT.")
   ;
   // noise options
   b_po::options_description desc_noise (
@@ -302,26 +339,32 @@ int main(int argc, char* argv[]) {
     "options");
   desc_noise.add_options()
     ("help,h", b_po::bool_switch()->default_value(false),
-        "show this help.")
+          "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
-        "(required): file with state information (i.e. clustered trajectory)")
+          "(required): file with state information (i.e. clustered trajectory)")
     ("output,o", b_po::value<std::string>()->required(),
-        "(required): noise-reassigned trajectory")
+          "(required): noise-reassigned trajectory")
     // optional
     ("basename,b", b_po::value<std::string>()->default_value("clust"),
-          "(optional): basename of input files (default: clust) used to determine isolated clusters")
-    ("cmin,c", b_po::value<float>()->default_value(0.1f, "0.10"), "(optional): population (in percent) threshold below which an isolated cluster is assigned as noise.(default: 0.1).")
+          "(optional): basename of input files (default: clust) used to "
+          "determine isolated clusters")
+    ("cmin,c", b_po::value<float>()->default_value(0.1f, "0.10"),
+          "(optional): population (in percent) threshold below which an "
+          "isolated cluster is assigned as noise.(default: 0.1).")
     ("cores", b_po::value<std::string>(),
-        "(optional): write core information to file, i.e. trajectory with state name if in core region or -1 if not in core region")
+          "(optional): write core information to file, i.e. trajectory with "
+          "state name if in core region or -1 if not in core region")
     ("concat-nframes", b_po::value<std::size_t>(),
-      "input (optional parameter): no. of frames per (equally sized) sub-trajectory for concatenated trajectory files.")
+          "input (optional parameter): no. of frames per (equally sized) "
+          "sub-trajectory for concatenated trajectory files.")
     ("concat-limits", b_po::value<std::string>(),
-      "input (file): file with sizes of individual (not equally sized)"
-      " sub-trajectories for concatenated trajectory files. e.g.: for a"
-      " concatenated trajectory of three chunks of sizes 100, 50 and 300 frames: '100 50 300'")
+          "input (file): file with sizes of individual (not equally sized)"
+          " sub-trajectories for concatenated trajectory files. e.g.: for a"
+          " concatenated trajectory of three chunks of sizes 100, 50 and 300"
+          " frames: '100 50 300'")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
-        "verbose mode: print runtime information to STDOUT.")
+          "verbose mode: print runtime information to STDOUT.")
   ;  
   // parse cmd arguments           
   b_po::options_description desc;  
