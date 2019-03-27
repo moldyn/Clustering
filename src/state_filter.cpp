@@ -116,14 +116,57 @@ namespace Filter {
                 << std::endl;
     } else {
       // filter data
-      std::size_t selected_state = args["state"].as<std::size_t>();
-      CoordsFile::FilePointer coords_in = CoordsFile::open(args["coords"].as<std::string>(), "r");
-      CoordsFile::FilePointer coords_out = CoordsFile::open(args["output"].as<std::string>(), "w");
-      for (std::size_t s: states) {
-        if (s == selected_state) {
-          coords_out->write(coords_in->next());
+      std::string coords_name = args["coords"].as<std::string>();
+      Clustering::logger(std::cout) << "        coords from: "
+                                    << coords_name
+                                    << std::endl;
+      // find selected (or all) states
+      std::vector<std::size_t> selected_states;
+      if (args.count("selected-states")) {
+        selected_states = args["selected-states"].as<std::vector<std::size_t>>();
+      } else { // use all states
+        std::vector<std::size_t> unique_states(states);
+        std::sort(unique_states.begin(), unique_states.end());
+        auto last = std::unique(unique_states.begin(), unique_states.end());
+        unique_states.erase(last, unique_states.end());
+        selected_states = unique_states;
+      }
+      // get file extension of coords
+      std::string file_extension = "";
+      if (coords_name.compare(coords_name.size()-4, 1, ".") == 0){
+        file_extension = coords_name.substr(coords_name.size()-4, 4);
+      }
+      std::string output_basename;
+      if (args.count("output")) {
+        output_basename = args["output"].as<std::string>();
+      } else {
+        if (file_extension.size()==0) {
+          output_basename = coords_name;
         } else {
-          coords_in->next();
+          output_basename = coords_name.substr(0,coords_name.size()-4);
+        }
+      }
+      // filter data
+      Clustering::logger(std::cout) << "\n~~~ filter states:" << std::endl;
+      for (std::size_t selected_state: selected_states){
+        // open coords
+        CoordsFile::FilePointer coords_in = CoordsFile::open(coords_name, "r");
+        // get output name
+        std::string basename = output_basename + ".state%i" + file_extension;
+        std::string output_name = Clustering::Tools::stringprintf(basename,
+                                                                  selected_state);
+        CoordsFile::FilePointer coords_out = CoordsFile::open(output_name, "w");
+
+        Clustering::logger(std::cout) << "    " << selected_state
+                                      << " : "
+                                      << output_name
+                                      << std::endl;
+        for (std::size_t s: states) {
+          if (s == selected_state) {
+            coords_out->write(coords_in->next());
+          } else {
+            coords_in->next();
+          }
         }
       }
     }
