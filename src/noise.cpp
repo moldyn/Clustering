@@ -87,6 +87,12 @@ namespace Noise {
       Clustering::Tools::check_concat_limits(concat_limits, n_frames);
       // findest highest clust file
       b_fs::path cwd(b_fs::current_path());
+      b_fs::path wd_basename(basename);
+
+      // if relative or absolute path is given, use this instead of cwd
+      if (wd_basename.parent_path() != "") {
+        cwd = wd_basename.parent_path();
+      }
 
       typedef std::vector<b_fs::path> vec;             // store paths,
       vec v;                                           // so we can sort them later
