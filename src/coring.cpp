@@ -201,13 +201,14 @@ namespace Coring {
       Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", changed_frames_perc)
                                     << "% of frames were changed\n    " << changed_frames
                                     << " frames in total"
-                                    << "\n    store result in: " << args["output"].as<std::string>()
                                     << std::endl;
       // write cored trajectory to file
       std::string header_coring = header_comment
                   + Clustering::Tools::stringprintf("#    %.2f", changed_frames_perc)
                   + "% of frames were changed\n";
       if (args.count("output")) {
+        Clustering::logger(std::cout) << "    store result in: " << args["output"].as<std::string>()
+                                      << std::endl;
         Clustering::Tools::write_clustered_trajectory(args["output"].as<std::string>(),
                                                       cored_traj,
                                                       header_coring,
