@@ -516,16 +516,17 @@ clustering noise -s microstates -c 0.1 -o microstatesNoise --basename cluster -v
           in the
           \(\mathtt{win}\) file.</p>
         <p>
-          After the generation of the probability \(W_i(t)\) files, plot them
-          (e.g. with matplotlib) and select the window size that shows an exponential
-          decay. In most cases it is sufficient to take the same window for all
+          After the generation of the probability \(W_i(t)\) files, we plot them
+          (e.g. with matplotlib) and select the smallest window size that shows
+          an exponential decay.
+          In most cases it is sufficient to take the same window for all
           states. Select the window such that it shows an exponential decay for
           all microstates. In the following figures the probabilities for the first
           two states are shown,</p>
         <figure>
           <img src="figures/coring.png" alt="finding coring time">
         </figure>
-        <p>where see that \(\tau_{cor}=4\,[\text{frames}]\) is sufficient.</p>
+        <p>where we see that \(\tau_{cor}=4\,[\text{frames}]\) is sufficient.</p>
         <p>
           When you have selected proper windows sizes for all states, rewrite
           your
