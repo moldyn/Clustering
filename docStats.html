@@ -66,7 +66,9 @@
           <div class="code__block code__block--notabs">
             <pre class="code code--block code--block--tabs">
              <code>
-clustering stats -s state_file</code>
+clustering stats -s state_file
+                 --concat-nframes NFRAMES
+                 --concat-limits limit_file</code>
             </pre>
           </div>
         </section>
@@ -82,6 +84,18 @@ clustering stats -s state_file</code>
             <tr>
               <td>\(\mathtt{\mbox{-}s :}\)</td>
               <td>The name(path) of the clusterd state trajectory file.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}nframes:}\) </td>
+              <td>The number of frames per (equally sized) sub-trajectories for
+                concatenated trajectory files.</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{--}concat\mbox{-}limits:}\) </td>
+              <td>The name(path) to the limit file. It should be a single column
+                file with the length of each trajectory. for a concatenated
+                trajectory of three chunks of sizes 100, 50 and 300 frames: '100
+                50 300'.</td>
             </tr>
           </table>
         </section>
