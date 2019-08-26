@@ -69,19 +69,42 @@ namespace Filter {
         std::size_t pop = std::count(states.begin(), states.end(), id);
         pops.push({pop, id});
       }
+
+      // load concat limits
+      std::vector<std::size_t> concat_limits;
+      if (args.count("concat-limits")) {
+        Clustering::logger(std::cout) << "    limits from: "
+                                      << args["concat-limits"].as<std::string>() << std::endl;
+        concat_limits = Clustering::Tools::read_concat_limits(args["concat-limits"].as<std::string>());
+      } else if (args.count("concat-nframes")) {
+        std::size_t n_frames_per_subtraj = args["concat-nframes"].as<std::size_t>();
+        for (std::size_t i=n_frames_per_subtraj; i <= n_frames; i += n_frames_per_subtraj) {
+          concat_limits.push_back(i);
+        }
+      } else {
+        concat_limits = {n_frames};
+      }
+      // check if concat_limits are well definied
+      Clustering::Tools::check_concat_limits(concat_limits, n_frames);
+
       // get number of entering each state
       std::map<std::size_t, std::size_t> entered;
       entered[states[0]] = 1;
 //      std::size_t diff(n_frames);
-      for(std::size_t i=0; i < n_frames-1; ++i){
-        if (states[i+1] != states[i]){
-          std::map<std::size_t, std::size_t>::iterator it(entered.find(states[i+1]));
-          if (it != entered.end()){
-            it->second++;
-          } else {
-            entered[states[i+1]] = 1;
+      std::size_t last_limit = 0;
+      for (std::size_t next_limit: concat_limits) {
+        std::size_t next_limit_corrected = std::min(next_limit, n_frames);
+        for (std::size_t i=last_limit; i < next_limit_corrected-1; ++i) {
+          if (states[i+1] != states[i]){
+            std::map<std::size_t, std::size_t>::iterator it(entered.find(states[i+1]));
+            if (it != entered.end()){
+              it->second++;
+            } else {
+              entered[states[i+1]] = 1;
+            }
           }
         }
+        last_limit = next_limit_corrected;
       }
       std::cout << "~~~ state stats\n"
                 << "    state  population  pop [%]  tot [%]  entered" << std::endl;
