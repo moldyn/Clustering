@@ -95,8 +95,13 @@ int main(int argc, char* argv[]) {
     "  clustering MODE --option1 --option2 ...\n"
     "\n"
     "for a list of available options per mode, run with '-h' option, e.g.\n"
-    "  clustering density -h\n"
+    "  clustering density -h\n\n"
   ;
+  #ifdef USE_CUDA
+        general_help += "this binary is parallized with cuda\n\n";
+  #else
+        general_help += "this binary is parallized with openmp\n\n";
+  #endif
 
   enum {DENSITY, MPP, NETWORK, FILTER, STATS, CORING, NOISE} mode;
 
@@ -288,6 +293,14 @@ int main(int argc, char* argv[]) {
           "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
           "(required): file with state information (i.e. clustered trajectory).")
+    ("concat-nframes", b_po::value<std::size_t>(),
+          "input (optional parameter): no. of frames per (equally sized) "
+          "sub-trajectory for concatenated trajectory files.")
+    ("concat-limits", b_po::value<std::string>(),
+          "input (file): file with sizes of individual (not equally sized)"
+          " sub-trajectories for concatenated trajectory files. e.g.: for a"
+          " concatenated trajectory of three chunks of sizes 100, 50 and 300 "
+          "frames: '100 50 300'")
   ;
   // coring options
   b_po::options_description desc_coring (
