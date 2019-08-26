@@ -119,7 +119,8 @@ namespace Noise {
             float fe_max;
             try{
               fe_max = std::stof(file_str.substr(found+basename.length(),file_str.length()-found-basename.length()-1));
-              if (fe_max > commentsMap["screening_to"] + commentsMap["screening_step"]){
+              if ((fe_max > commentsMap["screening_to"] + commentsMap["screening_step"]) ||
+                 (fe_max < commentsMap["screening_to"])){
                 continue;
               }
             } catch (...) {
