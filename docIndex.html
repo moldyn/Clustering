@@ -126,8 +126,8 @@
             </pre>
           <h4 class="section__title">CUDA</h4>
           <p>The density-based clustering <i>clustering density</i> can be
-            parallized with CUDA 9 (and OpenMP). Note, CUDA 9 supports only
-            gcc5! Therefore, following flags need to be set with cmake</p>
+            parallized with CUDA 9 (and OpenMP). Note, CUDA 9.1 (9.2) supports only
+            gcc5 (gcc7)! Therefore, following flags need to be set with cmake</p>
           <pre class="code code--block">
               <code>
                 -DUSE_CUDA=1 -DCMAKE_C_COMPILER=/path/to/gcc-5 -DCMAKE_CXX_COMPILER=/path/to/g++-5
