@@ -169,21 +169,43 @@ namespace Coring {
       std::size_t current_core = states[0];
       std::vector<long> cores(n_frames);
       std::size_t changed_frames = 0;
+      bool is_in_core = true;
       // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
-        current_core = states[last_limit];
+        // this should never have an impact for correct limits
         std::size_t next_limit_corrected = std::min(next_limit, n_frames);
+        // find first core
+        current_core = states[last_limit];  // fallback option
         for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
-          // coring window
           std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
-          bool is_in_core = true;
           for (std::size_t j=i+1; j < w; ++j) {
             if (states[j] != states[i]) {
-              is_in_core = false;
-              break;
+                goto try_next_state;
             }
           }
+          current_core = states[i];
+          break;
+
+          try_next_state: ;
+        }
+
+        // core trajectories
+        for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
+          // coring window
+          if (i+coring_windows[states[i]] <= next_limit) {
+            std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
+            is_in_core = true;
+            for (std::size_t j=i+1; j < w; ++j) {
+              if (states[j] != states[i]) {
+                is_in_core = false;
+                break;
+                }
+            }
+          } else {
+            is_in_core = false;
+          }
+
           if (is_in_core) {
             current_core = states[i];
             cores[i] = current_core;
