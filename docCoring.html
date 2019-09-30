@@ -101,9 +101,10 @@ clustering noise -s state_file
             </tr>
             <tr>
               <td>\(\mathtt{\mbox{-}w :}\) </td>
-              <td>The name(path) to the window size file. The file should be
-                formatted as a two-column file assigning to each state a coring
-                time \(\tau_\text{cor}\):
+              <td>Either an integer which is interpreted as the same window for
+                all states, or The name(path) to the window size file. The file
+                should be formatted as a two-column file assigning to each
+                state a coring time \(\tau_\text{cor}\):
                 <p style="text-align:center;">STATE_ID TAU_COR</p>
                 use * as STATE_ID to match all (other) states.
                 e.g.:
