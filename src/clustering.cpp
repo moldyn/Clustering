@@ -65,7 +65,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string version_number = "v1.2.0";
+  std::string version_number = "v1.2.1";
   // generate header string
   std::string leading_whitespace(25 - (19 + version_number.size())/2, ' ');
   std::ostringstream header_ostring;
