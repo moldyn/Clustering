@@ -460,6 +460,10 @@ clustering noise -s microstates -c 0.1 -o microstatesNoise --basename cluster -v
           file, which holds a single column with microstate id / frame, where
           the row
           number equals the according frame number.</p>
+        <p>Remember that if you are using a concatinated trajectory you need to
+          specify the limits by passing either
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}limits}\) or
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}nframes}\).</p>
       </section>
       <section class="js-section">
         <h2 class="section__title">Dynamical coring</h2>
@@ -515,6 +519,10 @@ clustering noise -s microstates -c 0.1 -o microstatesNoise --basename cluster -v
           Repeat this process several times for different choices of coring time
           in the
           \(\mathtt{win}\) file.</p>
+        <p>Remember that if you are using a concatinated trajectory you need to
+          specify the limits by passing either
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}limits}\) or
+          \(\mathtt{\mbox{-}\mbox{-}concat\mbox{-}nframes}\).</p>
         <p>
           After the generation of the probability \(W_i(t)\) files, we plot them
           (e.g. with matplotlib) and select the smallest window size that shows
