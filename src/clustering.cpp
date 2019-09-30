@@ -480,7 +480,8 @@ int main(int argc, char* argv[]) {
                                              {"screening_step", 0.},
                                              {"minimal_population", 0.},
                                              {"cmin", 0.},
-                                             {"single_coring_time", 0.}};
+                                             {"single_coring_time", 0.},
+                                             {"limits", 0.}};
   args.insert(std::make_pair("commentsMap", b_po::variable_value(commentsMap, false)));
   // run selected subroutine
   switch(mode) {

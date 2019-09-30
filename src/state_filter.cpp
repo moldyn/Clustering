@@ -62,6 +62,9 @@ namespace Filter {
     std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
     std::size_t n_frames = states.size();
     if (args["list"].as<bool>()) { // mode stats with verbose true
+      std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
+      // read previously used parameters
+      read_comments(args["states"].as<std::string>(), commentsMap);
       std::priority_queue<std::pair<std::size_t, std::size_t>> pops;
       // list states with pops
       std::set<std::size_t> state_ids(states.begin(), states.end());
@@ -86,6 +89,15 @@ namespace Filter {
       }
       // check if concat_limits are well definied
       Clustering::Tools::check_concat_limits(concat_limits, n_frames);
+      Clustering::logger(std::cout) << "    interpret data as " << concat_limits.size()
+                                    << " trajectories" << std::endl;
+      if (commentsMap["limits"] == 0) {
+        commentsMap["limits"] = concat_limits.size();
+      } else if (std::abs(commentsMap["limits"]-concat_limits.size()) > 0.001) {
+        Clustering::logger(std::cout) << "warning: the number of limits are not in agreement\n"
+                                      << "         " << commentsMap["limits"] << " vs. "
+                                      << concat_limits.size() << std::endl;
+      }
 
       // get number of entering each state
       std::map<std::size_t, std::size_t> entered;

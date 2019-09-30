@@ -85,6 +85,15 @@ namespace Noise {
       }
       // check if concat_limits are well definied
       Clustering::Tools::check_concat_limits(concat_limits, n_frames);
+      Clustering::logger(std::cout) << "    interpret data as " << concat_limits.size()
+                                    << " trajectories" << std::endl;
+      if (commentsMap["limits"] == 0) {
+        commentsMap["limits"] = concat_limits.size();
+      } else if (std::abs(commentsMap["limits"]-concat_limits.size()) > 0.001) {
+        Clustering::logger(std::cout) << "warning: the number of limits are not in agreement\n"
+                                      << "         " << commentsMap["limits"] << " vs. "
+                                      << concat_limits.size() << std::endl;
+      }
       // findest highest clust file
       b_fs::path cwd(b_fs::current_path());
       b_fs::path wd_basename(basename);

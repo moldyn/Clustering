@@ -90,8 +90,17 @@ namespace Coring {
       }
       // check if concat_limits are well definied
       Clustering::Tools::check_concat_limits(concat_limits, n_frames);
+      Clustering::logger(std::cout) << "    interpret data as " << concat_limits.size()
+                                    << " trajectories" << std::endl;
+      if (commentsMap["limits"] == 0) {
+        commentsMap["limits"] = concat_limits.size();
+      } else if (std::abs(commentsMap["limits"]-concat_limits.size()) > 0.001) {
+        Clustering::logger(std::cout) << "warning: the number of limits are not in agreement\n"
+                                      << "         " << commentsMap["limits"] << " vs. "
+                                      << concat_limits.size() << std::endl;
+      }
       // load window size information
-      Clustering::logger(std::cout) << "\n\n~~~ coring windows:\n    from file: "
+      Clustering::logger(std::cout) << "\n~~~ coring windows:\n    from file: "
                                     << args["windows"].as<std::string>() << std::endl;
       std::map<std::size_t, std::size_t> coring_windows;
       {
@@ -181,7 +190,7 @@ namespace Coring {
           std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
           for (std::size_t j=i+1; j < w; ++j) {
             if (states[j] != states[i]) {
-                goto try_next_state;
+              goto try_next_state;
             }
           }
           current_core = states[i];
