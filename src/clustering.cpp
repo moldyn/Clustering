@@ -65,7 +65,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string version_number = "v1.1.2";
+  std::string version_number = "v1.2.0";
   // generate header string
   std::string leading_whitespace(25 - (19 + version_number.size())/2, ' ');
   std::ostringstream header_ostring;
@@ -313,8 +313,9 @@ int main(int argc, char* argv[]) {
           "show this help.")
     ("states,s", b_po::value<std::string>()->required(),
           "(required): file with state information (i.e. clustered trajectory)")
-    ("windows,w", b_po::value<std::string>()->required(), 
-          "(required): file with window sizes."
+    ("windows,w", b_po::value<std::string>()->required(),
+          "(required): either single integer for same window for all states "
+          "or file with window sizes. "
           "format is space-separated lines of\n\n"
           "STATE_ID WINDOW_SIZE\n\n"
           "use * as STATE_ID to match all (other) states.\n"

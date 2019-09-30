@@ -100,15 +100,17 @@ namespace Coring {
                                       << concat_limits.size() << std::endl;
       }
       // load window size information
-      Clustering::logger(std::cout) << "\n~~~ coring windows:\n    from file: "
-                                    << args["windows"].as<std::string>() << std::endl;
       std::map<std::size_t, std::size_t> coring_windows;
-      {
+      std::size_t size_for_all = 1;
+      try{  // read single integer as coring window
+        size_for_all = std::stoi(args["windows"].as<std::string>());
+      } catch (...) {  // read window file
+        Clustering::logger(std::cout) << "\n~~~ coring windows:\n    from file: "
+                                      << args["windows"].as<std::string>() << std::endl;
         std::ifstream ifs(args["windows"].as<std::string>());
-//        std::string buf1, buf2;
         std::string buf;
         std::size_t state, window;
-        std::size_t size_for_all = 1;
+        size_for_all = 1;
         if (ifs.fail()) {
           std::cerr << "error: cannot open file '"
                     << args["windows"].as<std::string>()
@@ -136,42 +138,34 @@ namespace Coring {
               ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             }
           }
-//          while (ifs.good()) {
-//            ifs >> buf1;
-//            ifs >> buf2;
-//            if (ifs.good()) {
-//              if (buf1 == "*") {
-//                size_for_all = string_to_num<std::size_t>(buf2);
-//              } else {
-//                coring_windows[string_to_num<std::size_t>(buf1)] = string_to_num<std::size_t>(buf2);
-//              }
-//            }
-//          }
-        }
-        // fill remaining, not explicitly defined states with common window size
-        std::size_t undefined_windows = 0;
-        for (std::size_t name: state_names) {
-          if ( ! coring_windows.count(name)){
-            coring_windows[name] = size_for_all;
-            ++undefined_windows;
-          }
-        }
-        // if only single coring window is used
-        if (coring_windows.size() == 0) {
-          commentsMap["single_coring_time"] = size_for_all;
-        }
-        header_comment.append(Clustering::Tools::stringprintf(
-                "#\n# coring specific parameters: \n"
-                "#    %i state-specific coring windows were read\n"
-                "#    %i frames is used for reamining states\n",
-                state_names.size() - undefined_windows, size_for_all));
-        Clustering::logger(std::cout) << "    " << state_names.size() - undefined_windows
-                                      << " state-specific coring windows were read" << std::endl;
-        if (size_for_all > 1) {
-        Clustering::logger(std::cout) << "    default window was set to " << size_for_all
-                                      << " frames" << std::endl;
         }
       }
+      // fill remaining, not explicitly defined states with common window size
+      std::size_t undefined_windows = 0;
+      for (std::size_t name: state_names) {
+        if ( ! coring_windows.count(name)){
+          coring_windows[name] = size_for_all;
+          ++undefined_windows;
+        }
+      }
+      // if only single coring window is used
+      if (coring_windows.size() == 0) {
+        commentsMap["single_coring_time"] = size_for_all;
+      }
+      header_comment.append(Clustering::Tools::stringprintf(
+        "#\n# coring specific parameters: \n"
+        "#    %i state-specific coring windows were read\n"
+        "#    %i frames is used for reamining states\n",
+      state_names.size() - undefined_windows, size_for_all));
+      if ((state_names.size() - undefined_windows) > 0) {
+        Clustering::logger(std::cout) << "    " << state_names.size() - undefined_windows
+                                      << " state-specific coring windows were read" << std::endl;
+      }
+      if (size_for_all > 1) {
+        Clustering::logger(std::cout) << "    default window was set to " << size_for_all
+                                      << " frames" << std::endl;
+      }
+
       // core trajectory
       Clustering::logger(std::cout) << "\n~~~ coring trajectory" << std::endl;
       std::vector<std::size_t> cored_traj(n_frames);
