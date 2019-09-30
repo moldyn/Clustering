@@ -101,7 +101,8 @@ namespace Filter {
 
       // get number of entering each state
       std::map<std::size_t, std::size_t> entered;
-      entered[states[0]] = 1;
+      std::map<std::size_t, std::size_t> left;
+      //entered[states[0]] = 1;
 //      std::size_t diff(n_frames);
       std::size_t last_limit = 0;
       for (std::size_t next_limit: concat_limits) {
@@ -114,15 +115,23 @@ namespace Filter {
             } else {
               entered[states[i+1]] = 1;
             }
+            std::map<std::size_t, std::size_t>::iterator it_l(left.find(states[i]));
+            if (it_l != left.end()){
+              it_l->second++;
+            } else {
+              left[states[i]] = 1;
+            }
+
           }
         }
         last_limit = next_limit_corrected;
       }
       std::cout << "~~~ state stats\n"
-                << "    state  population  pop [%]  tot [%]  entered" << std::endl;
+                << "    state  population  pop [%]  tot [%]  entered     left" << std::endl;
       std::cout << std::fixed;
       double total_pop = 0.;
       std::size_t total_entered = 0;
+      std::size_t total_left = 0;
       while ( ! pops.empty()) {
         auto pop_id = pops.top(); // get top element
         pops.pop(); // remove top element
@@ -141,6 +150,13 @@ namespace Filter {
         if (it != entered.end()){
           total_entered += it->second;
           fixedprint(it->second, 0, 9);
+        } else { // the following should never be the case
+          fixedprint(0, 0, 9);
+        }
+        std::map<std::size_t, std::size_t>::iterator it_l(left.find(pop_id.second));
+        if (it_l != left.end()){
+          total_left += it_l->second;
+          fixedprint(it_l->second, 0, 9);
         } else { // the following should never be the case
           fixedprint(0, 0, 9);
         }
