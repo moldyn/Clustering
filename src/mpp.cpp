@@ -162,7 +162,7 @@ namespace Clustering {
       std::size_t n_cols = count_matrix.size2();
       SparseMatrixF transition_matrix(n_rows, n_cols);
       for (std::size_t i: cluster_names) {
-        std::size_t row_sum = 0;
+        float row_sum = 0;
         for (std::size_t j=0; j < n_cols; ++j) {
           row_sum += count_matrix(i,j);
         }
