@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2017, Florian Sittel (www.lettis.net)
+Copyright (c) 2018-2020, Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -278,4 +279,3 @@ append_commentsMap(std::string &header_comment, std::map<std::string,float> &str
 
 } // end namespace Tools
 } // end namespace Clustering
-

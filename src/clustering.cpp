@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2017, Florian Sittel (www.lettis.net)
+Copyright (c) 2018-2020, Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -65,7 +66,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string version_number = "v1.2.2";
+  std::string version_number = "v1.3.0";
   // generate header string
   std::string leading_whitespace(25 - (19 + version_number.size())/2, ' ');
   std::ostringstream header_ostring;
@@ -78,7 +79,7 @@ int main(int argc, char* argv[]) {
   std::string clustering_copyright =
     header_ostring.str() + ""
     "\nclustering " + version_number + ": a classification framework for MD data\n"
-    "Copyright (c) 2015-2019, Florian Sittel and Daniel Nagel\n\n";
+    "Copyright (c) 2015-2020, Florian Sittel and Daniel Nagel\n\n";
   std::string general_help =
     clustering_copyright +
     "modes:\n"
@@ -381,14 +382,14 @@ int main(int argc, char* argv[]) {
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
           "verbose mode: print runtime information to STDOUT.")
-  ;  
-  // parse cmd arguments           
-  b_po::options_description desc;  
-  switch(mode){                    
-    case DENSITY:                  
+  ;
+  // parse cmd arguments
+  b_po::options_description desc;
+  switch(mode){
+    case DENSITY:
       desc.add(desc_dens);
-      break;                       
-    case MPP:                      
+      break;
+    case MPP:
       desc.add(desc_mpp);
       break;
     case NETWORK:
@@ -519,4 +520,3 @@ int main(int argc, char* argv[]) {
   }
   return EXIT_SUCCESS;
 }
-

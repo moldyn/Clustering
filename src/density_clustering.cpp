@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2017, Florian Sittel (www.lettis.net)
+Copyright (c) 2018-2020, Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -192,7 +193,7 @@ namespace Clustering {
       }
       return pops;
     }
-  
+
     std::vector<float>
     calculate_free_energies(const std::vector<std::size_t>& pops) {
       std::size_t i;
@@ -209,7 +210,7 @@ namespace Clustering {
       }
       return fe;
     }
-  
+
     std::vector<FreeEnergy>
     sorted_free_energies(const std::vector<float>& fe) {
       std::vector<FreeEnergy> fe_sorted;
@@ -225,7 +226,7 @@ namespace Clustering {
                 });
       return fe_sorted;
     }
- 
+
     std::tuple<Neighborhood, Neighborhood>
     nearest_neighbors(const float* coords,
                       const std::size_t n_rows,
@@ -285,7 +286,7 @@ namespace Clustering {
       }
       return std::make_tuple(nh, nh_high_dens);
     }
-  
+
     // returns neighborhood set of single frame.
     // all ids are sorted in free energy.
     std::set<std::size_t>
@@ -340,7 +341,7 @@ namespace Clustering {
       }
       return (sigma2 / nh.size());
     }
-  
+
     std::vector<std::size_t>
     assign_low_density_frames(const std::vector<std::size_t>& initial_clustering,
                               const Neighborhood& nh_high_dens,
@@ -739,7 +740,7 @@ namespace Clustering {
       if (args.count("output")) {
         if (args.count("radii")) {
             std::cerr << "error: output needs to depend on single radius\n"
-                      << "       several radii (-R is set)." << std::endl;
+                      << "       but several radii (-R) are set." << std::endl;
             exit(EXIT_FAILURE);
         }
 #ifdef USE_CUDA
@@ -825,4 +826,3 @@ namespace Clustering {
 #endif
   } // end namespace Density
 } // end namespace Clustering
-

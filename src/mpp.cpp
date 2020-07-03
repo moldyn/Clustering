@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2015-2019, Florian Sittel (www.lettis.net) and Daniel Nagel
+Copyright (c) 2015-2017, Florian Sittel (www.lettis.net)
+Copyright (c) 2018-2020, Daniel Nagel
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -263,7 +264,7 @@ namespace Clustering {
                     << i
                     << "' has self-transition probability of "
                     << transition_matrix(i,i)
-                    << " at Qmin " 
+                    << " at Qmin "
                     << q_min
                     << " and does not find any transition candidates."
                     << " please have a look at your trajectory!"
@@ -621,4 +622,3 @@ namespace Clustering {
     }
   } // end namespace MPP
 } // end namespace Clustering
-
