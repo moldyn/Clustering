@@ -27,9 +27,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/program_options.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <random>
 #include <queue>
 #include <map>
 #include <vector>
@@ -204,8 +206,37 @@ namespace Filter {
         Clustering::logger(std::cout) << "    use only every " << every_nth
                                       << "th frame" << std::endl;
       }
+      if (args.count("nRandom") and (every_nth > 1)) {
+        std::cerr << "\nerror parsing arguments:\n\n"
+                  << "Use either 'every-nth' or 'nRandom'"
+                  << "\n\n" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      std::size_t nRandom = 0;
+      if (args.count("nRandom")) {
+        nRandom = args["nRandom"].as<std::size_t>();
+      }
+      // initialize random number generator
+      std::random_device rd;
+      std::mt19937 g(rd());
       for (std::size_t selected_state: selected_states){
-        // open coords
+        std::vector<std::size_t> selected_state_idx;
+        if (nRandom > 0) {
+          // get all indices corresponding to selected state
+          for(std::size_t idx=0; idx<states.size(); ++idx){
+              if (states[idx] == selected_state) {
+                selected_state_idx.push_back(idx);
+              }
+          }
+
+          // catch if state has less frames than requested
+          std::size_t nRandomState = std::min(nRandom, selected_state_idx.size());
+          // shuffle indices
+          std::shuffle(selected_state_idx.begin(), selected_state_idx.end(), g);
+          // extract first nRandom one
+          selected_state_idx = {selected_state_idx.begin(), selected_state_idx.begin() + nRandomState};
+        }
+         // open coords
         CoordsFile::FilePointer coords_in = CoordsFile::open(coords_name, "r");
         // get output name
         std::string basename = output_basename + ".state%i" + file_extension;
@@ -218,14 +249,22 @@ namespace Filter {
                                       << output_name
                                       << std::endl;
         std::size_t nth = 0;  // counting frames
-        for (std::size_t s: states) {
-          if (s == selected_state) {
-            if ((nth % every_nth) == 0) {
-              coords_out->write(coords_in->next());
+        for (std::size_t idx=0; idx< n_frames; ++idx) {
+          if (states[idx] == selected_state) {
+            if (nRandom > 0) {
+              if (std::count(selected_state_idx.begin(), selected_state_idx.end(), idx)) {
+                coords_out->write(coords_in->next());
+              } else {
+                coords_in->next();
+              }
             } else {
-              coords_in->next();
+              if ((nth % every_nth) == 0) {
+                coords_out->write(coords_in->next());
+              } else {
+                coords_in->next();
+              }
+              ++nth;
             }
-            ++nth;
           } else {
             coords_in->next();
           }
@@ -235,4 +274,3 @@ namespace Filter {
   }
 } // end namespace Filter
 } // end namespace Clustering
-

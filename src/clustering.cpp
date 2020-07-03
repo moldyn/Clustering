@@ -279,6 +279,9 @@ int main(int argc, char* argv[]) {
           "state ids of selected states. Default all states.")
     ("every-nth", b_po::value<std::size_t>()->default_value(1),
           "Take only every nth frame. Default all frames.")
+    ("nRandom", b_po::value<std::size_t>(),
+          "Extract n random frames for each state. The output is sorted by"
+          "indices.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),
           "verbose mode: print runtime information to STDOUT.")
