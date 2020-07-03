@@ -72,6 +72,7 @@ clustering filter -s state_file
                   -o output_basename
                   -S selection_of_states
                   --every-nth num
+                  --nRandom num
                   -v</code>
             </pre>
           </div>
@@ -102,6 +103,11 @@ clustering filter -s state_file
               <td>Write out only every nth frame. This can be useful to
               directly open a splitted xtc file in VMD. (Default: use all
               frames).</td>
+            </tr>
+            <tr>
+              <td>\(\mathtt{\mbox{-}\mbox{-}nRandom :}\) </td>
+              <td>Extract num random selected frames for each state.
+	       The output is sorted by indices. </td>
             </tr>
           </table>
 
