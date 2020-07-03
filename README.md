@@ -117,6 +117,11 @@ To quickly get a working (but possibly underperforming) binary
     # make install 
 ```
 
+If you want to have bash completion enabled, you need to add following line to your `.bashrc`
+```bash
+    # source /my/installation/path/bash_completion_clustering.sh
+```
+
 ## Optimized Binaries and Custom Build Options
 
 ### CUDA
