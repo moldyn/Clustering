@@ -218,7 +218,10 @@
           Hence, we do not use the flag \(\mathtt{\mbox{-}r}\) here to set
           \(R = d_\text{lump}\). Nonetheless, in some cases (eg. if the sampling
           is relatively high and the dimensionality rather small) \(R\) should be
-          chosen differently.</p>
+          chosen differently. It should be noted, that \(R\) and \(d_\text{lump}\)
+          are in general independet variabels: while \(R\) needs to be small enough
+          to ensure local constant density, \(d_\text{lump}\) determines only the
+          desired level of coarse-graining.</p>
         <p>
 
           This code generates the population file \(\mathtt{pop}\), the free
@@ -307,7 +310,7 @@
           \(\mathtt{\mbox{-}d}\)/\(\mathtt{\mbox{-}b}\).
 
           In this step clusters (geometrically connected regions) are generated
-          for all points below the free energy threshold (e.g. for
+          for all points below the free energy threshold, e.g., for
           \(\mathtt{cluster.2.6}\) all points with free energy \(\Delta G \le
           2.6\, \text{k}T\) are used. The files are single column files.
         </p>
@@ -348,15 +351,16 @@
             \(P_\text{min}\)</li>
         </ul>
         <p>
-          The concept of minimal population should be used carefully. It should
-          only be used to remove local fluctuation within a minimum and not to
-          lump close minima. Latter is non-physical and leads to bad defined
-          states. If one is interested in macrostates a dynamical clustering
-          method, e.g. MPP, should be used. In the following figures we compare
-          the number of resulting states \(k\) with the minimal population
-          \(P_\text{min}\). For obtaining this plot we used \(\mathtt{noise}\)
-          with \(c_\text{min}=0.1\).
-        </p>
+          The concept of minimal population \(P_\text{min}\) should be used
+          carefully. It should only be used to remove local fluctuation within
+          a minimum and not to lump close minima. Latter is non-physical and
+          leads to bad defined states. If one is interested in macrostates a
+          dynamical clustering method, e.g. MPP, should be used. In the 
+          following figures we compare the number of resulting states \(k\)
+          with the minimal population \(P_\text{min}\). To be comparable
+          between different data sets, \(P_\text{min}\) is usually given in
+          percent of the total number of frames. For obtaining this plot we
+          used \(\mathtt{noise}\) with \(c_\text{min}=0.1\). </p>
         <figure>
           <img src="figures/kofpmin_log.png" alt="k vs pmin" class="fe-size">
           <img src="figures/kofpmin.png" alt="k vs pmin" class="fe-size">
