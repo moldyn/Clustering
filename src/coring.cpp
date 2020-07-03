@@ -32,6 +32,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <algorithm>
 #include <vector>
+#include <numeric>
 
 #include <omp.h>
 
@@ -68,6 +69,7 @@ namespace Coring {
     std::vector<std::size_t> states = Clustering::Tools::read_clustered_trajectory(args["states"].as<std::string>());
     std::set<std::size_t> state_names(states.begin(), states.end());
     std::size_t n_frames = states.size();
+    bool iterative_coring = args["iterative"].as<bool>();
     std::string header_comment = args["header"].as<std::string>();
     std::map<std::string,float> commentsMap = args["commentsMap"].as<std::map<std::string,float>>();
     // read previously used parameters
@@ -157,6 +159,9 @@ namespace Coring {
         "#    %i state-specific coring windows were read\n"
         "#    %i frames is used for reamining states\n",
       state_names.size() - undefined_windows, size_for_all));
+      if (iterative_coring) {
+          header_comment.append("# iterative mode active\n");
+      }
       if ((state_names.size() - undefined_windows) > 0) {
         Clustering::logger(std::cout) << "    " << state_names.size() - undefined_windows
                                       << " state-specific coring windows were read" << std::endl;
@@ -169,58 +174,98 @@ namespace Coring {
       // core trajectory
       Clustering::logger(std::cout) << "\n~~~ coring trajectory" << std::endl;
       std::vector<std::size_t> cored_traj(n_frames);
-      std::size_t current_core = states[0];
+      // copy states trajectory
+      std::vector<std::size_t> cored_traj_prev(n_frames);
+      std::copy(states.begin(), states.end(), cored_traj_prev.begin());
       std::vector<long> cores(n_frames);
       std::size_t changed_frames = 0;
-      bool is_in_core = true;
-      // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
-      std::size_t last_limit = 0;
-      for (std::size_t next_limit: concat_limits) {
-        // this should never have an impact for correct limits
-        std::size_t next_limit_corrected = std::min(next_limit, n_frames);
-        // find first core
-        current_core = states[last_limit];  // fallback option
-        for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
-          std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
-          for (std::size_t j=i+1; j < w; ++j) {
-            if (states[j] != states[i]) {
-              goto try_next_state;
-            }
+
+      // get greatest coring window
+      auto max_window_iter = std::max_element(
+          coring_windows.begin(), coring_windows.end(),
+          [](const std::pair<std::size_t, std::size_t>& p1, const std::pair<std::size_t, std::size_t>& p2) {
+              return p1.second < p2.second;
           }
-          current_core = states[i];
-          break;
+      );
+      std::size_t max_window = max_window_iter->second;
+      Clustering::logger(std::cout) << "    max coring window: " << max_window << std::endl;
 
-          try_next_state: ;
-        }
+      // generate range with iterative slices or single value
+      std::vector<std::size_t> max_coring_window;
+      if (iterative_coring) {
+          max_coring_window.resize(max_window-1);
+          std::iota(max_coring_window.begin(), max_coring_window.end(), 2);
+      } else {
+          max_coring_window.push_back(max_window);
+      }
 
-        // core trajectories
-        for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
-          // coring window
-          if (i+coring_windows[states[i]] <= next_limit) {
-            std::size_t w = std::min(i+coring_windows[states[i]], next_limit);
-            is_in_core = true;
-            for (std::size_t j=i+1; j < w; ++j) {
-              if (states[j] != states[i]) {
-                is_in_core = false;
-                break;
+      for (std::size_t curr_max_window: max_coring_window) {
+          std::size_t current_core = cored_traj_prev[0];
+          bool is_in_core = true;
+          // honour concatenation limits, i.e. treat every concatenated trajectory-part on its own
+          std::size_t last_limit = 0;
+          for (std::size_t next_limit: concat_limits) {
+            // this should never have an impact for correct limits
+            std::size_t next_limit_corrected = std::min(next_limit, n_frames);
+            // find first core
+            current_core = cored_traj_prev[last_limit];  // fallback option
+            for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
+              std::size_t cw = std::min(curr_max_window, coring_windows[cored_traj_prev[i]]);
+              std::size_t w = std::min(i+cw, next_limit);
+              for (std::size_t j=i+1; j < w; ++j) {
+                if (cored_traj_prev[j] != cored_traj_prev[i]) {
+                  goto try_next_state;
                 }
-            }
-          } else {
-            is_in_core = false;
-          }
+              }
+              current_core = cored_traj_prev[i];
+              break;
 
-          if (is_in_core) {
-            current_core = states[i];
-            cores[i] = current_core;
-          } else {
-            cores[i] = -1;
+              try_next_state: ;
+            }
+            // core trajectories
+            for (std::size_t i=last_limit; i < next_limit_corrected; ++i) {
+              // coring window
+              std::size_t cw = std::min(curr_max_window, coring_windows[cored_traj_prev[i]]);
+              if (i+cw <= next_limit) {
+                // std::size_t w = std::min(i+cw, next_limit_corrected);
+                is_in_core = true;
+                std::size_t j;
+                // for iterative coring only last frame needs to be checked
+                if (iterative_coring) {
+                    j=i+cw-1;
+                } else {
+                    j=i+1;
+                }
+                for (; j < i+cw; ++j) {
+                  if (cored_traj_prev[j] != cored_traj_prev[i]) {
+                    is_in_core = false;
+                    break;
+                    }
+                }
+              } else {  // <-- so last frames can not be in core? should be true
+                is_in_core = false;
+              }
+
+              if (is_in_core) {
+                current_core = cored_traj_prev[i];
+              }
+
+              // generate statistic only for last iteration
+              if (curr_max_window == max_window) {
+                if (is_in_core) {
+                  cores[i] = current_core;
+                } else {
+                  cores[i] = -1;
+                }
+                if (current_core != states[i]) {
+                  ++changed_frames;
+                }
+              }
+              cored_traj[i] = current_core;
+            }
+            last_limit = next_limit_corrected;
           }
-          if (current_core != states[i]) {
-            ++changed_frames;
-          }
-          cored_traj[i] = current_core;
-        }
-        last_limit = next_limit_corrected;
+        std::copy(cored_traj.begin(), cored_traj.end(), cored_traj_prev.begin());
       }
       float changed_frames_perc = (float) 100*changed_frames / n_frames;
       Clustering::logger(std::cout) << Clustering::Tools::stringprintf("    %.2f", changed_frames_perc)

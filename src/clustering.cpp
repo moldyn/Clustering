@@ -342,6 +342,8 @@ int main(int argc, char* argv[]) {
           " concatenated trajectory of three chunks of sizes 100, 50 and 300 "
           "frames: '100 50 300'")
     // defaults
+    ("iterative", b_po::bool_switch()->default_value(false),
+          "increase coring time frame by frame.")
     ("verbose,v", b_po::bool_switch()->default_value(false),
           "verbose mode: print runtime information to STDOUT.")
   ;
@@ -429,7 +431,7 @@ int main(int argc, char* argv[]) {
     args.insert(std::make_pair("verbose", b_po::variable_value(true, false)));
   }
   // setup defaults
-  if (args.count("verbose")) {
+  if (args.count("verbose")) {  // <-- Useless, because default values?
     Clustering::verbose = args["verbose"].as<bool>();
   }
   // print head
