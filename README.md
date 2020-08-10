@@ -75,8 +75,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF TH
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-
 # Installation
+This package can be installed with conda via
+```
+conda install moldyn-clustering -c conda-forge
+```
+If conda is not available, it can be compiled as well.
+
+# Compilation
 ## Requirements
  required:
   -  **BOOST >= 1.49**
