@@ -47,11 +47,14 @@
       <h3 class="section__title">Installation</h3>
       <div class="tab__container">
         <ul class="tab__menu">
-          <li class="tab active" data-tab="linux">linux</li>
-          <li class="tab" data-tab="mac">mac</li>
+          <li class="tab active" data-tab="conda">conda</li>
+          <li class="tab" data-tab="compilation">compilation</li>
         </ul>
         <pre class="nohighlight code">
-            <code class="tab__pane active linux">
+            <code class="tab__pane active conda">
+	        $ conda conda install moldyn-clustering -c conda-forge
+	    </code>
+            <code class="tab__pane compilation">
                 $ git clone https://github.com/moldyn/Clustering.git<br>
                 $ cd clustering<br>
                 $ mkdir build<br>
@@ -59,7 +62,6 @@
                 $ cmake .. -DCMAKE_INSTALL_PREFIX=/my/installation/path <br>
                 $ make
             </code>
-            <code class="tab__pane mac">Mac is not supported, but should work. Good luck!</code>
           </pre>
       </div>
     </div>
