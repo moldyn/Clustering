@@ -84,8 +84,6 @@ else()
   message(SEND_ERROR "currently no other compiler than the GCC is supported. sorry.")
 endif()
 
-
-
 configure_file(config.hpp.cmake.in ${CMAKE_BINARY_DIR}/generated/config.hpp)
 include_directories(${CMAKE_BINARY_DIR}/generated/)
 
