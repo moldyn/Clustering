@@ -66,7 +66,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 int main(int argc, char* argv[]) {
   namespace b_po = boost::program_options;
-  std::string version_number = "v1.3.0";
+  std::string version_number = "v1.3.1";
   // generate header string
   std::string leading_whitespace(25 - (19 + version_number.size())/2, ' ');
   std::ostringstream header_ostring;
@@ -280,7 +280,7 @@ int main(int argc, char* argv[]) {
     ("every-nth", b_po::value<std::size_t>()->default_value(1),
           "Take only every nth frame. Default all frames.")
     ("nRandom", b_po::value<std::size_t>(),
-          "Extract n random frames for each state. The output is sorted by"
+          "Extract n random frames for each state. The output is sorted by "
           "indices.")
     // defaults
     ("verbose,v", b_po::bool_switch()->default_value(false),

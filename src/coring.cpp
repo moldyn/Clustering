@@ -193,7 +193,7 @@ namespace Coring {
 
       // generate range with iterative slices or single value
       std::vector<std::size_t> max_coring_window;
-      if (iterative_coring) {
+      if (iterative_coring && max_window > 1) {
           max_coring_window.resize(max_window-1);
           std::iota(max_coring_window.begin(), max_coring_window.end(), 2);
       } else {
