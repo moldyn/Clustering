@@ -75,8 +75,14 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF TH
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-
 # Installation
+This package can be installed with conda via
+```
+conda install moldyn-clustering -c conda-forge
+```
+If conda is not available, it can be compiled as well.
+
+# Compilation
 ## Requirements
  required:
   -  **BOOST >= 1.49**
@@ -119,7 +125,8 @@ To quickly get a working (but possibly underperforming) binary
 
 If you want to have bash completion enabled, you need to add following line to your `.bashrc`
 ```bash
-    # source /my/installation/path/bash_completion_clustering.sh
+   # in file .bashrc
+   source /my/installation/path/bash_completion_clustering.sh
 ```
 
 ## Optimized Binaries and Custom Build Options
