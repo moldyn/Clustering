@@ -605,8 +605,12 @@ namespace Clustering {
         }
       }
       // write transitions to file
+      Clustering::Tools::append_commentsMap(header_comment, commentsMap);
       {
         std::ofstream ofs(basename + "_transitions.dat");
+	ofs << header_comment;
+	ofs << "#\n# Specifies the linkage matrix, so at which qmin value\n"
+	    << "# which states are lumped.\n# state_i state_j qmin\n";
         for (auto trans: transitions) {
           ofs << trans.first
               << " "
@@ -616,7 +620,6 @@ namespace Clustering {
               << "\n";
         }
       }
-      Clustering::Tools::append_commentsMap(header_comment, commentsMap);
       write_map<std::size_t, std::size_t>(basename + "_max_pop.dat", max_pop, header_comment);
       write_map<std::size_t, float>(basename + "_max_qmin.dat", max_qmin, header_comment);
     }
