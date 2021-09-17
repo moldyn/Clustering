@@ -172,6 +172,20 @@ namespace Coring {
                                       << " frames" << std::endl;
       }
 
+      // get smallest coring window to prevent window of size 0
+      auto min_window_iter = std::min_element(
+          coring_windows.begin(), coring_windows.end(),
+          [](const std::pair<std::size_t, std::size_t>& p1, const std::pair<std::size_t, std::size_t>& p2) {
+              return p1.second < p2.second;
+          }
+      );
+      std::size_t min_window = min_window_iter->second;
+      if (min_window == 0) {
+          std::cerr << "error: no window of size 0 is allowed. A window of length 1"
+                    << " corresponds to no coring" << std::endl;
+          exit(EXIT_FAILURE);
+      }
+
       // core trajectory
       Clustering::logger(std::cout) << "\n~~~ coring trajectory" << std::endl;
       std::vector<std::size_t> cored_traj(n_frames);
