@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
   std::string clustering_copyright =
     header_ostring.str() + ""
     "\nclustering " + version_number + ": a classification framework for MD data\n"
-    "Copyright (c) 2015-2017, Florian Sittel\n";
+    "Copyright (c) 2015-2017, Florian Sittel\n"
     "Copyright (c) 2018-2021, Daniel Nagel\n\n";
   std::string general_help =
     clustering_copyright +
