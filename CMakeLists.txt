@@ -48,6 +48,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmissing-declarations")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-gpu-targets")
 
   if (NATIVE_COMPILATION)
     message("native compilation: this code will ONLY run on THIS machine")
@@ -111,7 +112,7 @@ if(${USE_CUDA})
   find_package(CUDA REQUIRED)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++11;-O3;-DVERBOSE;-Xcompiler -fopenmp")
-  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-arch=compute_30")
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-arch=compute_35")
   # debugging
   #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-g -G")
 
